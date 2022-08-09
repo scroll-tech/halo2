@@ -30,13 +30,14 @@ mod verifier;
 pub use assigned::*;
 pub use circuit::*;
 pub use error::*;
+pub use evaluation::*;
 pub use keygen::*;
 pub use prover::*;
 pub use verifier::*;
 
 use std::io;
 
-use self::evaluation::Evaluator;
+pub use self::evaluation::Evaluator;
 
 /// This is a verifying key which allows for the verification of proofs for a
 /// particular circuit.
@@ -147,12 +148,22 @@ impl<C: CurveAffine> ProvingKey<C> {
     pub fn get_vk(&self) -> &VerifyingKey<C> {
         &self.vk
     }
+
+    /// Get the underlying [`Evaluator`].
+    pub fn get_ev(&self) -> &Evaluator<C> {
+        &self.ev
+    }
 }
 
 impl<C: CurveAffine> VerifyingKey<C> {
     /// Get the underlying [`EvaluationDomain`].
     pub fn get_domain(&self) -> &EvaluationDomain<C::Scalar> {
         &self.domain
+    }
+
+    /// Get the underlying [`ConstraintSystem`].
+    pub fn get_cs(&self) -> &ConstraintSystem<C::Scalar> {
+        &self.cs
     }
 }
 

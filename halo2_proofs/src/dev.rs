@@ -24,6 +24,9 @@ mod util;
 pub mod cost;
 pub use cost::CircuitCost;
 
+pub mod cost_model;
+pub use cost_model::*;
+
 mod gates;
 pub use gates::CircuitGates;
 
