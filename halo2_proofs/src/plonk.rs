@@ -157,6 +157,11 @@ impl<C: CurveAffine> VerifyingKey<C> {
     pub fn cs(&self) -> &ConstraintSystem<C::Scalar> {
         &self.cs
     }
+
+    /// Returns `Domain`
+    pub fn domain_ref(&self) -> &EvaluationDomain<C::Scalar> {
+        &self.domain
+    }    
 }
 
 /// Minimal representation of a verification key that can be used to identify

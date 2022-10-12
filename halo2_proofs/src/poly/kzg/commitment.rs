@@ -144,12 +144,17 @@ impl<E: Engine + Debug> ParamsKZG<E> {
     pub fn s_g2(&self) -> E::G2Affine {
         self.s_g2
     }
+
+    /// Returns a reference to g_lagrange bases
+    pub fn g_lagrange_ref(&self) -> &[E::G1Affine] {
+    &    self.g_lagrange
+    }
 }
 
 // TODO: see the issue at https://github.com/appliedzkp/halo2/issues/45
 // So we probably need much smaller verifier key. However for new bases in g1 should be in verifier keys.
 /// KZG multi-open verification parameters
-pub type ParamsVerifierKZG<C> = ParamsKZG<C>;
+pub type ParamsVerifierKZG<E> = ParamsKZG<E>;
 
 impl<'params, E: Engine + Debug> Params<'params, E::G1Affine> for ParamsKZG<E> {
     type MSM = MSMKZG<E>;
