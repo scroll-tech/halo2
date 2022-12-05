@@ -77,7 +77,7 @@ pub fn create_proof<
         pub instance_polys: Vec<Polynomial<C::Scalar, Coeff>>,
     }
 
-    let instance_timer = start_timer!(|| "instnaces commitment");
+    let instance_timer = start_timer!(|| "instances commitment");
     let instance: Vec<InstanceSingle<Scheme::Curve>> = instances
         .iter()
         .map(|instance| -> Result<InstanceSingle<Scheme::Curve>, Error> {
@@ -338,7 +338,7 @@ pub fn create_proof<
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
 
-    let lookup_timer = start_timer!(|| "lookup commitment");
+    let lookup_timer = start_timer!(|| "lookup commit permutation");
     let lookups: Vec<Vec<lookup::prover::Permuted<Scheme::Curve>>> = instance
         .iter()
         .zip(advice.iter())
@@ -392,8 +392,9 @@ pub fn create_proof<
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
-    end_timer!(lookup_timer);
+    end_timer!(perm_timer);
 
+    let lookup_timer = start_timer!(|| "lookup commit product");
     let lookups: Vec<Vec<lookup::prover::Committed<Scheme::Curve>>> = lookups
         .into_iter()
         .map(|lookups| -> Result<Vec<_>, _> {
@@ -404,8 +405,11 @@ pub fn create_proof<
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
+    end_timer!(lookup_timer);
 
     // Commit to the vanishing argument's random polynomial for blinding h(x_3)
+
+    let h_timer = start_timer!(|| "compute h(X)");
     let vanishing = vanishing::Argument::commit(params, domain, &mut rng, transcript)?;
 
     // Obtain challenge for keeping all separate gates linearly independent
@@ -451,7 +455,10 @@ pub fn create_proof<
 
     // Construct the vanishing argument's h(X) commitments
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;
+    end_timer!(h_timer);
 
+
+    let eval_timer = start_timer!(|| "polynomial evaluations");
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
     let xn = x.pow(&[params.n() as u64, 0, 0, 0]);
 
@@ -577,12 +584,14 @@ pub fn create_proof<
         .chain(pk.permutation.open(x))
         // We query the h(X) polynomial at x
         .chain(vanishing.open(x));
+    end_timer!(eval_timer);
 
+    let multi_open_timer = start_timer!(|| "multi opening");
     let prover = P::new(params);
     let res = prover
         .create_proof(rng, transcript, instances)
         .map_err(|_| Error::ConstraintSystemFailure);
-
+    end_timer!(multi_open_timer);
     end_timer!(timer);
     res
 }
