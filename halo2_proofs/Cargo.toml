@@ -48,13 +48,15 @@ backtrace = { version = "0.3", optional = true }
 rayon = "1.5.1"
 ff = "0.12"
 group = "0.12"
-halo2curves = { git = 'https://github.com/scroll-tech/halo2curves/', branch = "sync-halo2-ecc-1013" }
+halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.3.0" }
+# halo2curves = { git = 'https://github.com/scroll-tech/halo2curves/', branch = "sync-halo2-ecc-1013" }
 rand_core = { version = "0.6", default-features = false }
 tracing = "0.1"
 blake2b_simd = "1"
 subtle = "2.3"
 cfg-if = "0.1"
-poseidon = { git = 'https://github.com/scroll-tech/poseidon.git', branch = "sync-halo2-ecc-1013" } 
+poseidon = { git = 'https://github.com/privacy-scaling-explorations/poseidon.git', dev = "5d29df01a95e3df6334080d28e983407f56b5da3" } 
+# poseidon = { git = 'https://github.com/scroll-tech/poseidon.git', branch = "sync-halo2-ecc-1013" } 
 num-integer = "0.1"
 num-bigint = { version = "0.4", features = ["rand"] }
 
