@@ -8,7 +8,7 @@ use crate::{
 
 use super::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation};
 
-use ark_std::{start_timer, end_timer};
+use ark_std::{end_timer, start_timer};
 use group::ff::{BatchInvert, Field, PrimeField};
 
 use std::marker::PhantomData;
@@ -244,7 +244,7 @@ impl<G: Group> EvaluationDomain<G> {
         &self,
         mut a: Polynomial<G, Coeff>,
     ) -> Polynomial<G, ExtendedLagrangeCoeff> {
-        let timer = start_timer!(|| format!("begin fft of dim {}", self.k));
+        let timer = start_timer!(|| format!("begin (coset) fft of dim {}", self.extended_len()));
         assert_eq!(a.values.len(), 1 << self.k);
 
         self.distribute_powers_zeta(&mut a.values, true);

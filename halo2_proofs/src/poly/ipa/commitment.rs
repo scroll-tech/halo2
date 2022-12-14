@@ -11,6 +11,7 @@ use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, Par
 use crate::poly::ipa::msm::MSMIPA;
 use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
+use ark_std::{end_timer, start_timer};
 use ff::{Field, PrimeField};
 use group::{prime::PrimeCurveAffine, Curve, Group as _};
 use std::marker::PhantomData;
@@ -94,6 +95,8 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         poly: &Polynomial<C::Scalar, LagrangeCoeff>,
         r: Blind<C::Scalar>,
     ) -> C::Curve {
+        let timer = start_timer!(|| "commit largrange of dim {}");
+
         let mut tmp_scalars = Vec::with_capacity(poly.len() + 1);
         let mut tmp_bases = Vec::with_capacity(poly.len() + 1);
 
@@ -103,7 +106,9 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         tmp_bases.extend(self.g_lagrange.iter());
         tmp_bases.push(self.w);
 
-        best_multiexp::<C>(&tmp_scalars, &tmp_bases)
+        let res = best_multiexp::<C>(&tmp_scalars, &tmp_bases);
+        end_timer!(timer);
+        res
     }
 
     /// Writes params to a buffer.
@@ -214,6 +219,7 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
     /// slice of coefficients. The commitment will be blinded by the blinding
     /// factor `r`.
     fn commit(&self, poly: &Polynomial<C::Scalar, Coeff>, r: Blind<C::Scalar>) -> C::Curve {
+        let timer = start_timer!(||format!("commit to dim {} poly", poly.len() + 1));
         let mut tmp_scalars = Vec::with_capacity(poly.len() + 1);
         let mut tmp_bases = Vec::with_capacity(poly.len() + 1);
 
@@ -223,7 +229,9 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
         tmp_bases.extend(self.g.iter());
         tmp_bases.push(self.w);
 
-        best_multiexp::<C>(&tmp_scalars, &tmp_bases)
+        let res = best_multiexp::<C>(&tmp_scalars, &tmp_bases);
+        end_timer!(timer);
+        res
     }
 
     fn get_g(&self) -> &[C] {

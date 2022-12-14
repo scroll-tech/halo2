@@ -314,11 +314,14 @@ pub fn create_proof<
                     .map(|(poly, blind)| params.commit_lagrange(poly, *blind))
                     .collect();
                 let mut advice_commitments =
-                    vec![Scheme::Curve::identity(); advice_commitments_projective.len()];
+                    vec![Scheme::Curve::identity(); advice_commitments_projective.len()];   
+
+                let sub_timer = start_timer!(||"batch normalization");
                 <Scheme::Curve as CurveAffine>::CurveExt::batch_normalize(
                     &advice_commitments_projective,
                     &mut advice_commitments,
                 );
+                end_timer!(sub_timer);
                 let advice_commitments = advice_commitments;
                 drop(advice_commitments_projective);
 
@@ -408,7 +411,6 @@ pub fn create_proof<
     end_timer!(lookup_timer);
 
     // Commit to the vanishing argument's random polynomial for blinding h(x_3)
-
     let h_timer = start_timer!(|| "compute h(X)");
     let sub_timer = start_timer!(|| "vanishing commit");
     let vanishing = vanishing::Argument::commit(params, domain, &mut rng, transcript)?;
@@ -418,7 +420,6 @@ pub fn create_proof<
     let sub_timer = start_timer!(|| "get challenge");
     let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
     end_timer!(sub_timer);
-
 
     // Calculate the advice polys
     let sub_timer = start_timer!(|| "Calculate the advice polys");
@@ -440,7 +441,6 @@ pub fn create_proof<
         )
         .collect();
     end_timer!(sub_timer);
-
 
     // Evaluate the h(X) polynomial
     let sub_timer = start_timer!(|| "Evaluate the h(X) polynomial");
@@ -466,7 +466,6 @@ pub fn create_proof<
     // Construct the vanishing argument's h(X) commitments
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;
     end_timer!(h_timer);
-
 
     let eval_timer = start_timer!(|| "polynomial evaluations");
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
