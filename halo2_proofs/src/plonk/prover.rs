@@ -410,12 +410,18 @@ pub fn create_proof<
     // Commit to the vanishing argument's random polynomial for blinding h(x_3)
 
     let h_timer = start_timer!(|| "compute h(X)");
+    let sub_timer = start_timer!(|| "vanishing commit");
     let vanishing = vanishing::Argument::commit(params, domain, &mut rng, transcript)?;
+    end_timer!(sub_timer);
 
     // Obtain challenge for keeping all separate gates linearly independent
+    let sub_timer = start_timer!(|| "get challenge");
     let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
+    end_timer!(sub_timer);
+
 
     // Calculate the advice polys
+    let sub_timer = start_timer!(|| "Calculate the advice polys");
     let advice: Vec<AdviceSingle<Scheme::Curve, Coeff>> = advice
         .into_iter()
         .map(
@@ -433,8 +439,11 @@ pub fn create_proof<
             },
         )
         .collect();
+    end_timer!(sub_timer);
+
 
     // Evaluate the h(X) polynomial
+    let sub_timer = start_timer!(|| "Evaluate the h(X) polynomial");
     let h_poly = pk.ev.evaluate_h(
         pk,
         &advice
@@ -452,6 +461,7 @@ pub fn create_proof<
         &lookups,
         &permutations,
     );
+    end_timer!(sub_timer);
 
     // Construct the vanishing argument's h(X) commitments
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;

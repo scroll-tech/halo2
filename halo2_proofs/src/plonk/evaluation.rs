@@ -319,6 +319,7 @@ impl<C: CurveAffine> Evaluator<C> {
 
         // Core expression evaluations
         let num_threads = multicore::current_num_threads();
+        println!("using {} of threads", num_threads);
         for (((advice, instance), lookups), permutation) in advice
             .iter()
             .zip(instance.iter())
