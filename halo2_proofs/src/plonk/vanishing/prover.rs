@@ -44,18 +44,21 @@ impl<C: CurveAffine> Argument<C> {
         R: RngCore,
         T: TranscriptWrite<C, E>,
     >(
-        _params: &P,
+        params: &P,
         domain: &EvaluationDomain<C::Scalar>,
-        mut _rng: R,
+        mut rng: R,
         transcript: &mut T,
     ) -> Result<Committed<C>, Error> {
         // Sample a random polynomial of degree n - 1
-        let random_poly = domain.empty_coeff();
+        let mut random_poly = domain.empty_coeff();
+        for coeff in random_poly.iter_mut() {
+            *coeff = C::Scalar::random(&mut rng);
+        }
         // Sample a random blinding factor
-        let random_blind = Blind(C::Scalar::zero());
-        let c = C::identity();
-        // We write the identity point to the transcript which
-        // is the commitment of the zero polynomial.
+        let random_blind = Blind(C::Scalar::random(rng));
+
+        // Commit
+        let c = params.commit(&random_poly, random_blind).to_affine();
         transcript.write_point(c)?;
 
         Ok(Committed {
