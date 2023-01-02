@@ -225,13 +225,13 @@ impl<G: Group> EvaluationDomain<G> {
     /// This function will panic if the provided vector is not the correct
     /// length.
     pub fn lagrange_to_coeff(&self, mut a: Polynomial<G, LagrangeCoeff>) -> Polynomial<G, Coeff> {
-        let timer = start_timer!(|| format!("begin ifft of dim {}", self.k));
+        // let timer = start_timer!(|| format!("begin ifft of dim {}", self.k));
         assert_eq!(a.values.len(), 1 << self.k);
 
         // Perform inverse FFT to obtain the polynomial in coefficient form
         Self::ifft(&mut a.values, self.omega_inv, self.k, self.ifft_divisor);
 
-        end_timer!(timer);
+        // end_timer!(timer);
         Polynomial {
             values: a.values,
             _marker: PhantomData,
@@ -244,13 +244,13 @@ impl<G: Group> EvaluationDomain<G> {
         &self,
         mut a: Polynomial<G, Coeff>,
     ) -> Polynomial<G, ExtendedLagrangeCoeff> {
-        let timer = start_timer!(|| format!("begin (coset) fft of dim {}", self.extended_len()));
+        // let timer = start_timer!(|| format!("begin (coset) fft of dim {}", self.extended_len()));
         assert_eq!(a.values.len(), 1 << self.k);
 
         self.distribute_powers_zeta(&mut a.values, true);
         a.values.resize(self.extended_len(), G::group_zero());
         best_fft(&mut a.values, self.extended_omega, self.extended_k);
-        end_timer!(timer);
+        // end_timer!(timer);
         Polynomial {
             values: a.values,
             _marker: PhantomData,

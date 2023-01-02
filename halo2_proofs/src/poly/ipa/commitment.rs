@@ -95,7 +95,7 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         poly: &Polynomial<C::Scalar, LagrangeCoeff>,
         r: Blind<C::Scalar>,
     ) -> C::Curve {
-        let timer = start_timer!(|| "commit largrange of dim {}");
+        // let timer = start_timer!(|| "commit largrange of dim {}");
 
         let mut tmp_scalars = Vec::with_capacity(poly.len() + 1);
         let mut tmp_bases = Vec::with_capacity(poly.len() + 1);
@@ -107,7 +107,7 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         tmp_bases.push(self.w);
 
         let res = best_multiexp::<C>(&tmp_scalars, &tmp_bases);
-        end_timer!(timer);
+        // end_timer!(timer);
         res
     }
 
