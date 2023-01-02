@@ -46,11 +46,11 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
     {
         // Sample x_1 for compressing openings at the same point sets together
         let x_1: ChallengeX1<_> = transcript.squeeze_challenge_scalar();
-
+        println!("verifier x_1: {:?}", x_1);
         // Sample a challenge x_2 for keeping the multi-point quotient
         // polynomial terms linearly independent.
         let x_2: ChallengeX2<_> = transcript.squeeze_challenge_scalar();
-
+        println!("verifier x_x: {:?}", x_2);
         let (commitment_map, point_sets) = construct_intermediate_sets(queries);
 
         // Compress the commitments and expected evaluations at x together.
@@ -99,7 +99,7 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
         // Sample a challenge x_3 for checking that f(X) was committed to
         // correctly.
         let x_3: ChallengeX3<_> = transcript.squeeze_challenge_scalar();
-
+        println!("verifier x_3: {:?}", x_3);
         // u is a vector containing the evaluations of the Q polynomial
         // commitments at x_3
         let mut u = Vec::with_capacity(q_eval_sets.len());
@@ -128,7 +128,7 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
         // Sample a challenge x_4 that we will use to collapse the openings of
         // the various remaining polynomials at x_3 together.
         let x_4: ChallengeX4<_> = transcript.squeeze_challenge_scalar();
-
+        println!("verifier x_4: {:?}", x_4);
         // Compute the final commitment that has to be opened
         msm.append_term(C::Scalar::one(), q_prime_commitment.into());
         let (msm, v) = q_commitments.into_iter().zip(u.iter()).fold(

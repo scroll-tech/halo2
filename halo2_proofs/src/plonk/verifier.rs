@@ -85,6 +85,7 @@ pub fn verify_proof<
 
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
+    println!("verifier theta: {:?}", theta);
 
     let lookups_permuted = (0..num_proofs)
         .map(|_| -> Result<Vec<_>, _> {
@@ -99,9 +100,11 @@ pub fn verify_proof<
 
     // Sample beta challenge
     let beta: ChallengeBeta<_> = transcript.squeeze_challenge_scalar();
+    println!("verifier beta: {:?}", beta);
 
     // Sample gamma challenge
     let gamma: ChallengeGamma<_> = transcript.squeeze_challenge_scalar();
+    println!("verifier gamma: {:?}", gamma);
 
     let permutations_committed = (0..num_proofs)
         .map(|_| {
@@ -125,12 +128,15 @@ pub fn verify_proof<
 
     // Sample y challenge, which keeps the gates linearly independent.
     let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
+    println!("verifier y: {:?}", y);
 
     let vanishing = vanishing.read_commitments_after_y(vk, transcript)?;
 
     // Sample x challenge, which is used to ensure the circuit is
     // satisfied with high probability.
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
+    println!("verifier x: {:?}", x);
+
     let instance_evals = (0..num_proofs)
         .map(|_| -> Result<Vec<_>, _> { read_n_scalars(transcript, vk.cs.instance_queries.len()) })
         .collect::<Result<Vec<_>, _>>()?;

@@ -340,6 +340,7 @@ pub fn create_proof<
 
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
+    println!("prover theta {:?}", theta);
 
     let lookup_timer = start_timer!(|| "lookup commit permutation");
     let lookups: Vec<Vec<lookup::prover::Permuted<Scheme::Curve>>> = instance
@@ -371,9 +372,11 @@ pub fn create_proof<
 
     // Sample beta challenge
     let beta: ChallengeBeta<_> = transcript.squeeze_challenge_scalar();
+    println!("prover beta {:?}", beta);
 
     // Sample gamma challenge
     let gamma: ChallengeGamma<_> = transcript.squeeze_challenge_scalar();
+    println!("prover gamma {:?}", gamma);
 
     // Commit to permutations.
     let perm_timer = start_timer!(|| "perm commitment timer");
@@ -419,6 +422,8 @@ pub fn create_proof<
     // Obtain challenge for keeping all separate gates linearly independent
     let sub_timer = start_timer!(|| "get challenge");
     let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
+    println!("prover y {:?}", y);
+
     end_timer!(sub_timer);
 
     // Calculate the advice polys
@@ -469,6 +474,8 @@ pub fn create_proof<
 
     let eval_timer = start_timer!(|| "polynomial evaluations");
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
+    println!("prover x {:?}", x);
+
     let xn = x.pow(&[params.n() as u64, 0, 0, 0]);
 
     // Compute and hash instance evals for each circuit instance

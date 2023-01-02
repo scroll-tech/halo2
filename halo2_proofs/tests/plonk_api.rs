@@ -1021,6 +1021,8 @@ fn plonk_api() {
         }
     }
     test_plonk_api_ipa();
+    println!();
     test_plonk_api_gwc();
+    println!();
     test_plonk_api_shplonk();
 }

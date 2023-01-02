@@ -32,19 +32,23 @@ pub fn verify_proof<'params, C: CurveAffine, E: EncodedChallenge<C>, T: Transcri
     msm.add_constant_term(-v); // add [-v] G_0
     let s_poly_commitment = transcript.read_point().map_err(|_| Error::OpeningError)?;
     let xi = *transcript.squeeze_challenge_scalar::<()>();
+    println!("ipa prover xi {:?}", xi);
+
     msm.append_term(xi, s_poly_commitment.into());
 
     let z = *transcript.squeeze_challenge_scalar::<()>();
+    println!("ipa prover z {:?}", z);
+
 
     let mut rounds = vec![];
-    for _ in 0..k {
+    for j in 0..k {
         // Read L and R from the proof and write them to the transcript
         let l = transcript.read_point().map_err(|_| Error::OpeningError)?;
         let r = transcript.read_point().map_err(|_| Error::OpeningError)?;
 
         let u_j_packed = transcript.squeeze_challenge();
         let u_j = *u_j_packed.as_challenge_scalar::<()>();
-
+        println!("ipa prover u_{} {:?}", j, u_j);
         rounds.push((l, r, u_j, /* to be inverted */ u_j, u_j_packed));
     }
 

@@ -39,7 +39,8 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
     {
         let x_1: ChallengeX1<_> = transcript.squeeze_challenge_scalar();
         let x_2: ChallengeX2<_> = transcript.squeeze_challenge_scalar();
-
+        println!("prover x_1: {:?}", x_1);
+        println!("prover x_2: {:?}", x_2);
         let (poly_map, point_sets) = construct_intermediate_sets(queries);
 
         // Collapse openings at same point sets together into single openings using
@@ -98,7 +99,7 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
         transcript.write_point(q_prime_commitment)?;
 
         let x_3: ChallengeX3<_> = transcript.squeeze_challenge_scalar();
-
+        println!("prover x_3: {:?}", x_3);
         // Prover sends u_i for all i, which correspond to the evaluation
         // of each Q polynomial commitment at x_3.
         for q_i_poly in &q_polys {
@@ -106,7 +107,7 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
         }
 
         let x_4: ChallengeX4<_> = transcript.squeeze_challenge_scalar();
-
+        println!("prover x_4: {:?}", x_4);
         let (p_poly, p_poly_blind) = q_polys.into_iter().zip(q_blinds.into_iter()).fold(
             (q_prime_poly, q_prime_blind),
             |(q_prime_poly, q_prime_blind), (poly, blind)| {

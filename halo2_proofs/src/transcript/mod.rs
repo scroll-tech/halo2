@@ -23,8 +23,10 @@ pub trait Transcript<C: CurveAffine, E: EncodedChallenge<C>> {
 
     /// Squeeze a typed challenge (in the scalar field) from the transcript.
     fn squeeze_challenge_scalar<T>(&mut self) -> ChallengeScalar<C, T> {
+        let inner = self.squeeze_challenge().get_scalar();
+        println!("challenge scalar: {:?}", inner);
         ChallengeScalar {
-            inner: self.squeeze_challenge().get_scalar(),
+            inner,
             _marker: PhantomData,
         }
     }

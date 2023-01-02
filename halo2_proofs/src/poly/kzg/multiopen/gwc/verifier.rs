@@ -55,6 +55,7 @@ impl<'params, E: MultiMillerLoop + Debug> Verifier<'params, KZGCommitmentScheme<
         I: IntoIterator<Item = VerifierQuery<'com, E::G1Affine, MSMKZG<E>>> + Clone,
     {
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();
+        println!("gwc verifier v {:?}", v);
 
         let commitment_data = construct_intermediate_sets(queries);
 
@@ -63,6 +64,7 @@ impl<'params, E: MultiMillerLoop + Debug> Verifier<'params, KZGCommitmentScheme<
             .collect::<Result<Vec<E::G1Affine>, Error>>()?;
 
         let u: ChallengeU<_> = transcript.squeeze_challenge_scalar();
+        println!("gwc verifier u {:?}", u);
 
         let mut commitment_multi = MSMKZG::<E>::new();
         let mut eval_multi = E::Scalar::zero();

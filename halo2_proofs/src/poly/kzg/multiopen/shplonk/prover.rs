@@ -128,6 +128,7 @@ impl<'params, E: Engine + Debug> Prover<'params, KZGCommitmentScheme<E>>
         // TODO: explore if it is safe to use same challenge
         // for different sets that are already combined with anoter challenge
         let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
+        println!("sh prover y {:?}", y);
 
         let quotient_contribution =
             |rotation_set: &RotationSetExtension<E::G1Affine>| -> Polynomial<E::Scalar, Coeff> {
@@ -181,6 +182,7 @@ impl<'params, E: Engine + Debug> Prover<'params, KZGCommitmentScheme<E>>
             .collect();
 
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();
+        println!("sh prover v {:?}", v);
 
         let quotient_polynomials = rotation_sets.iter().map(quotient_contribution);
 
@@ -193,6 +195,7 @@ impl<'params, E: Engine + Debug> Prover<'params, KZGCommitmentScheme<E>>
         let h = self.params.commit(&h_x, Blind::default()).to_affine();
         transcript.write_point(h)?;
         let u: ChallengeU<_> = transcript.squeeze_challenge_scalar();
+        println!("sh prover u {:?}", u);
 
         let zt_eval = evaluate_vanishing_polynomial(&super_point_set[..], *u);
 

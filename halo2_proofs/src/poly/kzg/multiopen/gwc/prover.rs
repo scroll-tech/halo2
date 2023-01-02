@@ -50,6 +50,8 @@ impl<'params, E: Engine + Debug> Prover<'params, KZGCommitmentScheme<E>> for Pro
         R: RngCore,
     {
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();
+        println!("gwc prover v {:?}", v);
+
         let commitment_data = construct_intermediate_sets(queries);
 
         for commitment_at_a_point in commitment_data.iter() {

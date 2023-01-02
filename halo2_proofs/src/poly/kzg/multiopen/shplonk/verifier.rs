@@ -65,10 +65,13 @@ impl<'params, E: MultiMillerLoop + Debug> Verifier<'params, KZGCommitmentScheme<
         );
 
         let y: ChallengeY<_> = transcript.squeeze_challenge_scalar();
+        println!("sh verifier y: {:?}", y);
         let v: ChallengeV<_> = transcript.squeeze_challenge_scalar();
+        println!("sh verifier v: {:?}", v);
 
         let h1 = transcript.read_point().map_err(|_| Error::SamplingError)?;
         let u: ChallengeU<_> = transcript.squeeze_challenge_scalar();
+        println!("sh verifier u: {:?}", u);
         let h2 = transcript.read_point().map_err(|_| Error::SamplingError)?;
 
         let (mut z_0_diff_inverse, mut z_0) = (E::Scalar::zero(), E::Scalar::zero());

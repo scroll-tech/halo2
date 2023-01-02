@@ -63,10 +63,13 @@ pub fn create_proof<
     // witness a random polynomial commitment that agrees with P at x_3, with high
     // probability.
     let xi = *transcript.squeeze_challenge_scalar::<()>();
+    println!("ipa prover xi {:?}", xi);
 
     // Challenge that ensures that the prover did not interfere with the U term
     // in their commitments.
     let z = *transcript.squeeze_challenge_scalar::<()>();
+    println!("ipa prover z {:?}", z);
+
 
     // We'll be opening `P' = P - [v] G_0 + [ξ] S` to ensure it has a root at
     // zero.
@@ -122,6 +125,8 @@ pub fn create_proof<
         transcript.write_point(r_j)?;
 
         let u_j = *transcript.squeeze_challenge_scalar::<()>();
+        println!("ipa prover u_{} {:?}", j, u_j);
+
         let u_j_inv = u_j.invert().unwrap(); // TODO, bubble this up
 
         // Collapse `p_prime` and `b`.
