@@ -2,9 +2,11 @@
 //! domain that is of a suitable size for the application.
 
 use crate::{
-    arithmetic::{best_fft, parallelize, FieldExt, Group},
+    arithmetic::{best_fft, best_fft_opt, parallelize, FieldExt, Group},
     plonk::Assigned,
 };
+
+use std::time::Instant;
 
 use super::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation};
 
@@ -553,5 +555,42 @@ fn test_l_i() {
     for i in 0..8 {
         assert_eq!(eval_polynomial(&l[i][..], x), evaluations[7 + i]);
         assert_eq!(eval_polynomial(&l[(8 - i) % 8][..], x), evaluations[7 - i]);
+    }
+}
+
+#[test]
+fn test_fft() {
+    use halo2curves::bn256::Fr as Scalar;
+
+    let max_log_n = 28;
+    let min_log_n = 8;
+    let a = (0..(1 << max_log_n))
+        .into_iter()
+        .map(|i| Scalar::from(i as u64))
+        .collect::<Vec<_>>();
+
+    println!("\n----------test FFT---------");
+    for log_n in min_log_n..=max_log_n {
+        let domain = EvaluationDomain::<Scalar>::new(1, log_n);
+        let mut a0 = a[0..(1 << log_n)].to_vec();
+        let mut a1 = a0.clone();
+
+        // warm up & correct test
+        best_fft(&mut a0, domain.omega, log_n);
+        best_fft_opt(&mut a1, domain.omega, log_n);
+        assert_eq!(a0, a1);
+
+        let ori_time = Instant::now();
+        best_fft(&mut a0, domain.omega, log_n);
+        let ori_time = ori_time.elapsed();
+        let ori_micros = f64::from(ori_time.as_micros() as u32);
+
+        let opt_time = Instant::now();
+        best_fft_opt(&mut a1, domain.omega, log_n);
+        let opt_time = opt_time.elapsed();
+        let opt_micros = f64::from(opt_time.as_micros() as u32);
+
+        println!("    [log_n = {}] ori_time: {:?}, opt_time: {:?}, speedup: {}",
+                 log_n, ori_time, opt_time, ori_micros / opt_micros);
     }
 }
