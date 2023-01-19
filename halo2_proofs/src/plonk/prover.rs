@@ -198,11 +198,16 @@ pub fn create_proof<
                 return Err(Error::not_enough_rows_available(self.k));
             }
 
+            let _to = to().into_field().assign();
+            if _to.is_err() {
+                log::debug!("[assign_advice] col: {:?}, off: {}", column, row);
+            }
+
             *self
                 .advice
                 .get_mut(column.index())
                 .and_then(|v| v.get_mut(row))
-                .ok_or(Error::BoundsFailure)? = to().into_field().assign()?;
+                .ok_or(Error::BoundsFailure)? = _to?;
 
             Ok(())
         }
