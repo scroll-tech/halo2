@@ -12,16 +12,15 @@ use blake2b_simd::blake2b;
 use ff::{BatchInvert, Field};
 
 use crate::plonk::permutation::keygen::Assembly;
-use crate::plonk::sealed::SealedPhase;
-use crate::plonk::FirstPhase;
-use crate::plonk::ThirdPhase;
 use crate::{
     arithmetic::{FieldExt, Group},
     circuit,
     plonk::{
-        permutation, Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, ColumnType,
-        ConstraintSystem, Error, Expression, Fixed, FloorPlanner, Instance, Phase, Selector,
-        VirtualCell,
+        permutation,
+        sealed::{self, SealedPhase},
+        Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, ColumnType,
+        ConstraintSystem, Error, Expression, FirstPhase, Fixed, FloorPlanner, Instance, Phase,
+        Selector, ThirdPhase, VirtualCell,
     },
     poly::Rotation,
 };
@@ -457,7 +456,13 @@ pub struct MockProver<'a, F: Group + Field> {
     // A range of available rows for assignment and copies.
     usable_rows: Range<usize>,
 
-    current_phase: crate::plonk::sealed::Phase,
+    current_phase: sealed::Phase, // crate::plonk::sealed::Phase,
+}
+
+impl<'a, F: Field + Group> MockProver<'a, F> {
+    fn in_phase<P: Phase>(&self, phase: P) -> bool {
+        self.current_phase == phase.to_sealed()
+    }
 }
 
 impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
@@ -466,6 +471,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
+
         assert!(self.current_region.is_none());
         self.current_region = Some(Region {
             name: name().into(),
@@ -479,6 +488,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
     }
 
     fn exit_region(&mut self) {
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
+
         self.regions.push(self.current_region.take().unwrap());
     }
 
@@ -487,6 +500,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
+
         if let Some(region) = self.current_region.as_mut() {
             region
                 .annotations
@@ -499,6 +516,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+        if !self.in_phase(FirstPhase) {
+            return Ok(());
+        }
+
         if !self.usable_rows.contains(&row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
@@ -689,6 +710,21 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
             return Err(Error::not_enough_rows_available(self.k));
         }
 
+        if self.in_phase(FirstPhase) {
+            if !self.usable_rows.contains(&row) {
+                return Err(Error::not_enough_rows_available(self.k));
+            }
+
+            if let Some(region) = self.current_region.as_mut() {
+                region.update_extent(column.into(), row);
+                region
+                    .cells
+                    .entry((column.into(), row))
+                    .and_modify(|count| *count += 1)
+                    .or_default();
+            }
+        }
+
         if !self.rw_rows.contains(&row) {
             return Err(Error::InvalidRange(
                 row,
@@ -727,11 +763,13 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         #[cfg(feature = "mock-batch-inv")]
         let assigned = CellValue::from(val_res?);
 
-        *self
-            .advice
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = assigned;
+        if self.in_phase(column.column_type().phase) {
+            *self
+                .advice
+                .get_mut(column.index())
+                .and_then(|v| v.get_mut(row))
+                .ok_or(Error::BoundsFailure)? = assigned;
+        }
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -766,6 +804,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+        if !self.in_phase(FirstPhase) {
+            return Ok(());
+        }
+
         if !self.usable_rows.contains(&row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
@@ -817,6 +859,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         right_column: Column<Any>,
         right_row: usize,
     ) -> Result<(), crate::plonk::Error> {
+        if !self.in_phase(FirstPhase) {
+            return Ok(());
+        }
+
         if !self.usable_rows.contains(&left_row) || !self.usable_rows.contains(&right_row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
@@ -848,6 +894,10 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         from_row: usize,
         to: circuit::Value<Assigned<F>>,
     ) -> Result<(), Error> {
+        if !self.in_phase(FirstPhase) {
+            return Ok(());
+        }
+
         if !self.usable_rows.contains(&from_row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
@@ -974,7 +1024,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             permutation: Some(permutation),
             rw_rows: 0..usable_rows,
             usable_rows: 0..usable_rows,
-            current_phase,
+            current_phase, // FirstPhase.to_sealed(),
         };
 
         #[cfg(feature = "phase-check")]
