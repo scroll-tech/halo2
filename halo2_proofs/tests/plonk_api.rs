@@ -540,6 +540,14 @@ fn plonk_api() {
         assert!(strategy.finalize());
     }
 
+    macro_rules! dump_mem {
+        ($str:tt) => {
+            let expected_msg = format!("get mem info {}", $str);
+            let mem_info = linux_stats::meminfo().expect(&expected_msg);
+            log::info!("mem free: {} MiB, mem", mem_info.mem_free >> 20);
+        }
+    }
+
     fn test_plonk_api_gwc(K: u32) {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverGWC, VerifierGWC};
@@ -549,6 +557,7 @@ fn plonk_api() {
         type Scheme = KZGCommitmentScheme<Bn256>;
         // bad_keys!(Scheme);
 
+        dump_mem!("before load params");
         // load_or_create params
         let path_str = format!("param{}", K);
         let params_path = std::path::Path::new(&path_str);
@@ -581,14 +590,17 @@ fn plonk_api() {
 
             params
         };
+        dump_mem!("loaded params");
 
         let rng = OsRng;
 
         let pk = keygen::<KZGCommitmentScheme<_>>(&params);
+        dump_mem!("keygen finished");
 
         let proof = create_proof::<_, ProverGWC<_>, _, _, Blake2bWrite<_, _, Challenge255<_>>>(
             rng, &params, &pk,
         );
+        dump_mem!("create proof");
 
         let verifier_params = params.verifier_params();
 
@@ -1061,6 +1073,7 @@ fn plonk_api() {
         }
     }
 
+    env_logger::init();
     // test_plonk_api_ipa();
     test_plonk_api_gwc(K);
     // test_plonk_api_shplonk();
