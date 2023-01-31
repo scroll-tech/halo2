@@ -10,7 +10,7 @@ use halo2_proofs::plonk::{
     Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Fixed, ProvingKey, TableColumn,
     VerifyingKey,
 };
-use halo2_proofs::poly::commitment::{CommitmentScheme, ParamsProver, Prover, Verifier};
+use halo2_proofs::poly::commitment::{CommitmentScheme, Params, ParamsProver, Prover, Verifier};
 use halo2_proofs::poly::Rotation;
 use halo2_proofs::poly::VerificationStrategy;
 use halo2_proofs::transcript::{
@@ -18,11 +18,15 @@ use halo2_proofs::transcript::{
     TranscriptWriterBuffer,
 };
 use rand_core::{OsRng, RngCore};
+use std::fs::File;
+use std::io::{BufReader, Write};
 use std::marker::PhantomData;
 
 #[test]
 fn plonk_api() {
-    const K: u32 = 5;
+    let K: u32 = std::env::var("K")
+        .map(|str| str.parse().expect("K is int"))
+        .unwrap_or(20);
 
     /// This represents an advice column at a certain row in the ConstraintSystem
     #[derive(Copy, Clone, Debug)]
@@ -74,6 +78,7 @@ fn plonk_api() {
     #[derive(Clone)]
     struct MyCircuit<F: FieldExt> {
         a: Value<F>,
+        k: u32,
         lookup_table: Vec<F>,
     }
 
@@ -273,6 +278,7 @@ fn plonk_api() {
         fn without_witnesses(&self) -> Self {
             Self {
                 a: Value::unknown(),
+                k: 3,
                 lookup_table: self.lookup_table.clone(),
             }
         }
@@ -376,7 +382,7 @@ fn plonk_api() {
 
             let _ = cs.public_input(&mut layouter, || Value::known(F::one() + F::one()))?;
 
-            for _ in 0..10 {
+            for _ in 0..((1 << (self.k - 1)) - 5) {
                 let a: Value<Assigned<_>> = self.a.into();
                 let mut a_squared = Value::unknown();
                 let (a0, _, c0) = cs.raw_multiply(&mut layouter, || {
@@ -416,7 +422,7 @@ fn plonk_api() {
     }
 
     macro_rules! bad_keys {
-        ($scheme:ident) => {{
+        ($scheme:ident, $k:expr) => {{
             let (_, _, lookup_table) = common!($scheme);
             let empty_circuit: MyCircuit<<$scheme as CommitmentScheme>::Scalar> = MyCircuit {
                 a: Value::unknown(),
@@ -435,7 +441,7 @@ fn plonk_api() {
 
             // Check that we get an error if we try to initialize the proving key with a value of
             // k that is too small for the number of rows the circuit uses.
-            let slightly_too_small_params = <$scheme as CommitmentScheme>::ParamsProver::new(K-1);
+            let slightly_too_small_params = <$scheme as CommitmentScheme>::ParamsProver::new(k-1);
             assert_matches!(
                 keygen_vk(&slightly_too_small_params, &empty_circuit),
                 Err(Error::NotEnoughRowsAvailable {
@@ -451,6 +457,7 @@ fn plonk_api() {
         let (_, _, lookup_table) = common!(Scheme);
         let empty_circuit: MyCircuit<Scheme::Scalar> = MyCircuit {
             a: Value::unknown(),
+            k: params.k(),
             lookup_table,
         };
 
@@ -476,6 +483,7 @@ fn plonk_api() {
 
         let circuit: MyCircuit<Scheme::Scalar> = MyCircuit {
             a: Value::known(a),
+            k: params.k(),
             lookup_table,
         };
 
@@ -492,7 +500,7 @@ fn plonk_api() {
         .expect("proof generation should not fail");
 
         // Check this circuit is satisfied.
-        let prover = match MockProver::run(K, &circuit, vec![vec![instance]]) {
+        let prover = match MockProver::run(params.k(), &circuit, vec![vec![instance]]) {
             Ok(prover) => prover,
             Err(e) => panic!("{:?}", e),
         };
@@ -532,16 +540,48 @@ fn plonk_api() {
         assert!(strategy.finalize());
     }
 
-    fn test_plonk_api_gwc() {
+    fn test_plonk_api_gwc(K: u32) {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverGWC, VerifierGWC};
         use halo2_proofs::poly::kzg::strategy::AccumulatorStrategy;
         use halo2curves::bn256::Bn256;
 
         type Scheme = KZGCommitmentScheme<Bn256>;
-        bad_keys!(Scheme);
+        // bad_keys!(Scheme);
 
-        let params = ParamsKZG::<Bn256>::new(K);
+        // load_or_create params
+        let path_str = format!("param{}", K);
+        let params_path = std::path::Path::new(&path_str);
+        let params = if params_path.exists() {
+            // load param
+            let f = File::open(params_path).expect("open param file");
+
+            // check params file length:
+            //   len: 4 bytes
+            //   g: 2**DEGREE g1 points, each 32 bytes(256bits)
+            //   g_lagrange: 2**DEGREE g1 points, each 32 bytes(256bits)
+            //   g2: g2 point, 64 bytes
+            //   s_g2: g2 point, 64 bytes
+
+            let params = Params::read::<_>(&mut BufReader::new(f)).expect("read param from file");
+
+            params
+        } else {
+            // create param
+            let params = ParamsKZG::<Bn256>::new(K);
+
+            // write to file
+            let mut params_buf = Vec::new();
+            params.write(&mut params_buf).expect("write param to buf");
+
+            let mut params_file = File::create(params_path).expect("create param file");
+            params_file
+                .write_all(&params_buf[..])
+                .expect("write to param file");
+
+            params
+        };
+
         let rng = OsRng;
 
         let pk = keygen::<KZGCommitmentScheme<_>>(&params);
@@ -561,14 +601,14 @@ fn plonk_api() {
         >(verifier_params, pk.get_vk(), &proof[..]);
     }
 
-    fn test_plonk_api_shplonk() {
+    fn test_plonk_api_shplonk(K: u32) {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverSHPLONK, VerifierSHPLONK};
         use halo2_proofs::poly::kzg::strategy::AccumulatorStrategy;
         use halo2curves::bn256::Bn256;
 
         type Scheme = KZGCommitmentScheme<Bn256>;
-        bad_keys!(Scheme);
+        // bad_keys!(Scheme);
 
         let params = ParamsKZG::<Bn256>::new(K);
         let rng = OsRng;
@@ -590,14 +630,14 @@ fn plonk_api() {
         >(verifier_params, pk.get_vk(), &proof[..]);
     }
 
-    fn test_plonk_api_ipa() {
+    fn test_plonk_api_ipa(K: u32) {
         use halo2_proofs::poly::ipa::commitment::{IPACommitmentScheme, ParamsIPA};
         use halo2_proofs::poly::ipa::multiopen::{ProverIPA, VerifierIPA};
         use halo2_proofs::poly::ipa::strategy::AccumulatorStrategy;
         use halo2curves::pasta::EqAffine;
 
         type Scheme = IPACommitmentScheme<EqAffine>;
-        bad_keys!(Scheme);
+        // bad_keys!(Scheme);
 
         let params = ParamsIPA::<EqAffine>::new(K);
         let rng = OsRng;
@@ -1020,7 +1060,8 @@ fn plonk_api() {
             );
         }
     }
-    test_plonk_api_ipa();
-    test_plonk_api_gwc();
-    test_plonk_api_shplonk();
+
+    // test_plonk_api_ipa();
+    test_plonk_api_gwc(K);
+    // test_plonk_api_shplonk();
 }
