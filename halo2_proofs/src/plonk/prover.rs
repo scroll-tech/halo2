@@ -18,16 +18,11 @@ use super::{
     lookup, permutation, vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX,
     ChallengeY, Error, Expression, ProvingKey,
 };
-use crate::{
-    arithmetic::{eval_polynomial, CurveAffine, FieldExt},
-    circuit::Value,
-    plonk::Assigned,
-    poly::{
-        self,
-        commitment::{Blind, CommitmentScheme, Params, Prover},
-        Basis, Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, ProverQuery,
-    },
-};
+use crate::{arithmetic::{eval_polynomial, CurveAffine, FieldExt}, circuit::Value, dump_mem, plonk::Assigned, poly::{
+    self,
+    commitment::{Blind, CommitmentScheme, Params, Prover},
+    Basis, Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, ProverQuery,
+}};
 use crate::{
     poly::batch_invert_assigned,
     transcript::{EncodedChallenge, TranscriptWrite},
@@ -414,6 +409,7 @@ pub fn create_proof<
 
         (advice, challenges)
     };
+    dump_mem!("after phase1");
 
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
@@ -445,6 +441,7 @@ pub fn create_proof<
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    dump_mem!("after phase2");
     // Sample beta challenge
     let beta: ChallengeBeta<_> = transcript.squeeze_challenge_scalar();
 
@@ -482,6 +479,7 @@ pub fn create_proof<
         })
         .collect::<Result<Vec<_>, _>>()?;
 
+    dump_mem!("after phase3");
     // Commit to the vanishing argument's random polynomial for blinding h(x_3)
     let vanishing = vanishing::Argument::commit(params, domain, &mut rng, transcript)?;
 
@@ -527,6 +525,7 @@ pub fn create_proof<
         &permutations,
     );
 
+    dump_mem!("after quotient h");
     // Construct the vanishing argument's h(X) commitments
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;
 

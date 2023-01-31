@@ -21,6 +21,7 @@ use rand_core::{OsRng, RngCore};
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::marker::PhantomData;
+use halo2_proofs::dump_mem;
 
 #[test]
 fn plonk_api() {
@@ -538,14 +539,6 @@ fn plonk_api() {
         .unwrap();
 
         assert!(strategy.finalize());
-    }
-
-    macro_rules! dump_mem {
-        ($str:tt) => {
-            let expected_msg = format!("get mem info {}", $str);
-            let mem_info = linux_stats::meminfo().expect(&expected_msg);
-            log::info!("mem free: {} MiB, mem", mem_info.mem_free >> 20);
-        }
     }
 
     fn test_plonk_api_gwc(K: u32) {
