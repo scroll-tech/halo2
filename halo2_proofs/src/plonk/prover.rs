@@ -18,11 +18,17 @@ use super::{
     lookup, permutation, vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX,
     ChallengeY, Error, Expression, ProvingKey,
 };
-use crate::{arithmetic::{eval_polynomial, CurveAffine, FieldExt}, circuit::Value, dump_mem, plonk::Assigned, poly::{
-    self,
-    commitment::{Blind, CommitmentScheme, Params, Prover},
-    Basis, Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, ProverQuery,
-}};
+use crate::{
+    arithmetic::{eval_polynomial, CurveAffine, FieldExt},
+    circuit::Value,
+    dump_mem,
+    plonk::Assigned,
+    poly::{
+        self,
+        commitment::{Blind, CommitmentScheme, Params, Prover},
+        Basis, Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, ProverQuery,
+    },
+};
 use crate::{
     poly::batch_invert_assigned,
     transcript::{EncodedChallenge, TranscriptWrite},

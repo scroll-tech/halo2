@@ -5,10 +5,11 @@ use assert_matches::assert_matches;
 use halo2_proofs::arithmetic::{Field, FieldExt};
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;
+use halo2_proofs::dump_mem;
 use halo2_proofs::plonk::{
-    create_proof as create_plonk_proof, keygen_pk, keygen_vk, verify_proof as verify_plonk_proof,
-    Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Fixed, ProvingKey, TableColumn,
-    VerifyingKey,
+    create_proof as create_plonk_proof, keygen_pk, keygen_pk2, keygen_vk,
+    verify_proof as verify_plonk_proof, Advice, Assigned, Circuit, Column, ConstraintSystem, Error,
+    Fixed, ProvingKey, TableColumn, VerifyingKey,
 };
 use halo2_proofs::poly::commitment::{CommitmentScheme, Params, ParamsProver, Prover, Verifier};
 use halo2_proofs::poly::Rotation;
@@ -21,7 +22,6 @@ use rand_core::{OsRng, RngCore};
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::marker::PhantomData;
-use halo2_proofs::dump_mem;
 
 #[test]
 fn plonk_api() {
@@ -463,9 +463,7 @@ fn plonk_api() {
         };
 
         // Initialize the proving key
-        let vk = keygen_vk(params, &empty_circuit).expect("keygen_vk should not fail");
-
-        keygen_pk(params, vk, &empty_circuit).expect("keygen_pk should not fail")
+        keygen_pk2(params, &empty_circuit).expect("keygen_pk2 should not fail")
     }
 
     fn create_proof<

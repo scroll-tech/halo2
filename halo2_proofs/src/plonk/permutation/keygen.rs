@@ -153,8 +153,26 @@ impl Assembly {
         VerifyingKey { commitments }
     }
 
+    pub(crate) fn build_vk2<'params, C: CurveAffine, P: Params<'params, C>>(
+        &self,
+        params: &P,
+        pk: &ProvingKey<C>,
+    ) -> VerifyingKey<C> {
+        let commitments = pk
+            .permutations
+            .iter()
+            .map(|permutation_poly| {
+                params
+                    .commit_lagrange(&permutation_poly, Blind::default())
+                    .to_affine()
+            })
+            .collect::<Vec<_>>();
+
+        VerifyingKey { commitments }
+    }
+
     pub(crate) fn build_pk<'params, C: CurveAffine, P: Params<'params, C>>(
-        self,
+        &self,
         params: &P,
         domain: &EvaluationDomain<C::Scalar>,
         p: &Argument,

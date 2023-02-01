@@ -293,6 +293,10 @@ where
         return Err(Error::not_enough_rows_available(params.k()));
     }
 
+    log::info!("num_fixed_cols: {}", cs.num_fixed_columns());
+    log::info!("permutation: {} cols", cs.permutation().columns.len());
+    log::info!("num_selectors: {}", cs.num_selectors);
+
     let mut assembly: Assembly<C::Scalar> = Assembly {
         k: params.k(),
         fixed: vec![domain.empty_lagrange_assigned(); cs.num_fixed_columns],
@@ -318,12 +322,17 @@ where
             .map(|poly| domain.lagrange_from_vec(poly)),
     );
 
+    let fixed_polys: Vec<_> = fixed
+        .iter()
+        .map(|poly| domain.lagrange_to_coeff(poly.clone()))
+        .collect();
+
+    let permutation_pk = assembly
+        .permutation
+        .build_pk(params, &domain, &cs.permutation);
+
     let vk = vk.unwrap_or_else(|| {
-        let permutation_vk =
-            assembly
-                .permutation
-                .clone()
-                .build_vk(params, &domain, &cs.permutation);
+        let permutation_vk = assembly.permutation.build_vk2(params, &permutation_pk);
 
         let fixed_commitments = fixed
             .iter()
@@ -332,15 +341,6 @@ where
 
         VerifyingKey::from_parts(domain, fixed_commitments, permutation_vk, cs.clone())
     });
-
-    let fixed_polys: Vec<_> = fixed
-        .iter()
-        .map(|poly| vk.domain.lagrange_to_coeff(poly.clone()))
-        .collect();
-
-    let permutation_pk = assembly
-        .permutation
-        .build_pk(params, &vk.domain, &cs.permutation);
 
     // Compute l_0(X)
     // TODO: this can be done more efficiently
