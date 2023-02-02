@@ -4,9 +4,9 @@ use halo2curves::CurveExt;
 use rand_core::RngCore;
 use std::collections::BTreeSet;
 use std::env::var;
-use std::ops::RangeTo;
+use std::ops::{AddAssign, RangeTo};
 use std::sync::atomic::AtomicUsize;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{collections::HashMap, iter, mem, sync::atomic::Ordering};
 
 use super::{
@@ -71,6 +71,27 @@ pub fn create_proof<
     // Selector optimizations cannot be applied here; use the ConstraintSystem
     // from the verification key.
     let meta = &pk.vk.cs;
+    log::info!("num_advice: {}", meta.num_advice_columns());
+    log::info!("num_instance: {}", meta.num_instance_columns());
+    log::info!("num_phases: {}", meta.max_phase() + 1);
+    log::info!("num_lookups: {}", meta.lookups().len());
+    log::info!("num_perm: {}", meta.permutation().get_columns().len());
+    for phase in meta.phases() {
+        log::info!(
+            "phase {} advice cols: {}",
+            phase.0 + 1,
+            meta.advice_column_phase()
+                .iter()
+                .filter(|adv_phase| **adv_phase == phase.0)
+                .count()
+        );
+    }
+    let custom_constraints = meta
+        .gates()
+        .iter()
+        .flat_map(|gate| gate.polynomials())
+        .collect::<Vec<_>>();
+    log::info!("num_custom_constraints: {}", custom_constraints.len());
 
     struct InstanceSingle<C: CurveAffine> {
         pub instance_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
@@ -136,6 +157,7 @@ pub fn create_proof<
         k: u32,
         current_phase: sealed::Phase,
         advice: Vec<Polynomial<Assigned<F>, LagrangeCoeff>>,
+        gen_time: Duration,
         challenges: &'a HashMap<usize, F>,
         instances: &'a [&'a [F]],
         usable_rows: RangeTo<usize>,
@@ -199,11 +221,15 @@ pub fn create_proof<
                 return Err(Error::not_enough_rows_available(self.k));
             }
 
+            let _to_time = Instant::now();
+            let to = to().into_field().assign()?;
+            self.gen_time.add_assign(_to_time.elapsed());
+
             *self
                 .advice
                 .get_mut(column.index())
                 .and_then(|v| v.get_mut(row))
-                .ok_or(Error::BoundsFailure)? = to().into_field().assign()?;
+                .ok_or(Error::BoundsFailure)? = to;
 
             Ok(())
         }
@@ -307,6 +333,7 @@ pub fn create_proof<
                     current_phase,
                     advice: vec![domain.empty_lagrange_assigned(); meta.num_advice_columns],
                     instances,
+                    gen_time: Duration::from_nanos(0),
                     challenges: &challenges,
                     // The prover will not be allowed to assign values to advice
                     // cells that exist within inactive rows, which include some
@@ -316,6 +343,7 @@ pub fn create_proof<
                     _marker: std::marker::PhantomData,
                 };
 
+                let syn_time = Instant::now();
                 // Synthesize the circuit to obtain the witness and other information.
                 ConcreteCircuit::FloorPlanner::synthesize(
                     &mut witness,
@@ -323,6 +351,8 @@ pub fn create_proof<
                     config.clone(),
                     meta.constants.clone(),
                 )?;
+                log::info!("synthesize witness gen took {:?}", witness.gen_time);
+                log::info!("synthesize took {:?}", syn_time.elapsed());
 
                 #[cfg(feature = "phase-check")]
                 {

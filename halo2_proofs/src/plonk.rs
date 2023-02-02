@@ -43,13 +43,16 @@ use std::io;
 macro_rules! dump_mem {
     ($str:tt) => {
         let expected_msg = format!("get mem info {}", $str);
-        let mem_info = linux_stats::meminfo().expect(&expected_msg);
-        log::info!(
-            "[{}] mem free: {} GiB, mem available: {} GiB",
-            $str,
-            mem_info.mem_free >> 20,
-            mem_info.mem_available >> 20
-        );
+        #[cfg(target_os = "linux")]
+        {
+            let mem_info = linux_stats::meminfo().expect(&expected_msg);
+            log::info!(
+                "[{}] mem free: {} GiB, mem available: {} GiB",
+                $str,
+                mem_info.mem_free >> 20,
+                mem_info.mem_available >> 20
+            );
+        }
     };
 }
 
