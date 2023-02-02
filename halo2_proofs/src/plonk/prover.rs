@@ -158,6 +158,7 @@ pub fn create_proof<
         current_phase: sealed::Phase,
         advice: Vec<Polynomial<Assigned<F>, LagrangeCoeff>>,
         gen_time: Duration,
+        mem_write_time: Duration,
         challenges: &'a HashMap<usize, F>,
         instances: &'a [&'a [F]],
         usable_rows: RangeTo<usize>,
@@ -225,11 +226,13 @@ pub fn create_proof<
             let to = to().into_field().assign()?;
             self.gen_time.add_assign(_to_time.elapsed());
 
+            let write_time = Instant::now();
             *self
                 .advice
                 .get_mut(column.index())
                 .and_then(|v| v.get_mut(row))
                 .ok_or(Error::BoundsFailure)? = to;
+            self.mem_write_time.add_assign(write_time.elapsed());
 
             Ok(())
         }
@@ -334,6 +337,7 @@ pub fn create_proof<
                     advice: vec![domain.empty_lagrange_assigned(); meta.num_advice_columns],
                     instances,
                     gen_time: Duration::from_nanos(0),
+                    mem_write_time: Duration::from_nanos(0),
                     challenges: &challenges,
                     // The prover will not be allowed to assign values to advice
                     // cells that exist within inactive rows, which include some
