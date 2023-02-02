@@ -356,6 +356,7 @@ pub fn create_proof<
                     meta.constants.clone(),
                 )?;
                 log::info!("synthesize witness gen took {:?}", witness.gen_time);
+                log::info!("synthesize witenss write back to mem took {:?}", witness.mem_write_time);
                 log::info!("synthesize took {:?}", syn_time.elapsed());
 
                 #[cfg(feature = "phase-check")]
