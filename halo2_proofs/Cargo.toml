@@ -48,8 +48,8 @@ backtrace = { version = "0.3", optional = true }
 rayon = "1.5.1"
 ff = "0.12"
 group = "0.12"
-halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', dev = "701c27e165f676197d453b58662fcc75b7f2b1a0" }
-# halo2curves = { git = 'https://github.com/scroll-tech/halo2curves/', branch = "sync-halo2-ecc-1013" }
+# halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', dev = "701c27e165f676197d453b58662fcc75b7f2b1a0" }
+halo2curves = { git = 'https://github.com/scroll-tech/halo2curves/', branch = "sync-halo2-ecc-1013" }
 rand_core = { version = "0.6", default-features = false }
 tracing = "0.1"
 blake2b_simd = "1"
