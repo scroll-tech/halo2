@@ -701,3 +701,10 @@ impl<F: Field> Value<Assigned<F>> {
         }
     }
 }
+
+/// Utilities for tests and dev tools.
+pub mod value_dev {
+    pub fn unwrap_value<T>(v: super::Value<T>) -> T {
+        v.inner.unwrap()
+    }
+}

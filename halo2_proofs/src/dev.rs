@@ -51,6 +51,8 @@ mod graph;
 #[cfg_attr(docsrs, doc(cfg(feature = "dev-graph")))]
 pub use graph::{circuit_dot_graph, layout::CircuitLayout};
 
+pub use crate::circuit::value_dev::unwrap_value;
+
 #[derive(Debug)]
 struct Region {
     /// The name of the region. Not required to be unique.
