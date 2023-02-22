@@ -168,7 +168,7 @@ impl<G: Group> EvaluationDomain<G> {
     /// Obtains a polynomial in ExtendedLagrange form when given a vector of
     /// Lagrange polynomials with total size `extended_n`; panics if the
     /// provided vector is the wrong length.
-    pub fn extended_from_lagrange_vec(
+    pub fn lagrange_vec_to_extended(
         &self,
         values: Vec<Polynomial<G, LagrangeCoeff>>,
     ) -> Polynomial<G, ExtendedLagrangeCoeff> {
@@ -401,6 +401,65 @@ impl<G: Group> EvaluationDomain<G> {
             .truncate((&self.n * self.quotient_poly_degree) as usize);
 
         a.values
+    }
+
+    /// This takes us from the a list of lagrange-based polynomials with
+    /// different degrees and gets their extended lagrange-based summation.
+    pub fn lagrange_vecs_to_extended(
+        &self,
+        mut a: Vec<Vec<Polynomial<G, LagrangeCoeff>>>,
+    ) -> Polynomial<G, ExtendedLagrangeCoeff> {
+        let mut result_poly = if a[a.len() - 1].len() == 1 << (self.extended_k - self.k) {
+            self.lagrange_vec_to_extended(a.pop().unwrap())
+        } else {
+            self.empty_extended()
+        };
+
+        // Transform from each cluster of lagrange representations to coeff representations.
+        let mut ifft_divisor = self.extended_ifft_divisor;
+        let mut omega_inv = self.extended_omega_inv;
+        {
+            let mut i = a.last().unwrap().len() << self.k;
+            while i < (1 << self.extended_k) {
+                ifft_divisor = ifft_divisor + ifft_divisor;
+                omega_inv = omega_inv * omega_inv;
+                i = i << 1;
+            }
+        }
+
+        let mut result = vec![G::group_zero(); 1 << self.extended_k as usize];
+        for (i, a_parts) in a.into_iter().enumerate().rev() {
+            // transpose the values in parallel
+            assert_eq!(1 << i, a_parts.len());
+            let mut a_poly: Vec<G> = {
+                let mut transposed = vec![vec![G::group_zero(); a_parts.len()]; self.n as usize];
+                a_parts.into_iter().enumerate().for_each(|(j, p)| {
+                    parallelize(&mut transposed, |transposed, start| {
+                        for (transposed, p) in transposed.iter_mut().zip(p.values[start..].iter()) {
+                            transposed[j] = *p;
+                        }
+                    });
+                });
+                transposed.into_iter().flatten().collect()
+            };
+
+            Self::ifft(&mut a_poly, omega_inv, self.k + i as u32, ifft_divisor);
+            ifft_divisor = ifft_divisor + ifft_divisor;
+            omega_inv = omega_inv * omega_inv;
+
+            parallelize(&mut result[0..(self.n << i) as usize], |result, start| {
+                for (other, current) in result.iter_mut().zip(a_poly[start..].iter()) {
+                    other.group_add(current);
+                }
+            });
+        }
+        best_fft(&mut result, self.extended_omega, self.extended_k);
+        parallelize(&mut result_poly.values, |values, start| {
+            for (value, other) in values.iter_mut().zip(result[start..].into_iter()) {
+                value.group_add(other);
+            }
+        });
+        result_poly
     }
 
     /// This divides the polynomial (in the extended domain) by the vanishing
@@ -686,7 +745,7 @@ fn test_coeff_to_extended_part() {
     let want = domain.coeff_to_extended(poly.clone());
     let got = {
         let parts = domain.coeff_to_extended_parts(&poly);
-        domain.extended_from_lagrange_vec(parts)
+        domain.lagrange_vec_to_extended(parts)
     };
     assert_eq!(want.values, got.values);
 }
@@ -722,4 +781,108 @@ fn bench_coeff_to_extended_parts() {
         "domain.coeff_to_extended_parts time: {}s",
         coeff_to_extended_parts_timer.elapsed().as_secs_f64()
     );
+}
+
+#[test]
+fn test_lagrange_vecs_to_extended() {
+    use halo2curves::pasta::pallas::Scalar;
+    use rand_core::OsRng;
+
+    let rng = OsRng;
+    let domain = EvaluationDomain::<Scalar>::new(8, 3);
+    let mut poly_vec = vec![];
+    let mut poly_lagrange_vecs = vec![];
+    let mut want = domain.empty_extended();
+    let mut omega = domain.extended_omega;
+    for i in (0..(domain.extended_k - 1 - domain.k + 1)).rev() {
+        let mut poly = vec![Scalar::zero(); (1 << i) * domain.n as usize];
+        for value in poly.iter_mut() {
+            *value = Scalar::random(rng);
+        }
+        // poly under coeff representation.
+        poly_vec.push(poly.clone());
+        // poly under lagrange vector representation.
+        let mut poly2 = poly.clone();
+        best_fft(&mut poly2, omega, i + domain.k);
+        let transposed_poly: Vec<Polynomial<Scalar, LagrangeCoeff>> = (0..(1 << i))
+            .map(|j| {
+                let mut p = domain.empty_lagrange();
+                for k in 0..domain.n {
+                    p[k as usize] = poly2[j + (k as usize) * (1 << i)];
+                }
+                p
+            })
+            .collect();
+        poly_lagrange_vecs.push(transposed_poly);
+        // poly under extended representation.
+        poly.resize(domain.extended_len() as usize, Scalar::zero());
+        best_fft(&mut poly, domain.extended_omega, domain.extended_k);
+        let poly = {
+            let mut p = domain.empty_extended();
+            p.values = poly;
+            p
+        };
+        want = want + &poly;
+        omega = omega * omega;
+    }
+
+    poly_lagrange_vecs.reverse();
+    let got = domain.lagrange_vecs_to_extended(poly_lagrange_vecs);
+    assert_eq!(want.values, got.values);
+}
+
+#[test]
+fn bench_lagrange_vecs_to_extended() {
+    use halo2curves::pasta::pallas::Scalar;
+    use rand_core::OsRng;
+    use std::time::Instant;
+
+    let rng = OsRng;
+    let domain = EvaluationDomain::<Scalar>::new(8, 10);
+    let mut poly_vec = vec![];
+    let mut poly_lagrange_vecs = vec![];
+    let mut poly_extended_vecs = vec![];
+    let mut omega = domain.extended_omega;
+
+    for i in (0..(domain.extended_k - domain.k + 1)).rev() {
+        let mut poly = vec![Scalar::zero(); (1 << i) * domain.n as usize];
+        for value in poly.iter_mut() {
+            *value = Scalar::random(rng);
+        }
+        // poly under coeff representation.
+        poly_vec.push(poly.clone());
+        // poly under lagrange vector representation.
+        let mut poly2 = poly.clone();
+        best_fft(&mut poly2, omega, i + domain.k);
+        let transposed_poly: Vec<Polynomial<Scalar, LagrangeCoeff>> = (0..(1 << i))
+            .map(|j| {
+                let mut p = domain.empty_lagrange();
+                for k in 0..domain.n {
+                    p[k as usize] = poly2[j + (k as usize) * (1 << i)];
+                }
+                p
+            })
+            .collect();
+        poly_lagrange_vecs.push(transposed_poly);
+        // poly under extended representation.
+        poly.resize(domain.extended_len() as usize, Scalar::zero());
+        best_fft(&mut poly, domain.extended_omega, domain.extended_k);
+        let poly = {
+            let mut p = domain.empty_extended();
+            p.values = poly;
+            p
+        };
+        poly_extended_vecs.push(poly);
+        omega = omega * omega;
+    }
+
+    let want_timer = Instant::now();
+    let _ = poly_extended_vecs
+        .iter()
+        .fold(domain.empty_extended(), |acc, p| acc + p);
+    println!("want time: {}s", want_timer.elapsed().as_secs_f64());
+    poly_lagrange_vecs.reverse();
+    let got_timer = Instant::now();
+    let _ = domain.lagrange_vecs_to_extended(poly_lagrange_vecs);
+    println!("got time: {}s", got_timer.elapsed().as_secs_f64());
 }

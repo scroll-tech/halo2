@@ -44,6 +44,7 @@ name = "fft"
 harness = false
 
 [dependencies]
+itertools = "0.10"
 backtrace = { version = "0.3", optional = true }
 rayon = "1.5.1"
 ff = "0.12"

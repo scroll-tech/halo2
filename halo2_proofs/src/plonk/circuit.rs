@@ -1,6 +1,7 @@
 use core::cmp::max;
 use core::ops::{Add, Mul};
 use ff::Field;
+use itertools::Itertools;
 use std::{
     convert::TryFrom,
     ops::{Neg, Sub},
@@ -1048,6 +1049,50 @@ impl<F: Field> Expression<F> {
             &|a| a,
             &op,
             &op,
+            &|a, _| a,
+        )
+    }
+
+    /// Extracts all used instance columns in this expression
+    pub fn extract_instances(&self) -> Vec<usize> {
+        self.evaluate(
+            &|_| vec![],
+            &|_| vec![],
+            &|_| vec![],
+            &|_| vec![],
+            &|query| vec![query.column_index],
+            &|_| vec![],
+            &|a| a,
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
+            &|a, _| a,
+        )
+    }
+
+    /// Extracts all used advice columns in this expression
+    pub fn extract_advices(&self) -> Vec<usize> {
+        self.evaluate(
+            &|_| vec![],
+            &|_| vec![],
+            &|_| vec![],
+            &|query| vec![query.column_index],
+            &|_| vec![],
+            &|_| vec![],
+            &|a| a,
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
             &|a, _| a,
         )
     }
