@@ -178,6 +178,14 @@ impl<F: Field> Assignment<F> for Assembly<F> {
         Value::unknown()
     }
 
+    fn annotate_column<A, AR>(&mut self, _annotation: A, _column: Column<Any>)
+    where
+        A: FnOnce() -> AR,
+        AR: Into<String>,
+    {
+        // Do nothing
+    }
+
     fn push_namespace<NR, N>(&mut self, _: N)
     where
         NR: Into<String>,
@@ -225,7 +233,7 @@ where
     )?;
 
     let mut fixed = batch_invert_assigned(assembly.fixed);
-    let (cs, selector_polys) = cs.compress_selectors(assembly.selectors);
+    let (cs, selector_polys) = cs.compress_selectors(assembly.selectors.clone());
     fixed.extend(
         selector_polys
             .into_iter()
@@ -246,10 +254,24 @@ where
         fixed_commitments,
         permutation_vk,
         cs,
+//        assembly.selectors,
     ))
 }
 
-/// Generate a `ProvingKey` from a `VerifyingKey` and an instance of `Circuit`.
+/// Generate a `ProvingKey` from an instance of `Circuit`.
+pub fn keygen_pk2<'params, C, P, ConcreteCircuit>(
+    params: &P,
+    circuit: &ConcreteCircuit,
+) -> Result<ProvingKey<C>, Error>
+where
+    C: CurveAffine,
+    P: Params<'params, C>,
+    ConcreteCircuit: Circuit<C::Scalar>,
+{
+    keygen_pk_impl(params, None, circuit)
+}
+
+/// Generate a `ProvingKey` from a `VerifyingKey` and an instance of `Circuit`
 pub fn keygen_pk<'params, C, P, ConcreteCircuit>(
     params: &P,
     vk: VerifyingKey<C>,
@@ -260,10 +282,21 @@ where
     P: Params<'params, C>,
     ConcreteCircuit: Circuit<C::Scalar>,
 {
-    let mut cs = ConstraintSystem::default();
-    let config = ConcreteCircuit::configure(&mut cs);
+    keygen_pk_impl(params, Some(vk), circuit)
+}
 
-    let cs = cs;
+/// Generate a `ProvingKey` from a `VerifyingKey` and an instance of `Circuit`.
+pub fn keygen_pk_impl<'params, C, P, ConcreteCircuit>(
+    params: &P,
+    vk: Option<VerifyingKey<C>>,
+    circuit: &ConcreteCircuit,
+) -> Result<ProvingKey<C>, Error>
+where
+    C: CurveAffine,
+    P: Params<'params, C>,
+    ConcreteCircuit: Circuit<C::Scalar>,
+{
+    let (domain, cs, config) = create_domain::<C, ConcreteCircuit>(params.k());
 
     if (params.n() as usize) < cs.minimum_rows() {
         return Err(Error::not_enough_rows_available(params.k()));
@@ -271,7 +304,7 @@ where
 
     let mut assembly: Assembly<C::Scalar> = Assembly {
         k: params.k(),
-        fixed: vec![vk.domain.empty_lagrange_assigned(); cs.num_fixed_columns],
+        fixed: vec![domain.empty_lagrange_assigned(); cs.num_fixed_columns],
         permutation: permutation::keygen::Assembly::new(params.n() as usize, &cs.permutation),
         selectors: vec![vec![false; params.n() as usize]; cs.num_selectors],
         usable_rows: 0..params.n() as usize - (cs.blinding_factors() + 1),
@@ -287,21 +320,40 @@ where
     )?;
 
     let mut fixed = batch_invert_assigned(assembly.fixed);
-    let (cs, selector_polys) = cs.compress_selectors(assembly.selectors);
+    let (cs, selector_polys) = cs.compress_selectors(assembly.selectors.clone());
     fixed.extend(
         selector_polys
             .into_iter()
-            .map(|poly| vk.domain.lagrange_from_vec(poly)),
+            .map(|poly| domain.lagrange_from_vec(poly)),
     );
+
+    let vk = match vk {
+        Some(vk) => vk,
+        None => {
+            let permutation_vk =
+                assembly
+                    .permutation
+                    .clone()
+                    .build_vk(params, &domain, &cs.permutation);
+
+            let fixed_commitments = fixed
+                .iter()
+                .map(|poly| params.commit_lagrange(poly, Blind::default()).to_affine())
+                .collect();
+
+            VerifyingKey::from_parts(
+                domain,
+                fixed_commitments,
+                permutation_vk,
+                cs.clone(),
+//                assembly.selectors.clone(),
+            )
+        }
+    };
 
     let fixed_polys: Vec<_> = fixed
         .iter()
         .map(|poly| vk.domain.lagrange_to_coeff(poly.clone()))
-        .collect();
-
-    let fixed_cosets = fixed_polys
-        .iter()
-        .map(|poly| vk.domain.coeff_to_extended(poly.clone()))
         .collect();
 
     let permutation_pk = assembly
@@ -313,7 +365,6 @@ where
     let mut l0 = vk.domain.empty_lagrange();
     l0[0] = C::Scalar::one();
     let l0 = vk.domain.lagrange_to_coeff(l0);
-    let l0 = vk.domain.coeff_to_extended(l0);
 
     // Compute l_blind(X) which evaluates to 1 for each blinding factor row
     // and 0 otherwise over the domain.
@@ -321,25 +372,24 @@ where
     for evaluation in l_blind[..].iter_mut().rev().take(cs.blinding_factors()) {
         *evaluation = C::Scalar::one();
     }
-    let l_blind = vk.domain.lagrange_to_coeff(l_blind);
-    let l_blind = vk.domain.coeff_to_extended(l_blind);
 
     // Compute l_last(X) which evaluates to 1 on the first inactive row (just
     // before the blinding factors) and 0 otherwise over the domain
     let mut l_last = vk.domain.empty_lagrange();
     l_last[params.n() as usize - cs.blinding_factors() - 1] = C::Scalar::one();
-    let l_last = vk.domain.lagrange_to_coeff(l_last);
-    let l_last = vk.domain.coeff_to_extended(l_last);
 
     // Compute l_active_row(X)
     let one = C::Scalar::one();
-    let mut l_active_row = vk.domain.empty_extended();
+    let mut l_active_row = vk.domain.empty_lagrange();
     parallelize(&mut l_active_row, |values, start| {
         for (i, value) in values.iter_mut().enumerate() {
             let idx = i + start;
             *value = one - (l_last[idx] + l_blind[idx]);
         }
     });
+
+    let l_last = vk.domain.lagrange_to_coeff(l_last);
+    let l_active_row = vk.domain.lagrange_to_coeff(l_active_row);
 
     // Compute the optimized evaluation data structure
     let ev = Evaluator::new(&vk.cs);
@@ -351,7 +401,6 @@ where
         l_active_row,
         fixed_values: fixed,
         fixed_polys,
-        fixed_cosets,
         permutation: permutation_pk,
         ev,
     })

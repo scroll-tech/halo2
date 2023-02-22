@@ -73,10 +73,19 @@ impl FloorPlanner for V1 {
                 .without_witnesses()
                 .synthesize(config.clone(), V1Pass::<_, CS>::measure(pass))?;
         }
+        for (name, shape) in &measure.regions {
+            log::debug!("region height {}: {}", name, shape.row_count())
+        }
 
         // Planning:
         // - Position the regions.
-        let (regions, column_allocations) = strategy::slot_in_biggest_advice_first(measure.regions);
+        let (regions, column_allocations) = strategy::slot_in_biggest_advice_first(
+            measure
+                .regions
+                .into_iter()
+                .map(|(_name, shape)| shape)
+                .collect(),
+        );
         plan.regions = regions;
 
         // - Determine how many rows our planned circuit will require.
@@ -170,7 +179,7 @@ impl<'p, 'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for V1Pass<'p, 'a, F,
         NR: Into<String>,
     {
         match &mut self.0 {
-            Pass::Measurement(pass) => pass.assign_region(assignment),
+            Pass::Measurement(pass) => pass.assign_region(name, assignment),
             Pass::Assignment(pass) => pass.assign_region(name, assignment),
         }
     }
@@ -230,7 +239,7 @@ impl<'p, 'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for V1Pass<'p, 'a, F,
 /// Measures the circuit.
 #[derive(Debug)]
 pub struct MeasurementPass {
-    regions: Vec<RegionShape>,
+    regions: Vec<(String, RegionShape)>,
 }
 
 impl MeasurementPass {
@@ -238,9 +247,15 @@ impl MeasurementPass {
         MeasurementPass { regions: vec![] }
     }
 
-    fn assign_region<F: Field, A, AR>(&mut self, mut assignment: A) -> Result<AR, Error>
+    fn assign_region<F: Field, A, AR, N, NR>(
+        &mut self,
+        name: N,
+        mut assignment: A,
+    ) -> Result<AR, Error>
     where
         A: FnMut(Region<'_, F>) -> Result<AR, Error>,
+        N: Fn() -> NR,
+        NR: Into<String>,
     {
         let region_index = self.regions.len();
 
@@ -250,7 +265,7 @@ impl MeasurementPass {
             let region: &mut dyn RegionLayouter<F> = &mut shape;
             assignment(region.into())
         }?;
-        self.regions.push(shape);
+        self.regions.push((name().into(), shape));
 
         Ok(result)
     }
@@ -479,6 +494,14 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F> for V1Region<'r
     fn constrain_constant(&mut self, cell: Cell, constant: Assigned<F>) -> Result<(), Error> {
         self.plan.constants.push((constant, cell));
         Ok(())
+    }
+
+    fn name_column<'v>(
+        &'v mut self,
+        annotation: &'v (dyn Fn() -> String + 'v),
+        column: Column<Any>,
+    ) {
+        self.plan.cs.annotate_column(annotation, column)
     }
 
     fn constrain_equal(&mut self, left: Cell, right: Cell) -> Result<(), Error> {

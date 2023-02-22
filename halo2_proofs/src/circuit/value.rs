@@ -49,6 +49,11 @@ impl<V> Value<V> {
         self.inner.ok_or(Error::Synthesis)
     }
 
+    /// ...
+    pub fn is_none(&self) -> bool {
+        self.inner.is_none()
+    }
+
     /// Converts from `&Value<V>` to `Value<&V>`.
     pub fn as_ref(&self) -> Value<&V> {
         Value {
@@ -694,5 +699,12 @@ impl<F: Field> Value<Assigned<F>> {
         Value {
             inner: self.inner.map(|v| v.evaluate()),
         }
+    }
+}
+
+/// Utilities for tests and dev tools.
+pub mod value_dev {
+    pub fn unwrap_value<T>(v: super::Value<T>) -> T {
+        v.inner.unwrap()
     }
 }

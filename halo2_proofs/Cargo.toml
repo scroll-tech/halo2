@@ -48,14 +48,24 @@ backtrace = { version = "0.3", optional = true }
 rayon = "1.5.1"
 ff = "0.12"
 group = "0.12"
-halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
+halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves.git', tag = "0.3.1" }
 rand_core = { version = "0.6", default-features = false }
 tracing = "0.1"
 blake2b_simd = "1"
+sha3 = "0.9.1"
+subtle = "2.3"
+cfg-if = "0.1"
+poseidon = { git = 'https://github.com/privacy-scaling-explorations/poseidon.git' } #, branch = 'circuit' }
+num-integer = "0.1"
+num-bigint = { version = "0.4", features = ["rand"] }
 
 # Developer tooling dependencies
 plotters = { version = "0.3.0", optional = true }
 tabbycat = { version = "0.1", features = ["attributes"], optional = true }
+log = "0.4.17"
+
+# timer
+ark-std = { version = "0.3.0" }
 
 [dev-dependencies]
 assert_matches = "1.5"
@@ -68,11 +78,15 @@ rand_core = { version = "0.6", default-features = false, features = ["getrandom"
 getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-default = ["batch"]
+default = ["batch", "gwc"]
 dev-graph = ["plotters", "tabbycat"]
 gadget-traces = ["backtrace"]
 sanity-checks = []
 batch = ["rand_core/getrandom"]
+shplonk = []
+gwc = []
+phase-check = []
+profile = ["ark-std/print-trace"]
 
 [lib]
 bench = false

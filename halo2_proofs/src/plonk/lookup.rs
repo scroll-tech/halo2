@@ -7,9 +7,9 @@ pub(crate) mod verifier;
 
 #[derive(Clone)]
 pub struct Argument<F: Field> {
-    pub(crate) name: &'static str,
-    pub(crate) input_expressions: Vec<Expression<F>>,
-    pub(crate) table_expressions: Vec<Expression<F>>,
+    pub name: &'static str,
+    pub input_expressions: Vec<Expression<F>>,
+    pub table_expressions: Vec<Expression<F>>,
 }
 
 impl<F: Field> Debug for Argument<F> {

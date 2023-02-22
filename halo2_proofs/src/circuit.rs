@@ -12,6 +12,7 @@ use crate::{
 };
 
 mod value;
+pub(crate) use value::value_dev;
 pub use value::Value;
 
 pub mod floor_planner;
@@ -51,8 +52,8 @@ pub trait Chip<F: FieldExt>: Sized {
 }
 
 /// Index of a region in a layouter
-#[derive(Clone, Copy, Debug)]
-pub struct RegionIndex(usize);
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RegionIndex(pub usize);
 
 impl From<usize> for RegionIndex {
     fn from(idx: usize) -> RegionIndex {
@@ -87,14 +88,14 @@ impl std::ops::Deref for RegionStart {
 }
 
 /// A pointer to a cell within a circuit.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Cell {
     /// Identifies the region in which this cell resides.
-    region_index: RegionIndex,
+    pub region_index: RegionIndex,
     /// The relative offset of this cell within its region.
-    row_offset: usize,
+    pub row_offset: usize,
     /// The column of this cell.
-    column: Column<Any>,
+    pub column: Column<Any>,
 }
 
 /// An assigned cell.
@@ -204,6 +205,20 @@ impl<'r, F: Field> Region<'r, F> {
     {
         self.region
             .enable_selector(&|| annotation().into(), selector, offset)
+    }
+
+    /// Allows the circuit implementor to name/annotate a Column within a Region context.
+    ///
+    /// This is useful in order to improve the amount of information that `prover.verify()`
+    /// and `prover.assert_satisfied()` can provide.
+    pub fn name_column<A, AR, T>(&mut self, annotation: A, column: T)
+    where
+        A: Fn() -> AR,
+        AR: Into<String>,
+        T: Into<Column<Any>>,
+    {
+        self.region
+            .name_column(&|| annotation().into(), column.into());
     }
 
     /// Assign an advice column value (witness).

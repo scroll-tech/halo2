@@ -33,7 +33,7 @@ pub trait ColumnType:
 /// A column with an index and type
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Column<C: ColumnType> {
-    index: usize,
+    pub index: usize,
     column_type: C,
 }
 
@@ -104,7 +104,7 @@ impl<C: ColumnType> Hash for Column<C> {
 pub(crate) mod sealed {
     /// Phase of advice column
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-    pub struct Phase(pub(super) u8);
+    pub struct Phase(pub(crate) u8);
 
     impl Phase {
         pub fn prev(&self) -> Option<Phase> {
@@ -501,6 +501,10 @@ pub struct FixedQuery {
 }
 
 impl FixedQuery {
+    /// Index
+    pub fn index(&self) -> Option<usize> {
+        self.index
+    }
     /// Column index
     pub fn column_index(&self) -> usize {
         self.column_index
@@ -526,6 +530,10 @@ pub struct AdviceQuery {
 }
 
 impl AdviceQuery {
+    /// Index
+    pub fn index(&self) -> Option<usize> {
+        self.index
+    }
     /// Column index
     pub fn column_index(&self) -> usize {
         self.column_index
@@ -554,6 +562,10 @@ pub struct InstanceQuery {
 }
 
 impl InstanceQuery {
+    /// Index
+    pub fn index(&self) -> Option<usize> {
+        self.index
+    }
     /// Column index
     pub fn column_index(&self) -> usize {
         self.column_index
@@ -634,6 +646,14 @@ pub trait Assignment<F: Field> {
     //     where
     //         A: FnOnce() -> AR,
     //         AR: Into<String>;
+
+    /// Allows the developer to include an annotation for an specific column within a `Region`.
+    ///
+    /// This is usually useful for debugging circuit failures.
+    fn annotate_column<A, AR>(&mut self, annotation: A, column: Column<Any>)
+    where
+        A: FnOnce() -> AR,
+        AR: Into<String>;
 
     /// Exits the current region.
     ///
@@ -1483,7 +1503,7 @@ for Constraints<F, C, Iter>
 pub struct Gate<F: Field> {
     name: &'static str,
     constraint_names: Vec<&'static str>,
-    polys: Vec<Expression<F>>,
+    pub polys: Vec<Expression<F>>,
     /// We track queried selectors separately from other cells, so that we can use them to
     /// trigger debug checks on gates.
     queried_selectors: Vec<Selector>,
@@ -1517,37 +1537,36 @@ impl<F: Field> Gate<F> {
 /// permutation arrangements.
 #[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
-    pub(crate) num_fixed_columns: usize,
-    pub(crate) num_advice_columns: usize,
-    pub(crate) num_instance_columns: usize,
-    pub(crate) num_selectors: usize,
+    pub num_fixed_columns: usize,
+    pub num_advice_columns: usize,
+    pub num_instance_columns: usize,
+    pub num_selectors: usize,
     pub(crate) num_challenges: usize,
 
     /// Contains the phase for each advice column. Should have same length as num_advice_columns.
-    pub(crate) advice_column_phase: Vec<sealed::Phase>,
+    pub advice_column_phase: Vec<sealed::Phase>,
     /// Contains the phase for each challenge. Should have same length as num_challenges.
-    pub(crate) challenge_phase: Vec<sealed::Phase>,
+    pub challenge_phase: Vec<sealed::Phase>,
 
     /// This is a cached vector that maps virtual selectors to the concrete
     /// fixed column that they were compressed into. This is just used by dev
     /// tooling right now.
     pub(crate) selector_map: Vec<Column<Fixed>>,
-
-    pub(crate) gates: Vec<Gate<F>>,
-    pub(crate) advice_queries: Vec<(Column<Advice>, Rotation)>,
+    pub gates: Vec<Gate<F>>,
+    pub advice_queries: Vec<(Column<Advice>, Rotation)>,
     // Contains an integer for each advice column
     // identifying how many distinct queries it has
     // so far; should be same length as num_advice_columns.
     num_advice_queries: Vec<usize>,
-    pub(crate) instance_queries: Vec<(Column<Instance>, Rotation)>,
-    pub(crate) fixed_queries: Vec<(Column<Fixed>, Rotation)>,
+    pub instance_queries: Vec<(Column<Instance>, Rotation)>,
+    pub fixed_queries: Vec<(Column<Fixed>, Rotation)>,
 
     // Permutation argument for performing equality constraints
-    pub(crate) permutation: permutation::Argument,
+    pub permutation: permutation::Argument,
 
     // Vector of lookup arguments, where each corresponds to a sequence of
     // input expressions and a sequence of table expressions involved in the lookup.
-    pub(crate) lookups: Vec<lookup::Argument<F>>,
+    pub lookups: Vec<lookup::Argument<F>>,
 
     // List of indexes of Fixed columns which are associated to a circuit-general Column tied to their annotation.
     pub(crate) general_column_annotations: HashMap<metadata::Column, String>,
@@ -1822,7 +1841,7 @@ impl<F: Field> ConstraintSystem<F> {
         panic!("get_instance_query_index called for non-existent query");
     }
 
-    pub(crate) fn get_any_query_index(&self, column: Column<Any>, at: Rotation) -> usize {
+    pub fn get_any_query_index(&self, column: Column<Any>, at: Rotation) -> usize {
         match column.column_type() {
             Any::Advice(_) => {
                 self.get_advice_query_index(Column::<Advice>::try_from(column).unwrap(), at)
@@ -2128,7 +2147,16 @@ impl<F: Field> ConstraintSystem<F> {
             });
     }
 
-    pub(crate) fn phases(&self) -> impl Iterator<Item = sealed::Phase> {
+    /// ..
+    pub fn max_phase(&self) -> u8 {
+        self.advice_column_phase
+            .iter()
+            .max()
+            .map(|phase| phase.0)
+            .unwrap_or_default()
+    }
+
+    pub fn phases(&self) -> impl Iterator<Item = sealed::Phase> {
         let max_phase = self
             .advice_column_phase
             .iter()

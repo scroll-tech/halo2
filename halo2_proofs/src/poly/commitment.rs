@@ -99,7 +99,7 @@ pub trait ParamsProver<'params, C: CurveAffine>: Params<'params, C> {
 pub trait ParamsVerifier<'params, C: CurveAffine>: Params<'params, C> {}
 
 /// Multi scalar multiplication engine
-pub trait MSM<C: CurveAffine>: Clone + Debug {
+pub trait MSM<C: CurveAffine>: Clone + Debug + Send + Sync {
     /// Add arbitrary term (the scalar and the point)
     fn append_term(&mut self, scalar: C::Scalar, point: C::CurveExt);
 
@@ -126,6 +126,9 @@ pub trait MSM<C: CurveAffine>: Clone + Debug {
 
 /// Common multi-open prover interface for various commitment schemes
 pub trait Prover<'params, Scheme: CommitmentScheme> {
+    /// Query instance or not
+    const QUERY_INSTANCE: bool;
+
     /// Creates new prover instance
     fn new(params: &'params Scheme::ParamsProver) -> Self;
 
@@ -155,6 +158,9 @@ pub trait Verifier<'params, Scheme: CommitmentScheme> {
 
     /// Accumulator fot comressed verification
     type MSMAccumulator;
+
+    /// Query instance or not
+    const QUERY_INSTANCE: bool;
 
     /// Creates new verifier instance
     fn new(params: &'params Scheme::ParamsVerifier) -> Self;

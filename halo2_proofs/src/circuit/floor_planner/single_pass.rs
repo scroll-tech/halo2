@@ -5,6 +5,8 @@ use std::marker::PhantomData;
 
 use ff::Field;
 
+use ark_std::{end_timer, start_timer};
+
 use crate::{
     circuit::{
         layouter::{RegionColumn, RegionLayouter, RegionShape, TableLayouter},
@@ -31,8 +33,11 @@ impl FloorPlanner for SimpleFloorPlanner {
         config: C::Config,
         constants: Vec<Column<Fixed>>,
     ) -> Result<(), Error> {
+        let timer = start_timer!(|| format!("SimpleFloorPlanner synthesize"));
         let layouter = SingleChipLayouter::new(cs, constants)?;
-        circuit.synthesize(config, layouter)
+        let result = circuit.synthesize(config, layouter);
+        end_timer!(timer);
+        result
     }
 }
 
@@ -82,20 +87,50 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         N: Fn() -> NR,
         NR: Into<String>,
     {
+        let region_name: String = name().into();
+        let timer = start_timer!(|| format!("assign region: {}", region_name));
         let region_index = self.regions.len();
 
         // Get shape of the region.
         let mut shape = RegionShape::new(region_index.into());
         {
+            let timer_1st = start_timer!(|| format!("assign region 1st pass: {}", region_name));
             let region: &mut dyn RegionLayouter<F> = &mut shape;
             assignment(region.into())?;
+            end_timer!(timer_1st);
+        }
+        let row_count = shape.row_count();
+        let log_region_info = row_count >= 40;
+        if log_region_info {
+            log::debug!(
+                "region row_count \"{}\": {}",
+                region_name,
+                shape.row_count()
+            );
         }
 
         // Lay out this region. We implement the simplest approach here: position the
         // region starting at the earliest row for which none of the columns are in use.
         let mut region_start = 0;
         for column in &shape.columns {
-            region_start = cmp::max(region_start, self.columns.get(column).cloned().unwrap_or(0));
+            let column_start = self.columns.get(column).cloned().unwrap_or(0);
+            if column_start != 0 && log_region_info {
+                log::trace!(
+                    "columns {:?} reused between multi regions. Start: {}. Region: \"{}\"",
+                    column,
+                    column_start,
+                    region_name
+                );
+            }
+            region_start = cmp::max(region_start, column_start);
+        }
+        if log_region_info {
+            log::debug!(
+                "region \"{}\", idx {} start {}",
+                region_name,
+                self.regions.len(),
+                region_start
+            );
         }
         self.regions.push(region_start.into());
 
@@ -108,8 +143,11 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         self.cs.enter_region(name);
         let mut region = SingleChipLayouterRegion::new(self, region_index.into());
         let result = {
+            let timer_2nd = start_timer!(|| format!("assign region 2nd pass: {}", region_name));
             let region: &mut dyn RegionLayouter<F> = &mut region;
-            assignment(region.into())
+            let result = assignment(region.into());
+            end_timer!(timer_2nd);
+            result
         }?;
         let constants_to_assign = region.constants;
         self.cs.exit_region();
@@ -143,6 +181,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
             }
         }
 
+        end_timer!(timer);
         Ok(result)
     }
 
@@ -277,6 +316,14 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F>
             selector,
             *self.layouter.regions[*self.region_index] + offset,
         )
+    }
+
+    fn name_column<'v>(
+        &'v mut self,
+        annotation: &'v (dyn Fn() -> String + 'v),
+        column: Column<Any>,
+    ) {
+        self.layouter.cs.annotate_column(annotation, column);
     }
 
     fn assign_advice<'v>(

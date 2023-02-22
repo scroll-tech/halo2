@@ -20,8 +20,6 @@ use halo2_proofs::transcript::{
 use rand_core::{OsRng, RngCore};
 use std::marker::PhantomData;
 
-#[test]
-fn plonk_api() {
     const K: u32 = 5;
 
     /// This represents an advice column at a certain row in the ConstraintSystem
@@ -532,6 +530,7 @@ fn plonk_api() {
         assert!(strategy.finalize());
     }
 
+    #[test]
     fn test_plonk_api_gwc() {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverGWC, VerifierGWC};
@@ -561,6 +560,7 @@ fn plonk_api() {
         >(verifier_params, pk.get_vk(), &proof[..]);
     }
 
+    #[test]
     fn test_plonk_api_shplonk() {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverSHPLONK, VerifierSHPLONK};
@@ -590,6 +590,7 @@ fn plonk_api() {
         >(verifier_params, pk.get_vk(), &proof[..]);
     }
 
+    #[test]
     fn test_plonk_api_ipa() {
         use halo2_proofs::poly::ipa::commitment::{IPACommitmentScheme, ParamsIPA};
         use halo2_proofs::poly::ipa::multiopen::{ProverIPA, VerifierIPA};
@@ -1021,7 +1022,3 @@ fn plonk_api() {
         }
     }
 
-    test_plonk_api_ipa();
-    test_plonk_api_gwc();
-    test_plonk_api_shplonk();
-}

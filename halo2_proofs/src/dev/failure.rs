@@ -1,17 +1,19 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fmt;
-use std::iter;
+use std::collections::{BTreeMap, HashSet};
+use std::fmt::{self, Debug};
 
 use group::ff::Field;
 use halo2curves::FieldExt;
 
+use super::metadata::{DebugColumn, DebugVirtualCell};
+use super::MockProver;
 use super::{
     metadata,
     util::{self, AnyQuery},
-    MockProver, Region,
+    Region,
 };
+use crate::dev::metadata::Constraint;
 use crate::{
-    dev::Value,
+    dev::{Instance, Value},
     plonk::{Any, Column, ConstraintSystem, Expression, Gate},
     poly::Rotation,
 };
@@ -19,7 +21,7 @@ use crate::{
 mod emitter;
 
 /// The location within the circuit at which a particular [`VerifyFailure`] occurred.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureLocation {
     /// A location inside a region.
     InRegion {
@@ -48,6 +50,16 @@ impl fmt::Display for FailureLocation {
 }
 
 impl FailureLocation {
+    /// Returns a `DebugColumn` from Column metadata and `&self`.
+    pub(super) fn get_debug_column(&self, metadata: metadata::Column) -> DebugColumn {
+        match self {
+            Self::InRegion { region, .. } => {
+                DebugColumn::from((metadata, region.column_annotations.as_ref()))
+            }
+            _ => DebugColumn::from((metadata, None)),
+        }
+    }
+
     pub(super) fn find_expressions<'a, F: Field>(
         cs: &ConstraintSystem<F>,
         regions: &[Region],
@@ -90,6 +102,9 @@ impl FailureLocation {
             .iter()
             .enumerate()
             .find(|(_, r)| {
+                if r.rows.is_none() {
+                    return false;
+                }
                 let (start, end) = r.rows.unwrap();
                 // We match the region if any input columns overlap, rather than all of
                 // them, because matching complex selector columns is hard. As long as
@@ -99,17 +114,15 @@ impl FailureLocation {
                 (start..=end).contains(&failure_row) && !failure_columns.is_disjoint(&r.columns)
             })
             .map(|(r_i, r)| FailureLocation::InRegion {
-                region: (r_i, r.name.clone()).into(),
-                offset: failure_row as usize - r.rows.unwrap().0 as usize,
+                region: (r_i, r.name.clone(), r.annotations.clone()).into(),
+                offset: failure_row - r.rows.unwrap().0,
             })
-            .unwrap_or_else(|| FailureLocation::OutsideRegion {
-                row: failure_row as usize,
-            })
+            .unwrap_or_else(|| FailureLocation::OutsideRegion { row: failure_row })
     }
 }
 
 /// The reasons why a particular circuit is not satisfied.
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum VerifyFailure {
     /// A cell used in an active gate was not assigned to.
     CellNotAssigned {
@@ -187,8 +200,8 @@ impl fmt::Display for VerifyFailure {
             } => {
                 write!(
                     f,
-                    "{} uses {} at offset {}, which requires cell in column {:?} at offset {} to be assigned.",
-                    region, gate, gate_offset, column, offset
+                    "{} uses {} at offset {}, which requires cell in column {:?} at offset {} with annotation {:?} to be assigned.",
+                    region, gate, gate_offset, column, offset, region.get_column_annotation((*column).into())
                 )
             }
             Self::ConstraintNotSatisfied {
@@ -197,8 +210,17 @@ impl fmt::Display for VerifyFailure {
                 cell_values,
             } => {
                 writeln!(f, "{} is not satisfied {}", constraint, location)?;
-                for (name, value) in cell_values {
-                    writeln!(f, "- {} = {}", name, value)?;
+                for (dvc, value) in cell_values.iter().map(|(vc, string)| {
+                    let ann_map = match location {
+                        FailureLocation::InRegion { region, offset: _ } => {
+                            &region.column_annotations
+                        }
+                        _ => &None,
+                    };
+
+                    (DebugVirtualCell::from((vc, ann_map.as_ref())), string)
+                }) {
+                    writeln!(f, "- {} = {}", dvc, value)?;
                 }
                 Ok(())
             }
@@ -223,10 +245,55 @@ impl fmt::Display for VerifyFailure {
             Self::Permutation { column, location } => {
                 write!(
                     f,
-                    "Equality constraint not satisfied by cell ({:?}, {})",
-                    column, location
+                    "Equality constraint not satisfied by cell ({}, {})",
+                    location.get_debug_column(*column),
+                    location
                 )
             }
+        }
+    }
+}
+
+impl Debug for VerifyFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VerifyFailure::ConstraintNotSatisfied {
+                constraint,
+                location,
+                cell_values,
+            } => {
+                #[allow(dead_code)]
+                #[derive(Debug)]
+                struct ConstraintCaseDebug {
+                    constraint: Constraint,
+                    location: FailureLocation,
+                    cell_values: Vec<(DebugVirtualCell, String)>,
+                }
+
+                let ann_map = match location {
+                    FailureLocation::InRegion { region, offset: _ } => {
+                        region.column_annotations.clone()
+                    }
+                    _ => None,
+                };
+
+                let debug = ConstraintCaseDebug {
+                    constraint: *constraint,
+                    location: location.clone(),
+                    cell_values: cell_values
+                        .iter()
+                        .map(|(vc, value)| {
+                            (
+                                DebugVirtualCell::from((vc, ann_map.as_ref())),
+                                value.clone(),
+                            )
+                        })
+                        .collect(),
+                };
+
+                write!(f, "{:#?}", debug)
+            }
+            _ => write!(f, "{:#}", self),
         }
     }
 }
@@ -398,18 +465,48 @@ fn render_lookup<F: FieldExt>(
 
     // Recover the fixed columns from the table expressions. We don't allow composite
     // expressions for the table side of lookups.
-    let table_columns = lookup.table_expressions.iter().map(|expr| {
+    let lookup_columns = lookup.table_expressions.iter().map(|expr| {
         expr.evaluate(
-            &|_| panic!("no constants in table expressions"),
-            &|_| panic!("no selectors in table expressions"),
-            &|query| format!("F{}", query.column_index),
-            &|_| panic!("no advice columns in table expressions"),
-            &|_| panic!("no instance columns in table expressions"),
-            &|_| panic!("no challenges in table expressions"),
-            &|_| panic!("no negations in table expressions"),
-            &|_, _| panic!("no sums in table expressions"),
-            &|_, _| panic!("no products in table expressions"),
-            &|_, _| panic!("no scaling in table expressions"),
+            &|f| format! {"Const: {:#?}", f},
+            &|s| format! {"S{}", s.0},
+            &|query| {
+                format!(
+                    "{:?}",
+                    prover
+                        .cs
+                        .general_column_annotations
+                        .get(&metadata::Column::from((Any::Fixed, query.column_index)))
+                        .cloned()
+                        .unwrap_or_else(|| format!("F{}", query.column_index()))
+                )
+            },
+            &|query| {
+                format!(
+                    "{:?}",
+                    prover
+                        .cs
+                        .general_column_annotations
+                        .get(&metadata::Column::from((Any::advice(), query.column_index)))
+                        .cloned()
+                        .unwrap_or_else(|| format!("A{}", query.column_index()))
+                )
+            },
+            &|query| {
+                format!(
+                    "{:?}",
+                    prover
+                        .cs
+                        .general_column_annotations
+                        .get(&metadata::Column::from((Any::Instance, query.column_index)))
+                        .cloned()
+                        .unwrap_or_else(|| format!("I{}", query.column_index()))
+                )
+            },
+            &|challenge| format! {"C{}", challenge.index()},
+            &|query| format! {"-{}", query},
+            &|a, b| format! {"{} + {}", a,b},
+            &|a, b| format! {"{} * {}", a,b},
+            &|a, b| format! {"{} * {:?}", a, b},
         )
     });
 
@@ -440,8 +537,9 @@ fn render_lookup<F: FieldExt>(
     for i in 0..lookup.input_expressions.len() {
         eprint!("{}L{}", if i == 0 { "" } else { ", " }, i);
     }
+
     eprint!(") ∉ (");
-    for (i, column) in table_columns.enumerate() {
+    for (i, column) in lookup_columns.enumerate() {
         eprint!("{}{}", if i == 0 { "" } else { ", " }, column);
     }
     eprintln!(")");
@@ -498,6 +596,7 @@ fn render_lookup<F: FieldExt>(
             emitter::expression_to_string(input, &layout)
         );
         eprintln!("    ^");
+
         emitter::render_cell_layout("    | ", location, &columns, &layout, |_, rotation| {
             if rotation == 0 {
                 eprint!(" <--{{ Lookup '{}' inputs queried here", name);

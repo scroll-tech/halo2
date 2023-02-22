@@ -88,26 +88,32 @@ pub fn create_proof<
                         return Err(Error::InstanceTooLarge);
                     }
                     for (poly, value) in poly.iter_mut().zip(values.iter()) {
+                        if !P::QUERY_INSTANCE {
+                            transcript.common_scalar(*value)?;
+                        }
                         *poly = *value;
                     }
                     Ok(poly)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let instance_commitments_projective: Vec<_> = instance_values
-                .iter()
-                .map(|poly| params.commit_lagrange(poly, Blind::default()))
-                .collect();
-            let mut instance_commitments =
-                vec![Scheme::Curve::identity(); instance_commitments_projective.len()];
-            <Scheme::Curve as CurveAffine>::CurveExt::batch_normalize(
-                &instance_commitments_projective,
-                &mut instance_commitments,
-            );
-            let instance_commitments = instance_commitments;
-            drop(instance_commitments_projective);
 
-            for commitment in &instance_commitments {
-                transcript.common_point(*commitment)?;
+            if P::QUERY_INSTANCE {
+                let instance_commitments_projective: Vec<_> = instance_values
+                    .iter()
+                    .map(|poly| params.commit_lagrange(poly, Blind::default()))
+                    .collect();
+                let mut instance_commitments =
+                    vec![Scheme::Curve::identity(); instance_commitments_projective.len()];
+                <Scheme::Curve as CurveAffine>::CurveExt::batch_normalize(
+                    &instance_commitments_projective,
+                    &mut instance_commitments,
+                );
+                let instance_commitments = instance_commitments;
+                drop(instance_commitments_projective);
+
+                for commitment in &instance_commitments {
+                    transcript.common_point(*commitment)?;
+                }
             }
 
             let instance_polys: Vec<_> = instance_values
@@ -164,6 +170,14 @@ pub fn create_proof<
             Ok(())
         }
 
+        fn annotate_column<A, AR>(&mut self, _annotation: A, _column: Column<Any>)
+        where
+            A: FnOnce() -> AR,
+            AR: Into<String>,
+        {
+            // Do nothing
+        }
+
         fn query_instance(&self, column: Column<Instance>, row: usize) -> Result<Value<F>, Error> {
             if !self.usable_rows.contains(&row) {
                 return Err(Error::not_enough_rows_available(self.k));
@@ -190,7 +204,7 @@ pub fn create_proof<
             AR: Into<String>,
         {
             // Ignore assignment of advice column in different phase than current one.
-            if self.current_phase != column.column_type().phase {
+            if self.current_phase.0 < column.column_type().phase.0 {
                 return Ok(());
             }
 
@@ -275,6 +289,9 @@ pub fn create_proof<
             };
             instances.len()
         ];
+        #[cfg(feature = "phase-check")]
+        let mut advice_assignments =
+            vec![vec![domain.empty_lagrange_assigned(); meta.num_advice_columns]; instances.len()];
         let mut challenges = HashMap::<usize, Scheme::Scalar>::with_capacity(meta.num_challenges);
 
         let unusable_rows_start = params.n() as usize - (meta.blinding_factors() + 1);
@@ -292,8 +309,11 @@ pub fn create_proof<
                 })
                 .collect::<BTreeSet<_>>();
 
-            for ((circuit, advice), instances) in
-                circuits.iter().zip(advice.iter_mut()).zip(instances)
+            for (circuit_idx, ((circuit, advice), instances)) in circuits
+                .iter()
+                .zip(advice.iter_mut())
+                .zip(instances)
+                .enumerate()
             {
                 let mut witness = WitnessCollection {
                     k: params.k(),
@@ -317,6 +337,22 @@ pub fn create_proof<
                     meta.constants.clone(),
                 )?;
 
+                #[cfg(feature = "phase-check")]
+                {
+                    for (idx, advice_col) in witness.advice.iter().enumerate() {
+                        if pk.vk.cs.advice_column_phase[idx].0 < current_phase.0 {
+                            if advice_assignments[circuit_idx][idx].values != advice_col.values {
+                                log::error!(
+                                    "advice column {}(at {:?}) changed when {:?}",
+                                    idx,
+                                    pk.vk.cs.advice_column_phase[idx],
+                                    current_phase
+                                );
+                            }
+                        }
+                    }
+                }
+
                 let mut advice_values = batch_invert_assigned::<Scheme::Scalar>(
                     witness
                         .advice
@@ -324,6 +360,10 @@ pub fn create_proof<
                         .enumerate()
                         .filter_map(|(column_index, advice)| {
                             if column_indices.contains(&column_index) {
+                                #[cfg(feature = "phase-check")]
+                                {
+                                    advice_assignments[circuit_idx][column_index] = advice.clone();
+                                }
                                 Some(advice)
                             } else {
                                 None
@@ -334,9 +374,12 @@ pub fn create_proof<
 
                 // Add blinding factors to advice columns
                 for advice_values in &mut advice_values {
-                    for cell in &mut advice_values[unusable_rows_start..] {
-                        *cell = Scheme::Scalar::random(&mut rng);
-                    }
+                    //for cell in &mut advice_values[unusable_rows_start..] {
+                    //*cell = C::Scalar::random(&mut rng);
+                    //*cell = C::Scalar::one();
+                    //}
+                    let idx = advice_values.len() - 1;
+                    advice_values[idx] = Scheme::Scalar::one();
                 }
 
                 // Compute commitments to advice column polynomials
@@ -504,23 +547,25 @@ pub fn create_proof<
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
     let xn = x.pow(&[params.n() as u64, 0, 0, 0]);
 
-    // Compute and hash instance evals for each circuit instance
-    for instance in instance.iter() {
-        // Evaluate polynomials at omega^i x
-        let instance_evals: Vec<_> = meta
-            .instance_queries
-            .iter()
-            .map(|&(column, at)| {
-                eval_polynomial(
-                    &instance.instance_polys[column.index()],
-                    domain.rotate_omega(*x, at),
-                )
-            })
-            .collect();
+    if P::QUERY_INSTANCE {
+        // Compute and hash instance evals for each circuit instance
+        for instance in instance.iter() {
+            // Evaluate polynomials at omega^i x
+            let instance_evals: Vec<_> = meta
+                .instance_queries
+                .iter()
+                .map(|&(column, at)| {
+                    eval_polynomial(
+                        &instance.instance_polys[column.index()],
+                        domain.rotate_omega(*x, at),
+                    )
+                })
+                .collect();
 
-        // Hash each instance column evaluation
-        for eval in instance_evals.iter() {
-            transcript.write_scalar(*eval)?;
+            // Hash each instance column evaluation
+            for eval in instance_evals.iter() {
+                transcript.write_scalar(*eval)?;
+            }
         }
     }
 
@@ -588,15 +633,16 @@ pub fn create_proof<
         .flat_map(|(((instance, advice), permutation), lookups)| {
             iter::empty()
                 .chain(
-                    pk.vk
-                        .cs
-                        .instance_queries
-                        .iter()
-                        .map(move |&(column, at)| ProverQuery {
-                            point: domain.rotate_omega(*x, at),
-                            poly: &instance.instance_polys[column.index()],
-                            blind: Blind::default(),
-                        }),
+                    P::QUERY_INSTANCE
+                        .then_some(pk.vk.cs.instance_queries.iter().map(move |&(column, at)| {
+                            ProverQuery {
+                                point: domain.rotate_omega(*x, at),
+                                poly: &instance.instance_polys[column.index()],
+                                blind: Blind::default(),
+                            }
+                        }))
+                        .into_iter()
+                        .flatten(),
                 )
                 .chain(
                     pk.vk

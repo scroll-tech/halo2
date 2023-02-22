@@ -20,7 +20,6 @@ use crate::{
 
 pub(crate) struct CommittedSet<C: CurveAffine> {
     pub(crate) permutation_product_poly: Polynomial<C::Scalar, Coeff>,
-    pub(crate) permutation_product_coset: Polynomial<C::Scalar, ExtendedLagrangeCoeff>,
     permutation_product_blind: Blind<C::Scalar>,
 }
 
@@ -172,8 +171,6 @@ impl Argument {
             let z = domain.lagrange_to_coeff(z);
             let permutation_product_poly = z.clone();
 
-            let permutation_product_coset = domain.coeff_to_extended(z.clone());
-
             let permutation_product_commitment =
                 permutation_product_commitment_projective.to_affine();
 
@@ -182,7 +179,6 @@ impl Argument {
 
             sets.push(CommittedSet {
                 permutation_product_poly,
-                permutation_product_coset,
                 permutation_product_blind,
             });
         }
