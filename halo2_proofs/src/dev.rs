@@ -1443,7 +1443,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             self.permutation
                 .as_ref()
                 .expect("root cs permutation must be Some")
-                .mapping
+                .mapping()
                 .iter()
                 .enumerate()
                 .flat_map(move |(column, values)| {
@@ -1817,7 +1817,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             self.permutation
                 .as_ref()
                 .expect("root cs permutation must be Some")
-                .mapping
+                .mapping()
                 .iter()
                 .enumerate()
                 .flat_map(move |(column, values)| {
