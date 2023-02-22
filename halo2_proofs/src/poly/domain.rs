@@ -794,7 +794,7 @@ fn test_lagrange_vecs_to_extended() {
     let mut poly_lagrange_vecs = vec![];
     let mut want = domain.empty_extended();
     let mut omega = domain.extended_omega;
-    for i in (0..(domain.extended_k - 1 - domain.k + 1)).rev() {
+    for i in (0..(domain.extended_k - domain.k + 1)).rev() {
         let mut poly = vec![Scalar::zero(); (1 << i) * domain.n as usize];
         for value in poly.iter_mut() {
             *value = Scalar::random(rng);

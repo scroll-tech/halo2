@@ -16,7 +16,6 @@ use group::{
     ff::{BatchInvert, Field},
     Curve,
 };
-use halo2curves::pasta::pallas::Scalar;
 use itertools::Itertools;
 use std::any::TypeId;
 use std::convert::TryInto;
