@@ -316,40 +316,31 @@ impl<C: CurveAffine> Evaluator<C> {
                 let l_active_row =
                     domain.coeff_to_extended_part(pk.l_active_row.clone(), current_extended_omega);
 
-                // Calculate the advice and instance cosets
-                let advice: Vec<Vec<Polynomial<C::Scalar, LagrangeCoeff>>> = advice_polys
-                    .iter()
-                    .map(|advice_polys| {
-                        advice_polys
-                            .iter()
-                            .map(|poly| {
-                                domain.coeff_to_extended_part(poly.clone(), current_extended_omega)
-                            })
-                            .collect()
-                    })
-                    .collect();
-                let instance: Vec<Vec<Polynomial<C::Scalar, LagrangeCoeff>>> = instance_polys
-                    .iter()
-                    .map(|instance_polys| {
-                        instance_polys
-                            .iter()
-                            .map(|poly| {
-                                domain.coeff_to_extended_part(poly.clone(), current_extended_omega)
-                            })
-                            .collect()
-                    })
-                    .collect();
-
                 let mut values = domain.empty_lagrange();
 
                 // Core expression evaluations
                 let num_threads = multicore::current_num_threads();
-                for (((advice, instance), lookups), permutation) in advice
+                for (((advice_polys, instance_polys), lookups), permutation) in advice_polys
                     .iter()
-                    .zip(instance.iter())
+                    .zip(instance_polys.iter())
                     .zip(lookups.iter())
                     .zip(permutations.iter())
                 {
+                    // Calculate the advice and instance cosets
+                    let advice: Vec<Polynomial<C::Scalar, LagrangeCoeff>> = advice_polys
+                        .iter()
+                        .map(|poly| {
+                            domain.coeff_to_extended_part(poly.clone(), current_extended_omega)
+                        })
+                        .collect();
+                    let advice = &advice[..];
+                    let instance: Vec<Polynomial<C::Scalar, LagrangeCoeff>> = instance_polys
+                        .iter()
+                        .map(|poly| {
+                            domain.coeff_to_extended_part(poly.clone(), current_extended_omega)
+                        })
+                        .collect();
+                    let instance = &instance[..];
                     // Custom gates
                     multicore::scope(|scope| {
                         let chunk_size = (size + num_threads - 1) / num_threads;
