@@ -74,7 +74,7 @@ impl ValueSource {
         rotations: &[usize],
         constants: &[F],
         intermediates: &[F],
-        fixed_values: &[Polynomial<F, B>],
+        fixed_values: &[Option<Polynomial<F, B>>],
         advice_values: &[Option<Polynomial<F, B>>],
         instance_values: &[Option<Polynomial<F, B>>],
         challenges: &[F],
@@ -87,7 +87,8 @@ impl ValueSource {
             ValueSource::Constant(idx) => constants[*idx],
             ValueSource::Intermediate(idx) => intermediates[*idx],
             ValueSource::Fixed(column_index, rotation) => {
-                fixed_values[*column_index][rotations[*rotation]]
+                assert!(fixed_values[*column_index].is_some());
+                fixed_values[*column_index].as_ref().unwrap()[rotations[*rotation]]
             }
             ValueSource::Advice(column_index, rotation) => {
                 assert!(advice_values[*column_index].is_some());
@@ -134,7 +135,7 @@ impl Calculation {
         rotations: &[usize],
         constants: &[F],
         intermediates: &[F],
-        fixed_values: &[Polynomial<F, B>],
+        fixed_values: &[Option<Polynomial<F, B>>],
         advice_values: &[Option<Polynomial<F, B>>],
         instance_values: &[Option<Polynomial<F, B>>],
         challenges: &[F],
@@ -180,11 +181,13 @@ impl Calculation {
 
 #[derive(Clone, Default, Debug)]
 struct ConstraintCluster<C: CurveAffine> {
-    /// used instance columns in each cluster
+    /// Used fixed columns in each cluster
+    used_fixed_columns: Vec<usize>,
+    /// Used instance columns in each cluster
     used_instance_columns: Vec<usize>,
-    /// used advice columns in each cluster
+    /// Used advice columns in each cluster
     used_advice_columns: Vec<usize>,
-    ///  Custom gates evalution
+    /// Custom gates evalution
     evaluator: GraphEvaluator<C>,
     /// The first index of constraints are being evaluated at in each cluster
     first_constraint_idx: usize,
@@ -202,7 +205,11 @@ pub struct Evaluator<C: CurveAffine> {
     /// Number of custom gate constraints
     num_custom_gate_constraints: usize,
     ///  Lookups evalution, degree, used instance and advice columns
-    lookups: Vec<(GraphEvaluator<C>, usize, (Vec<usize>, Vec<usize>))>,
+    lookups: Vec<(
+        GraphEvaluator<C>,
+        usize,
+        (Vec<usize>, Vec<usize>, Vec<usize>),
+    )>,
 
     /// Powers of y
     num_y_powers: usize,
@@ -267,6 +274,10 @@ impl<C: CurveAffine> Evaluator<C> {
                 constraint_idx += 1;
                 let cluster_idx = Self::compute_cluster_idx(poly.degree(), max_cluster_idx);
                 let custom_gate_cluster = &mut ev.custom_gate_clusters[cluster_idx];
+                custom_gate_cluster.used_fixed_columns = merge_unique(
+                    custom_gate_cluster.used_fixed_columns.clone(),
+                    poly.extract_fixed(),
+                );
                 custom_gate_cluster.used_instance_columns = merge_unique(
                     custom_gate_cluster.used_instance_columns.clone(),
                     poly.extract_instances(),
@@ -306,12 +317,15 @@ impl<C: CurveAffine> Evaluator<C> {
 
             let mut evaluate_lc = |expressions: &Vec<Expression<_>>| {
                 let mut max_degree = 0;
+                let mut used_fixed_columns = vec![];
                 let mut used_instance_columns = vec![];
                 let mut used_advice_columns = vec![];
                 let parts = expressions
                     .iter()
                     .map(|expr| {
                         max_degree = max_degree.max(expr.degree());
+                        used_fixed_columns =
+                            merge_unique(used_fixed_columns.clone(), expr.extract_fixed());
                         used_instance_columns =
                             merge_unique(used_instance_columns.clone(), expr.extract_instances());
                         used_advice_columns =
@@ -326,6 +340,7 @@ impl<C: CurveAffine> Evaluator<C> {
                         ValueSource::Theta(),
                     )),
                     max_degree,
+                    used_fixed_columns,
                     used_instance_columns,
                     used_advice_columns,
                 )
@@ -335,6 +350,7 @@ impl<C: CurveAffine> Evaluator<C> {
             let (
                 compressed_input_coset,
                 max_input_degree,
+                input_used_fixed,
                 input_used_instances,
                 input_used_advices,
             ) = evaluate_lc(&lookup.input_expressions);
@@ -342,6 +358,7 @@ impl<C: CurveAffine> Evaluator<C> {
             let (
                 compressed_table_coset,
                 max_table_degree,
+                table_used_fixed,
                 table_used_instances,
                 table_used_advices,
             ) = evaluate_lc(&lookup.table_expressions);
@@ -359,6 +376,7 @@ impl<C: CurveAffine> Evaluator<C> {
                 graph,
                 max_input_degree + max_table_degree,
                 (
+                    merge_unique(input_used_fixed, table_used_fixed),
                     merge_unique(input_used_instances, table_used_instances),
                     merge_unique(input_used_advices, table_used_advices),
                 ),
@@ -418,12 +436,8 @@ impl<C: CurveAffine> Evaluator<C> {
         // Calculate the quotient polynomial for each part
         let mut current_extended_omega = one;
         for part_idx in 0..num_parts {
-            let fixed: Vec<Polynomial<C::ScalarExt, LagrangeCoeff>> = pk
-                .fixed_polys
-                .iter()
-                .map(|p| domain.coeff_to_extended_part(p.clone(), current_extended_omega))
-                .collect();
-            let fixed = &fixed[..];
+            let mut fixed: Vec<Option<Polynomial<C::ScalarExt, LagrangeCoeff>>> =
+                vec![None; pk.fixed_polys.len()];
             let l0 = domain.coeff_to_extended_part(pk.l0.clone(), current_extended_omega);
             let l_last = domain.coeff_to_extended_part(pk.l_last.clone(), current_extended_omega);
             let l_active_row =
@@ -455,6 +469,14 @@ impl<C: CurveAffine> Evaluator<C> {
                     }
                     let values = &mut value_part_clusters[cluster_idx]
                         [compute_part_idx_in_cluster(part_idx, cluster_idx)];
+                    for fixed_idx in custom_gates.used_fixed_columns.iter() {
+                        if fixed[*fixed_idx].is_none() {
+                            fixed[*fixed_idx] = Some(domain.coeff_to_extended_part(
+                                pk.fixed_polys[*fixed_idx].clone(),
+                                current_extended_omega,
+                            ));
+                        }
+                    }
                     for instance_idx in custom_gates.used_instance_columns.iter() {
                         if instance[*instance_idx].is_none() {
                             instance[*instance_idx] = Some(domain.coeff_to_extended_part(
@@ -471,6 +493,7 @@ impl<C: CurveAffine> Evaluator<C> {
                             ));
                         }
                     }
+                    let fixed_slice = &fixed[..];
                     let advice_slice = &advice[..];
                     let instance_slice = &instance[..];
                     let y_power_slice = &y_powers[..];
@@ -487,7 +510,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                     *value = *value * y_power
                                         + custom_gates.evaluator.evaluate(
                                             &mut eval_data,
-                                            fixed,
+                                            fixed_slice,
                                             advice_slice,
                                             instance_slice,
                                             challenges,
@@ -631,7 +654,15 @@ impl<C: CurveAffine> Evaluator<C> {
                                         ));
                                     }
                                 }
-                                Any::Fixed => {}
+                                Any::Fixed => {
+                                    let fixed = &mut fixed[column.index()];
+                                    if fixed.is_none() {
+                                        *fixed = Some(domain.coeff_to_extended_part(
+                                            pk.fixed_polys[column.index()].clone(),
+                                            current_extended_omega,
+                                        ));
+                                    }
+                                }
                             }
                         }
 
@@ -680,11 +711,13 @@ impl<C: CurveAffine> Evaluator<C> {
                                             .iter()
                                             .map(|&column| match column.column_type() {
                                                 Any::Advice(_) => {
-                                                    &(advice[column.index()].as_ref().unwrap())
+                                                    advice[column.index()].as_ref().unwrap()
                                                 }
-                                                Any::Fixed => &fixed[column.index()],
+                                                Any::Fixed => {
+                                                    fixed[column.index()].as_ref().unwrap()
+                                                }
                                                 Any::Instance => {
-                                                    &(instance[column.index()].as_ref().unwrap())
+                                                    instance[column.index()].as_ref().unwrap()
                                                 }
                                             })
                                             .zip(permutation_coset_chunk.iter())
@@ -696,11 +729,13 @@ impl<C: CurveAffine> Evaluator<C> {
                                         for values in columns.iter().map(|&column| {
                                             match column.column_type() {
                                                 Any::Advice(_) => {
-                                                    &(advice[column.index()].as_ref().unwrap())
+                                                    advice[column.index()].as_ref().unwrap()
                                                 }
-                                                Any::Fixed => &fixed[column.index()],
+                                                Any::Fixed => {
+                                                    fixed[column.index()].as_ref().unwrap()
+                                                }
                                                 Any::Instance => {
-                                                    &(instance[column.index()].as_ref().unwrap())
+                                                    instance[column.index()].as_ref().unwrap()
                                                 }
                                             }
                                         }) {
@@ -768,7 +803,6 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 2) {
-
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[2]];
                         parallelize(
                             &mut value_part_clusters[2][compute_part_idx_in_cluster(part_idx, 2)],
@@ -787,7 +821,16 @@ impl<C: CurveAffine> Evaluator<C> {
                     }
                     constraint_idx += 1;
                     if need_to_compute(part_idx, running_prod_cluster) {
-                        for instance_column in used_columns.0.iter() {
+                        for fixed_column in used_columns.0.iter() {
+                            let fixed = &mut fixed[*fixed_column];
+                            if fixed.is_none() {
+                                *fixed = Some(domain.coeff_to_extended_part(
+                                    pk.fixed_polys[*fixed_column].clone(),
+                                    current_extended_omega,
+                                ));
+                            }
+                        }
+                        for instance_column in used_columns.1.iter() {
                             let instance = &mut instance[*instance_column];
                             if instance.is_none() {
                                 *instance = Some(domain.coeff_to_extended_part(
@@ -797,7 +840,7 @@ impl<C: CurveAffine> Evaluator<C> {
                             }
                         }
 
-                        for advice_column in used_columns.1.iter() {
+                        for advice_column in used_columns.2.iter() {
                             let advice = &mut advice[*advice_column];
                             if (*advice).is_none() {
                                 *advice = Some(domain.coeff_to_extended_part(
@@ -809,6 +852,7 @@ impl<C: CurveAffine> Evaluator<C> {
 
                         let y_power = y_powers
                             [constraint_idx - cluster_last_constraint_idx[running_prod_cluster]];
+                        let fixed_slice = &fixed[..];
                         let advice_slice = &advice[..];
                         let instance_slice = &instance[..];
                         let y_power_slice = &y_powers[..];
@@ -821,7 +865,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                     let idx = start + i;
                                     let table_value = lookup_evaluator.evaluate(
                                         &mut eval_data,
-                                        fixed,
+                                        fixed_slice,
                                         advice_slice,
                                         instance_slice,
                                         challenges,
@@ -855,7 +899,6 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 1) {
-
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[1]];
                         parallelize(
                             &mut value_part_clusters[1][compute_part_idx_in_cluster(part_idx, 1)],
@@ -876,7 +919,6 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 2) {
-
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[2]];
                         parallelize(
                             &mut value_part_clusters[2][compute_part_idx_in_cluster(part_idx, 2)],
@@ -906,7 +948,6 @@ impl<C: CurveAffine> Evaluator<C> {
             // Align the constraints by different powers of y.
             for (i, cluster) in value_part_clusters.iter_mut().enumerate() {
                 if need_to_compute(part_idx, i) && cluster_last_constraint_idx[i] > 0 {
-
                     let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[i]];
                     parallelize(
                         &mut cluster[compute_part_idx_in_cluster(part_idx, i)],
@@ -1110,7 +1151,7 @@ impl<C: CurveAffine> GraphEvaluator<C> {
     pub fn evaluate<B: Basis>(
         &self,
         data: &mut EvaluationData<C>,
-        fixed: &[Polynomial<C::ScalarExt, B>],
+        fixed: &[Option<Polynomial<C::ScalarExt, B>>],
         advice: &[Option<Polynomial<C::ScalarExt, B>>],
         instance: &[Option<Polynomial<C::ScalarExt, B>>],
         challenges: &[C::ScalarExt],

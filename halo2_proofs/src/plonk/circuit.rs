@@ -1096,6 +1096,28 @@ impl<F: Field> Expression<F> {
             &|a, _| a,
         )
     }
+
+    /// Extracts all used fixed columns in this expression
+    pub fn extract_fixed(&self) -> Vec<usize> {
+        self.evaluate(
+            &|_| vec![],
+            &|_| vec![],
+            &|query| vec![query.column_index],
+            &|_| vec![],
+            &|_| vec![],
+            &|_| vec![],
+            &|a| a,
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
+            &|mut a, b| {
+                a.extend(b);
+                a.into_iter().unique().collect()
+            },
+            &|a, _| a,
+        )
+    }
 }
 
 impl<F: std::fmt::Debug> std::fmt::Debug for Expression<F> {
