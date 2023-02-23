@@ -16,11 +16,13 @@ use group::{
     ff::{BatchInvert, Field},
     Curve,
 };
+use halo2curves::pasta::pallas::Scalar;
 use itertools::Itertools;
 use std::any::TypeId;
 use std::convert::TryInto;
 use std::num::ParseIntError;
 use std::slice;
+use std::time::Instant;
 use std::{
     collections::BTreeMap,
     iter,
@@ -57,8 +59,6 @@ pub enum ValueSource {
     Theta(),
     /// y
     Y(usize),
-    /// Previous value
-    PreviousValue(),
 }
 
 impl Default for ValueSource {
@@ -82,7 +82,6 @@ impl ValueSource {
         beta: &F,
         gamma: &F,
         theta: &F,
-        previous_value: &F,
     ) -> F {
         match self {
             ValueSource::Constant(idx) => constants[*idx],
@@ -103,7 +102,6 @@ impl ValueSource {
             ValueSource::Gamma() => *gamma,
             ValueSource::Theta() => *theta,
             ValueSource::Y(idx) => y_powers[*idx],
-            ValueSource::PreviousValue() => *previous_value,
         }
     }
 }
@@ -144,7 +142,6 @@ impl Calculation {
         beta: &F,
         gamma: &F,
         theta: &F,
-        previous_value: &F,
     ) -> F {
         let get_value = |value: &ValueSource| {
             value.get(
@@ -159,7 +156,6 @@ impl Calculation {
                 beta,
                 gamma,
                 theta,
-                previous_value,
             )
         };
         match self {
@@ -190,6 +186,8 @@ struct ConstraintCluster<C: CurveAffine> {
     used_advice_columns: Vec<usize>,
     ///  Custom gates evalution
     evaluator: GraphEvaluator<C>,
+    /// The first index of constraints are being evaluated at in each cluster
+    first_constraint_idx: usize,
     /// The last index of constraints are being evaluated at in each cluster
     last_constraint_idx: usize,
     /// The last value source
@@ -201,6 +199,8 @@ struct ConstraintCluster<C: CurveAffine> {
 pub struct Evaluator<C: CurveAffine> {
     /// list of constraint clusters
     custom_gate_clusters: Vec<ConstraintCluster<C>>,
+    /// Number of custom gate constraints
+    num_custom_gate_constraints: usize,
     ///  Lookups evalution, degree, used instance and advice columns
     lookups: Vec<(GraphEvaluator<C>, usize, (Vec<usize>, Vec<usize>))>,
 
@@ -290,41 +290,14 @@ impl<C: CurveAffine> Evaluator<C> {
                     );
                 } else {
                     assert_eq!(custom_gate_cluster.last_constraint_idx, 0);
-                    custom_gate_cluster.last_value_source = Some(
-                        custom_gate_cluster
-                            .evaluator
-                            .add_calculation(Calculation::Horner(
-                                ValueSource::PreviousValue(),
-                                vec![curr],
-                                ValueSource::Y(constraint_idx),
-                            )),
-                    );
+                    custom_gate_cluster.last_value_source = Some(curr);
+                    custom_gate_cluster.first_constraint_idx = constraint_idx;
                 }
                 custom_gate_cluster.last_constraint_idx = constraint_idx;
             }
         }
 
-        for custom_gate_cluster in ev.custom_gate_clusters.iter_mut() {
-            if let Some(last) = custom_gate_cluster.last_value_source {
-                let curr = custom_gate_cluster
-                    .evaluator
-                    .add_calculation(Calculation::Mul(
-                        last,
-                        ValueSource::Y(constraint_idx - custom_gate_cluster.last_constraint_idx),
-                    ));
-                custom_gate_cluster.last_value_source = Some(curr);
-            } else {
-                assert_eq!(custom_gate_cluster.last_constraint_idx, 0);
-                custom_gate_cluster.last_value_source = Some(
-                    custom_gate_cluster
-                        .evaluator
-                        .add_calculation(Calculation::Mul(
-                            ValueSource::PreviousValue(),
-                            ValueSource::Y(constraint_idx),
-                        )),
-                );
-            }
-        }
+        ev.num_custom_gate_constraints = constraint_idx;
 
         // Lookups
         for lookup in cs.lookups.iter() {
@@ -427,7 +400,7 @@ impl<C: CurveAffine> Evaluator<C> {
         assert!(self.custom_gate_clusters.len() <= num_clusters);
 
         // Initialize the the powers of y and constraint counter
-        let mut y_powers = vec![C::ScalarExt::one(); self.num_y_powers];
+        let mut y_powers = vec![C::ScalarExt::one(); self.num_y_powers * instance_polys.len()];
         for i in 1..self.num_y_powers {
             y_powers[i] = y_powers[i - 1] * y;
         }
@@ -456,6 +429,9 @@ impl<C: CurveAffine> Evaluator<C> {
             let l_active_row =
                 domain.coeff_to_extended_part(pk.l_active_row.clone(), current_extended_omega);
 
+            let mut constraint_idx = 0;
+            let mut cluster_last_constraint_idx = vec![0; num_clusters];
+
             // Core expression evaluations
             let num_threads = multicore::current_num_threads();
             for (((advice_polys, instance_polys), lookups), permutation) in advice_polys
@@ -472,7 +448,9 @@ impl<C: CurveAffine> Evaluator<C> {
 
                 // Custom gates
                 for (cluster_idx, custom_gates) in self.custom_gate_clusters.iter().enumerate() {
-                    if !need_to_compute(part_idx, cluster_idx) {
+                    if !need_to_compute(part_idx, cluster_idx)
+                        || custom_gates.last_value_source.is_none()
+                    {
                         continue;
                     }
                     let values = &mut value_part_clusters[cluster_idx]
@@ -496,6 +474,8 @@ impl<C: CurveAffine> Evaluator<C> {
                     let advice_slice = &advice[..];
                     let instance_slice = &instance[..];
                     let y_power_slice = &y_powers[..];
+                    let y_power = y_powers[constraint_idx + custom_gates.first_constraint_idx
+                        - cluster_last_constraint_idx[cluster_idx]];
                     multicore::scope(|scope| {
                         let chunk_size = (size + num_threads - 1) / num_threads;
                         for (thread_idx, values) in values.chunks_mut(chunk_size).enumerate() {
@@ -504,29 +484,31 @@ impl<C: CurveAffine> Evaluator<C> {
                                 let mut eval_data = custom_gates.evaluator.instance();
                                 for (i, value) in values.iter_mut().enumerate() {
                                     let idx = start + i;
-                                    *value = custom_gates.evaluator.evaluate(
-                                        &mut eval_data,
-                                        fixed,
-                                        advice_slice,
-                                        instance_slice,
-                                        challenges,
-                                        y_power_slice,
-                                        &beta,
-                                        &gamma,
-                                        &theta,
-                                        value,
-                                        idx,
-                                        rot_scale,
-                                        isize,
-                                    );
+                                    *value = *value * y_power
+                                        + custom_gates.evaluator.evaluate(
+                                            &mut eval_data,
+                                            fixed,
+                                            advice_slice,
+                                            instance_slice,
+                                            challenges,
+                                            y_power_slice,
+                                            &beta,
+                                            &gamma,
+                                            &theta,
+                                            idx,
+                                            rot_scale,
+                                            isize,
+                                        );
                                 }
                             });
                         }
                     });
-                }
 
-                let mut constraint_idx = 0;
-                let mut cluster_last_constraint_idx = vec![0; num_clusters];
+                    // Update the constraint index
+                    cluster_last_constraint_idx[cluster_idx] =
+                        constraint_idx + custom_gates.last_constraint_idx;
+                }
+                constraint_idx += self.num_custom_gate_constraints;
 
                 // Permutations
                 let sets = &permutation.sets;
@@ -607,6 +589,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                         get_rotation_idx(idx, last_rotation.0, rot_scale, isize);
 
                                     *value = *value * y_skip;
+
                                     for (set_idx, permutation_product_coset) in
                                         permutation_product_cosets.iter().enumerate()
                                     {
@@ -652,6 +635,15 @@ impl<C: CurveAffine> Evaluator<C> {
                             }
                         }
 
+                        let permutation_cosets: Vec<Polynomial<C::ScalarExt, LagrangeCoeff>> = pk
+                            .permutation
+                            .polys
+                            .iter()
+                            .map(|p| {
+                                domain.coeff_to_extended_part(p.clone(), current_extended_omega)
+                            })
+                            .collect();
+
                         let y_skip = y_powers[constraint_idx
                             - sets.len()
                             - cluster_last_constraint_idx[running_prod_cluster]];
@@ -674,22 +666,15 @@ impl<C: CurveAffine> Evaluator<C> {
                                     // - z_i(X) \prod_j (p(X) + \delta^j \beta X + \gamma)
                                     // ), degree = 2 + chunk_len
                                     let mut current_delta = delta_start * beta_term;
-                                    for ((columns, permutation_product_coset), permutation_chunk) in
-                                        p.columns
-                                            .chunks(chunk_len)
-                                            .zip(permutation_product_cosets.iter())
-                                            .zip(pk.permutation.polys.chunks(chunk_len))
+                                    for (
+                                        (columns, permutation_product_coset),
+                                        permutation_coset_chunk,
+                                    ) in p
+                                        .columns
+                                        .chunks(chunk_len)
+                                        .zip(permutation_product_cosets.iter())
+                                        .zip(permutation_cosets.chunks(chunk_len))
                                     {
-                                        let permutation_coset_chunk: Vec<Polynomial<_, _>> =
-                                            permutation_chunk
-                                                .iter()
-                                                .map(|p| {
-                                                    domain.coeff_to_extended_part(
-                                                        p.clone(),
-                                                        current_extended_omega,
-                                                    )
-                                                })
-                                                .collect();
                                         let mut left = permutation_product_coset[r_next];
                                         for (values, permutation) in columns
                                             .iter()
@@ -766,6 +751,7 @@ impl<C: CurveAffine> Evaluator<C> {
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 1) {
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[1]];
+
                         parallelize(
                             &mut value_part_clusters[1][compute_part_idx_in_cluster(part_idx, 1)],
                             |values, start| {
@@ -782,6 +768,7 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 2) {
+
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[2]];
                         parallelize(
                             &mut value_part_clusters[2][compute_part_idx_in_cluster(part_idx, 2)],
@@ -842,7 +829,6 @@ impl<C: CurveAffine> Evaluator<C> {
                                         &beta,
                                         &gamma,
                                         &theta,
-                                        &C::ScalarExt::zero(),
                                         idx,
                                         rot_scale,
                                         isize,
@@ -869,6 +855,7 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 1) {
+
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[1]];
                         parallelize(
                             &mut value_part_clusters[1][compute_part_idx_in_cluster(part_idx, 1)],
@@ -889,6 +876,7 @@ impl<C: CurveAffine> Evaluator<C> {
 
                     constraint_idx += 1;
                     if need_to_compute(part_idx, 2) {
+
                         let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[2]];
                         parallelize(
                             &mut value_part_clusters[2][compute_part_idx_in_cluster(part_idx, 2)],
@@ -914,23 +902,24 @@ impl<C: CurveAffine> Evaluator<C> {
                         cluster_last_constraint_idx[2] = constraint_idx;
                     }
                 }
-                for (i, cluster) in value_part_clusters.iter_mut().enumerate() {
-                    if need_to_compute(part_idx, i) {
-                        let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[i]];
-                        parallelize(
-                            &mut cluster[compute_part_idx_in_cluster(part_idx, i)],
-                            |values, _| {
-                                for value in values.iter_mut() {
-                                    *value = *value * y_power;
-                                }
-                            },
-                        );
-                    }
+            }
+            // Align the constraints by different powers of y.
+            for (i, cluster) in value_part_clusters.iter_mut().enumerate() {
+                if need_to_compute(part_idx, i) && cluster_last_constraint_idx[i] > 0 {
+
+                    let y_power = y_powers[constraint_idx - cluster_last_constraint_idx[i]];
+                    parallelize(
+                        &mut cluster[compute_part_idx_in_cluster(part_idx, i)],
+                        |values, _| {
+                            for value in values.iter_mut() {
+                                *value = *value * y_power;
+                            }
+                        },
+                    );
                 }
             }
             current_extended_omega *= extended_omega;
         }
-
         domain.lagrange_vecs_to_extended(value_part_clusters)
     }
 
@@ -1129,7 +1118,6 @@ impl<C: CurveAffine> GraphEvaluator<C> {
         beta: &C::ScalarExt,
         gamma: &C::ScalarExt,
         theta: &C::ScalarExt,
-        previous_value: &C::ScalarExt,
         idx: usize,
         rot_scale: i32,
         isize: i32,
@@ -1153,7 +1141,6 @@ impl<C: CurveAffine> GraphEvaluator<C> {
                 beta,
                 gamma,
                 theta,
-                previous_value,
             );
         }
 
