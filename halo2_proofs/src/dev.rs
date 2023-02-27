@@ -48,6 +48,7 @@ mod graph;
 #[cfg_attr(docsrs, doc(cfg(feature = "dev-graph")))]
 pub use graph::{circuit_dot_graph, layout::CircuitLayout};
 
+// Export utilities for external tests.
 pub use crate::circuit::value_dev::unwrap_value;
 
 #[derive(Debug)]
@@ -600,10 +601,12 @@ impl<F: FieldExt> MockProver<F> {
         Ok(prover)
     }
 
+    /// Return the content of an advice column as assigned by the circuit.
     pub fn advice_values(&self, column: Column<Advice>) -> &[CellValue<F>] {
         &self.advice[column.index()]
     }
 
+    /// Return the content of a fixed column as assigned by the circuit.
     pub fn fixed_values(&self, column: Column<Fixed>) -> &[CellValue<F>] {
         &self.fixed[column.index()]
     }
