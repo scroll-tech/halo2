@@ -12,7 +12,6 @@ use crate::{
 };
 
 mod value;
-pub(crate) use value::value_dev;
 pub use value::Value;
 
 pub mod floor_planner;

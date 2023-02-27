@@ -696,11 +696,3 @@ impl<F: Field> Value<Assigned<F>> {
         }
     }
 }
-
-/// Utilities for tests and dev tools.
-pub mod value_dev {
-    /// Get the contained known value, or panic. For tests only.
-    pub fn unwrap_value<T>(v: super::Value<T>) -> T {
-        v.inner.unwrap()
-    }
-}
