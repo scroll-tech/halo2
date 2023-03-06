@@ -32,7 +32,7 @@ where
     E::G1Affine: SerdeCurveAffine,
     E::G2Affine: SerdeCurveAffine,
 {
-    const QUERY_INSTANCE: bool = false;
+    const QUERY_INSTANCE: bool = true;
 
     fn new(params: &'params ParamsKZG<E>) -> Self {
         Self { params }

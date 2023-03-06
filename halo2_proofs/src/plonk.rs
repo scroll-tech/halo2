@@ -56,7 +56,7 @@ pub struct VerifyingKey<C: CurveAffine> {
     cs_degree: usize,
     /// The representative of this `VerifyingKey` in transcripts.
     transcript_repr: C::Scalar,
-    //selectors: Vec<Vec<bool>>,
+    selectors: Vec<Vec<bool>>,
 }
 
 impl<C: SerdeCurveAffine> VerifyingKey<C>
@@ -86,7 +86,6 @@ where
                 writer.write_all(&[crate::helpers::pack(bits)])?;
             }
         }
-        */
         Ok(())
     }
 
@@ -118,7 +117,7 @@ where
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
-        /* 
+        
         // read selectors
         let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors]
             .into_iter()
@@ -132,13 +131,13 @@ where
             })
             .collect::<io::Result<_>>()?;
         let (cs, _) = cs.compress_selectors(selectors.clone());
-        */
+        
         Ok(Self::from_parts(
             domain,
             fixed_commitments,
             permutation,
             cs,
-            //selectors,
+            selectors,
         ))
     }
 
@@ -177,7 +176,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
         fixed_commitments: Vec<C>,
         permutation: permutation::VerifyingKey<C>,
         cs: ConstraintSystem<C::Scalar>,
-        //selectors: Vec<Vec<bool>>,
+        selectors: Vec<Vec<bool>>,
     ) -> Self {
         // Compute cached values.
         let cs_degree = cs.degree();
@@ -190,7 +189,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
             cs_degree,
             // Temporary, this is not pinned.
             transcript_repr: C::Scalar::zero(),
-            //selectors,
+            selectors,
         };
 
         let mut hasher = Blake2bParams::new()
@@ -270,6 +269,7 @@ pub struct ProvingKey<C: CurveAffine> {
     l_active_row: Polynomial<C::Scalar, Coeff>,
     fixed_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
     fixed_polys: Vec<Polynomial<C::Scalar, Coeff>>,
+    fixed_cosets: Vec<Polynomial<C::Scalar, ExtendedLagrangeCoeff>>,
     permutation: permutation::ProvingKey<C>,
     ev: Evaluator<C>,
 }
@@ -350,7 +350,7 @@ where
             l_active_row,
             fixed_values,
             fixed_polys,
-            //fixed_cosets,
+            fixed_cosets,
             permutation,
             ev,
         })

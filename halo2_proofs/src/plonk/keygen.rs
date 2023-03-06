@@ -254,7 +254,7 @@ where
         fixed_commitments,
         permutation_vk,
         cs,
-//        assembly.selectors,
+        assembly.selectors,
     ))
 }
 
@@ -346,7 +346,7 @@ where
                 fixed_commitments,
                 permutation_vk,
                 cs.clone(),
-//                assembly.selectors.clone(),
+                assembly.selectors.clone(),
             )
         }
     };
@@ -354,6 +354,11 @@ where
     let fixed_polys: Vec<_> = fixed
         .iter()
         .map(|poly| vk.domain.lagrange_to_coeff(poly.clone()))
+        .collect();
+
+    let fixed_cosets = fixed_polys
+        .iter()
+        .map(|poly| vk.domain.coeff_to_extended(poly.clone()))
         .collect();
 
     let permutation_pk = assembly
@@ -401,6 +406,7 @@ where
         l_active_row,
         fixed_values: fixed,
         fixed_polys,
+        fixed_cosets,
         permutation: permutation_pk,
         ev,
     })

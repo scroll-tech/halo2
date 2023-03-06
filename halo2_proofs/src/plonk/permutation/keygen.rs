@@ -235,7 +235,8 @@ impl Assembly {
 
         ProvingKey {
             permutations,
-            polys,
+            polys,            
+            cosets,
         }
     }
 }
