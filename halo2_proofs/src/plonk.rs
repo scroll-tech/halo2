@@ -79,7 +79,6 @@ where
             commitment.write(writer, format)?;
         }
         self.permutation.write(writer, format)?;
-        /* 
         // write self.selectors
         for selector in &self.selectors {
             // since `selector` is filled with `bool`, we pack them 8 at a time into bytes and then write
@@ -289,7 +288,7 @@ impl<C: CurveAffine> ProvingKey<C> {
             + scalar_len * (self.l0.len() + self.l_last.len() + self.l_active_row.len())
             + polynomial_slice_byte_length(&self.fixed_values)
             + polynomial_slice_byte_length(&self.fixed_polys)
-            //+ polynomial_slice_byte_length(&self.fixed_cosets)
+            + polynomial_slice_byte_length(&self.fixed_cosets)
             + self.permutation.bytes_length()
     }
 }
@@ -315,7 +314,7 @@ where
         self.l_active_row.write(writer, format)?;
         write_polynomial_slice(&self.fixed_values, writer, format)?;
         write_polynomial_slice(&self.fixed_polys, writer, format)?;
-        //write_polynomial_slice(&self.fixed_cosets, writer, format)?;
+        write_polynomial_slice(&self.fixed_cosets, writer, format)?;
         self.permutation.write(writer, format)?;
         Ok(())
     }
@@ -341,7 +340,7 @@ where
         let l_active_row = Polynomial::read(reader, format)?;
         let fixed_values = read_polynomial_vec(reader, format)?;
         let fixed_polys = read_polynomial_vec(reader, format)?;
-        //let fixed_cosets = read_polynomial_vec(reader, format)?;
+        let fixed_cosets = read_polynomial_vec(reader, format)?;
         let permutation = permutation::ProvingKey::read(reader, format)?;
         let ev = Evaluator::new(vk.cs());
         Ok(Self {

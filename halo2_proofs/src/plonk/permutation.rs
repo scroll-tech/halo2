@@ -133,7 +133,7 @@ where
     pub(super) fn read<R: io::Read>(reader: &mut R, format: SerdeFormat) -> io::Result<Self> {
         let permutations = read_polynomial_vec(reader, format)?;
         let polys = read_polynomial_vec(reader, format)?;
-        //let cosets = read_polynomial_vec(reader, format)?;
+        let cosets = read_polynomial_vec(reader, format)?;
         Ok(ProvingKey {
             permutations,
             polys,
@@ -149,7 +149,7 @@ where
     ) -> io::Result<()> {
         write_polynomial_slice(&self.permutations, writer, format)?;
         write_polynomial_slice(&self.polys, writer, format)?;
-        //write_polynomial_slice(&self.cosets, writer, format)?;
+        write_polynomial_slice(&self.cosets, writer, format)?;
         Ok(())
     }
 }
