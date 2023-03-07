@@ -5,10 +5,25 @@ use super::multicore;
 pub use ff::Field;
 use group::{
     ff::{BatchInvert, PrimeField},
-    Curve, Group as _,
+    Curve, Group, GroupOpsOwned, ScalarMulOwned,
 };
 
-pub use halo2curves::{CurveAffine, CurveExt, FieldExt, Group};
+pub use halo2curves::{CurveAffine, CurveExt};
+
+/// This represents an element of a group with basic operations that can be
+/// performed. This allows an FFT implementation (for example) to operate
+/// generically over either a field or elliptic curve group.
+pub trait FftGroup<Scalar: Field>:
+    Copy + Send + Sync + 'static + GroupOpsOwned + ScalarMulOwned<Scalar>
+{
+}
+
+impl<T, Scalar> FftGroup<Scalar> for T
+where
+    Scalar: Field,
+    T: Copy + Send + Sync + 'static + GroupOpsOwned + ScalarMulOwned<Scalar>,
+{
+}
 
 pub const SPARSE_TWIDDLE_DEGREE: u32 = 10;
 
@@ -170,7 +185,7 @@ pub fn best_multiexp<C: CurveAffine>(coeffs: &[C::Scalar], bases: &[C]) -> C::Cu
 /// by $n$.
 ///
 /// This will use multithreading if beneficial.
-pub fn best_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
+pub fn best_fft<Scalar: Field, G: FftGroup<Scalar>>(a: &mut [G], omega: Scalar, log_n: u32) {
     let threads = multicore::current_num_threads();
     let log_split = log2_floor(threads) as usize;
     let n = a.len() as usize;
@@ -193,7 +208,7 @@ fn bitreverse(mut n: usize, l: usize) -> usize {
     r
 }
 
-fn serial_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
+fn serial_fft<Scalar: Field, G: FftGroup<Scalar>>(a: &mut [G], omega: Scalar, log_n: u32) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);
 
@@ -210,13 +225,13 @@ fn serial_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
 
         let mut k = 0;
         while k < n {
-            let mut w = G::Scalar::one();
+            let mut w = Scalar::ONE;
             for j in 0..m {
                 let mut t = a[(k + j + m) as usize];
-                t.group_scale(&w);
+                t *= &w;
                 a[(k + j + m) as usize] = a[(k + j) as usize];
-                a[(k + j + m) as usize].group_sub(&t);
-                a[(k + j) as usize].group_add(&t);
+                a[(k + j + m) as usize] -= &t;
+                a[(k + j) as usize] += &t;
                 w *= &w_m;
             }
 
@@ -227,9 +242,9 @@ fn serial_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
     }
 }
 
-fn serial_split_fft<G: Group>(
+fn serial_split_fft<Scalar: Field, G: FftGroup<Scalar>>(
     a: &mut [G],
-    twiddle_lut: &[G::Scalar],
+    twiddle_lut: &[Scalar],
     twiddle_scale: usize,
     log_n: u32,
 ) {
@@ -248,13 +263,13 @@ fn serial_split_fft<G: Group>(
 
         let mut k = 0;
         while k < n {
-            let mut w = G::Scalar::one();
+            let mut w = G::Scalar::ONE;
             for j in 0..m {
                 let mut t = a[(k + j + m) as usize];
-                t.group_scale(&w);
+                t *= &w;
                 a[(k + j + m) as usize] = a[(k + j) as usize];
-                a[(k + j + m) as usize].group_sub(&t);
-                a[(k + j) as usize].group_add(&t);
+                a[(k + j + m) as usize] -= &t;
+                a[(k + j) as usize] += &t;
                 w *= &w_m;
             }
 
@@ -265,10 +280,10 @@ fn serial_split_fft<G: Group>(
     }
 }
 
-fn split_radix_fft<G: Group>(
+fn split_radix_fft<Scalar: Field, G: FftGroup<Scalar>>(
     tmp: &mut [G],
     a: &[G],
-    twiddle_lut: &[G::Scalar],
+    twiddle_lut: &[Scalar],
     n: usize,
     sub_fft_offset: usize,
     log_split: usize,
@@ -278,7 +293,7 @@ fn split_radix_fft<G: Group>(
 
     // we use out-place bitreverse here, split_m <= num_threads, so the buffer spase is small
     // and it's is good for data locality
-    let mut t1 = vec![G::group_zero(); split_m];
+    let mut t1 = vec![G::Scalar::ZERO; split_m];
     // if unsafe code is allowed, a 10% performance improvement can be achieved
     // let mut t1: Vec<G> = Vec::with_capacity(split_m as usize);
     // unsafe{ t1.set_len(split_m as usize); }
@@ -295,9 +310,9 @@ fn split_radix_fft<G: Group>(
     if high_idx > 0 {
         omega = omega * twiddle_lut[(1 << sparse_degree) + high_idx];
     }
-    let mut w_m = G::Scalar::one();
+    let mut w_m = G::Scalar::ONE;
     for i in 0..split_m {
-        t1[i].group_scale(&w_m);
+        t1[i] *= &w_m;
         tmp[i] = t1[i];
         w_m = w_m * omega;
     }
@@ -353,7 +368,7 @@ pub fn generate_twiddle_lookup_table<F: Field>(
     twiddle_lut
 }
 
-pub fn parallel_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
+pub fn parallel_fft<Scalar: Field, G: FftGroup<Scalar>>(a: &mut [G], omega: Scalar, log_n: u32) {
     let n = a.len() as usize;
     assert_eq!(n, 1 << log_n);
 
@@ -363,7 +378,7 @@ pub fn parallel_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
     let twiddle_lut = generate_twiddle_lookup_table(omega, log_n, SPARSE_TWIDDLE_DEGREE, true);
 
     // split fft
-    let mut tmp = vec![G::group_zero(); n];
+    let mut tmp = vec![G::Scalar::ZERO; n];
     // if unsafe code is allowed, a 10% performance improvement can be achieved
     // let mut tmp: Vec<G> = Vec::with_capacity(n);
     // unsafe{ tmp.set_len(n); }
@@ -449,7 +464,7 @@ pub fn eval_polynomial<F: Field>(poly: &[F], point: F) -> F {
     fn evaluate<F: Field>(poly: &[F], point: F) -> F {
         poly.iter()
             .rev()
-            .fold(F::zero(), |acc, coeff| acc * point + coeff)
+            .fold(F::ZERO, |acc, coeff| acc * point + coeff)
     }
     let n = poly.len();
     let num_threads = multicore::current_num_threads();
@@ -457,7 +472,7 @@ pub fn eval_polynomial<F: Field>(poly: &[F], point: F) -> F {
         evaluate(poly, point)
     } else {
         let chunk_size = (n + num_threads - 1) / num_threads;
-        let mut parts = vec![F::zero(); num_threads];
+        let mut parts = vec![F::ZERO; num_threads];
         multicore::scope(|scope| {
             for (chunk_idx, (out, poly)) in
                 parts.chunks_mut(1).zip(poly.chunks(chunk_size)).enumerate()
@@ -468,7 +483,7 @@ pub fn eval_polynomial<F: Field>(poly: &[F], point: F) -> F {
                 });
             }
         });
-        parts.iter().fold(F::zero(), |acc, coeff| acc + coeff)
+        parts.iter().fold(F::ZERO, |acc, coeff| acc + coeff)
     }
 }
 
@@ -479,7 +494,7 @@ pub fn compute_inner_product<F: Field>(a: &[F], b: &[F]) -> F {
     // TODO: parallelize?
     assert_eq!(a.len(), b.len());
 
-    let mut acc = F::zero();
+    let mut acc = F::ZERO;
     for (a, b) in a.iter().zip(b.iter()) {
         acc += (*a) * (*b);
     }
@@ -496,9 +511,9 @@ where
     b = -b;
     let a = a.into_iter();
 
-    let mut q = vec![F::zero(); a.len() - 1];
+    let mut q = vec![F::ZERO; a.len() - 1];
 
-    let mut tmp = F::zero();
+    let mut tmp = F::ZERO;
     for (q, r) in q.iter_mut().rev().zip(a.rev()) {
         let mut lead_coeff = *r;
         lead_coeff.sub_assign(&tmp);
@@ -546,7 +561,7 @@ fn log2_floor(num: usize) -> u32 {
 /// Returns coefficients of an n - 1 degree polynomial given a set of n points
 /// and their evaluations. This function will panic if two values in `points`
 /// are the same.
-pub fn lagrange_interpolate<F: FieldExt>(points: &[F], evals: &[F]) -> Vec<F> {
+pub fn lagrange_interpolate<F: Field>(points: &[F], evals: &[F]) -> Vec<F> {
     assert_eq!(points.len(), evals.len());
     if points.len() == 1 {
         // Constant polynomial
@@ -568,11 +583,11 @@ pub fn lagrange_interpolate<F: FieldExt>(points: &[F], evals: &[F]) -> Vec<F> {
         // Compute (x_j - x_k)^(-1) for each j != i
         denoms.iter_mut().flat_map(|v| v.iter_mut()).batch_invert();
 
-        let mut final_poly = vec![F::zero(); points.len()];
+        let mut final_poly = vec![F::ZERO; points.len()];
         for (j, (denoms, eval)) in denoms.into_iter().zip(evals.iter()).enumerate() {
             let mut tmp: Vec<F> = Vec::with_capacity(points.len());
             let mut product = Vec::with_capacity(points.len() - 1);
-            tmp.push(F::one());
+            tmp.push(F::ONE);
             for (x_k, denom) in points
                 .iter()
                 .enumerate()
@@ -580,11 +595,11 @@ pub fn lagrange_interpolate<F: FieldExt>(points: &[F], evals: &[F]) -> Vec<F> {
                 .map(|a| a.1)
                 .zip(denoms.into_iter())
             {
-                product.resize(tmp.len() + 1, F::zero());
+                product.resize(tmp.len() + 1, F::ZERO);
                 for ((a, b), product) in tmp
                     .iter()
-                    .chain(std::iter::once(&F::zero()))
-                    .zip(std::iter::once(&F::zero()).chain(tmp.iter()))
+                    .chain(std::iter::once(&F::ZERO))
+                    .zip(std::iter::once(&F::ZERO).chain(tmp.iter()))
                     .zip(product.iter_mut())
                 {
                     *product = *a * (-denom * x_k) + *b * denom;
@@ -601,9 +616,9 @@ pub fn lagrange_interpolate<F: FieldExt>(points: &[F], evals: &[F]) -> Vec<F> {
     }
 }
 
-pub(crate) fn evaluate_vanishing_polynomial<F: FieldExt>(roots: &[F], z: F) -> F {
-    fn evaluate<F: FieldExt>(roots: &[F], z: F) -> F {
-        roots.iter().fold(F::one(), |acc, point| (z - point) * acc)
+pub(crate) fn evaluate_vanishing_polynomial<F: Field>(roots: &[F], z: F) -> F {
+    fn evaluate<F: Field>(roots: &[F], z: F) -> F {
+        roots.iter().fold(F::ONE, |acc, point| (z - point) * acc)
     }
     let n = roots.len();
     let num_threads = multicore::current_num_threads();
@@ -611,18 +626,18 @@ pub(crate) fn evaluate_vanishing_polynomial<F: FieldExt>(roots: &[F], z: F) -> F
         evaluate(roots, z)
     } else {
         let chunk_size = (n + num_threads - 1) / num_threads;
-        let mut parts = vec![F::one(); num_threads];
+        let mut parts = vec![F::ONE; num_threads];
         multicore::scope(|scope| {
             for (out, roots) in parts.chunks_mut(1).zip(roots.chunks(chunk_size)) {
                 scope.spawn(move |_| out[0] = evaluate(roots, z));
             }
         });
-        parts.iter().fold(F::one(), |acc, part| acc * part)
+        parts.iter().fold(F::ONE, |acc, part| acc * part)
     }
 }
 
-pub(crate) fn powers<F: FieldExt>(base: F) -> impl Iterator<Item = F> {
-    std::iter::successors(Some(F::one()), move |power| Some(base * power))
+pub(crate) fn powers<F: Field>(base: F) -> impl Iterator<Item = F> {
+    std::iter::successors(Some(F::ONE), move |power| Some(base * power))
 }
 
 #[cfg(test)]
