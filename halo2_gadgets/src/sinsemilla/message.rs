@@ -1,16 +1,14 @@
 //! Gadget and chips for the Sinsemilla hash function.
-use ff::PrimeFieldBits;
-use halo2_proofs::{
-    arithmetic::FieldExt,
-    circuit::{AssignedCell, Cell, Value},
-};
+use halo2_proofs::circuit::{AssignedCell, Cell, Value};
+use halo2_proofs::ff::PrimeField;
+use halo2_proofs::ff::PrimeFieldBits;
 use std::fmt::Debug;
 
 /// A [`Message`] composed of several [`MessagePiece`]s.
 #[derive(Clone, Debug)]
-pub struct Message<F: FieldExt, const K: usize, const MAX_WORDS: usize>(Vec<MessagePiece<F, K>>);
+pub struct Message<F: PrimeField, const K: usize, const MAX_WORDS: usize>(Vec<MessagePiece<F, K>>);
 
-impl<F: FieldExt + PrimeFieldBits, const K: usize, const MAX_WORDS: usize>
+impl<F: PrimeField + PrimeFieldBits, const K: usize, const MAX_WORDS: usize>
     From<Vec<MessagePiece<F, K>>> for Message<F, K, MAX_WORDS>
 {
     fn from(pieces: Vec<MessagePiece<F, K>>) -> Self {
@@ -20,7 +18,7 @@ impl<F: FieldExt + PrimeFieldBits, const K: usize, const MAX_WORDS: usize>
     }
 }
 
-impl<F: FieldExt + PrimeFieldBits, const K: usize, const MAX_WORDS: usize> std::ops::Deref
+impl<F: PrimeField + PrimeFieldBits, const K: usize, const MAX_WORDS: usize> std::ops::Deref
     for Message<F, K, MAX_WORDS>
 {
     type Target = [MessagePiece<F, K>];
@@ -35,13 +33,13 @@ impl<F: FieldExt + PrimeFieldBits, const K: usize, const MAX_WORDS: usize> std::
 /// The piece must fit within a base field element, which means its length
 /// cannot exceed the base field's `NUM_BITS`.
 #[derive(Clone, Debug)]
-pub struct MessagePiece<F: FieldExt, const K: usize> {
+pub struct MessagePiece<F: PrimeField, const K: usize> {
     cell_value: AssignedCell<F, F>,
     /// The number of K-bit words in this message piece.
     num_words: usize,
 }
 
-impl<F: FieldExt + PrimeFieldBits, const K: usize> MessagePiece<F, K> {
+impl<F: PrimeField + PrimeFieldBits, const K: usize> MessagePiece<F, K> {
     pub fn new(cell_value: AssignedCell<F, F>, num_words: usize) -> Self {
         assert!(num_words * K < F::NUM_BITS as usize);
         Self {

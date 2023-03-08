@@ -1,10 +1,10 @@
 use super::super::{util::*, AssignedBits, BlockWord, SpreadVar, SpreadWord, Table16Assignment};
 use super::{schedule_util::*, MessageScheduleConfig};
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{Region, Value},
     plonk::Error,
 };
-use halo2curves::pasta::pallas;
 use std::convert::TryInto;
 
 // A word in subregion 1

@@ -4,9 +4,9 @@ use super::{
 };
 use crate::utilities::decompose_running_sum::RunningSumConfig;
 
-use std::marker::PhantomData;
-
-use group::{
+use halo2_proofs::arithmetic::Field;
+use halo2_proofs::curves::{pasta::pallas, CurveAffine};
+use halo2_proofs::group::{
     ff::{PrimeField, PrimeFieldBits},
     Curve,
 };
@@ -18,8 +18,8 @@ use halo2_proofs::{
     },
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, CurveAffine, FieldExt};
 use lazy_static::lazy_static;
+use std::marker::PhantomData;
 
 pub mod base_field_elem;
 pub mod full_width;
@@ -388,7 +388,7 @@ impl<FixedPoints: super::FixedPoints<pallas::Affine>> Config<FixedPoints> {
         let k_usize = scalar.windows_usize()[NUM_WINDOWS - 1];
 
         // offset_acc = \sum_{j = 0}^{NUM_WINDOWS - 2} 2^{FIXED_BASE_WINDOW_SIZE*j + 1}
-        let offset_acc = (0..(NUM_WINDOWS - 1)).fold(pallas::Scalar::zero(), |acc, w| {
+        let offset_acc = (0..(NUM_WINDOWS - 1)).fold(pallas::Scalar::ZERO, |acc, w| {
             acc + (*TWO_SCALAR).pow(&[FIXED_BASE_WINDOW_SIZE as u64 * w as u64 + 1, 0, 0, 0])
         });
 

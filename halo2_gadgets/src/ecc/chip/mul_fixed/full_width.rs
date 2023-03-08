@@ -2,13 +2,13 @@ use super::super::{EccPoint, EccScalarFixed, FixedPoints, FIXED_BASE_WINDOW_SIZE
 
 use crate::utilities::{decompose_word, range_check};
 use arrayvec::ArrayVec;
-use ff::PrimeField;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
     circuit::{AssignedCell, Layouter, Region, Value},
     plonk::{ConstraintSystem, Constraints, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config<Fixed: FixedPoints<pallas::Affine>> {
@@ -163,7 +163,7 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
         // Check that the correct multiple is obtained.
         {
             use super::super::FixedPoint;
-            use group::Curve;
+            use halo2_proofs::group::Curve;
 
             let real_mul = scalar.value.map(|scalar| base.generator() * scalar);
             let result = result.point();
@@ -179,12 +179,12 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
 
 #[cfg(test)]
 pub mod tests {
-    use group::{ff::Field, Curve};
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::{ff::Field, Curve};
     use halo2_proofs::{
         circuit::{Layouter, Value},
         plonk::Error,
     };
-    use halo2curves::pasta::pallas;
     use rand::rngs::OsRng;
 
     use crate::ecc::{
@@ -256,11 +256,9 @@ pub mod tests {
         {
             const LAST_DOUBLING: &str = "1333333333333333333333333333333333333333333333333333333333333333333333333333333333334";
             let h = pallas::Scalar::from(H as u64);
-            let scalar_fixed = LAST_DOUBLING
-                .chars()
-                .fold(pallas::Scalar::zero(), |acc, c| {
-                    acc * &h + &pallas::Scalar::from(c.to_digit(8).unwrap() as u64)
-                });
+            let scalar_fixed = LAST_DOUBLING.chars().fold(pallas::Scalar::ZERO, |acc, c| {
+                acc * &h + &pallas::Scalar::from(c.to_digit(8).unwrap() as u64)
+            });
             let by = ScalarFixed::new(
                 chip.clone(),
                 layouter.namespace(|| LAST_DOUBLING),
@@ -280,7 +278,7 @@ pub mod tests {
         // [0]B should return (0,0) since it uses complete addition
         // on the last step.
         {
-            let scalar_fixed = pallas::Scalar::zero();
+            let scalar_fixed = pallas::Scalar::ZERO;
             let zero = ScalarFixed::new(
                 chip.clone(),
                 layouter.namespace(|| "0"),
@@ -295,7 +293,7 @@ pub mod tests {
 
         // [-1]B is the largest scalar field element.
         {
-            let scalar_fixed = -pallas::Scalar::one();
+            let scalar_fixed = -pallas::Scalar::ONE;
             let neg_1 = ScalarFixed::new(
                 chip.clone(),
                 layouter.namespace(|| "-1"),

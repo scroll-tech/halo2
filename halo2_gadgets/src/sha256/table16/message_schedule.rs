@@ -1,12 +1,12 @@
 use std::convert::TryInto;
 
 use super::{super::BLOCK_SIZE, AssignedBits, BlockWord, SpreadInputs, Table16Assignment, ROUNDS};
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 mod schedule_gates;
 mod schedule_util;
@@ -397,12 +397,12 @@ mod tests {
         super::BLOCK_SIZE, util::lebs2ip, BlockWord, SpreadTableChip, Table16Chip, Table16Config,
     };
     use super::schedule_util::*;
+    use halo2_proofs::curves::pasta::pallas;
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner},
         dev::MockProver,
         plonk::{Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::pasta::pallas;
 
     #[test]
     fn message_schedule() {

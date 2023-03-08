@@ -1,11 +1,11 @@
 use super::super::{RoundWord, StateWord, STATE};
 use super::{compression_util::*, CompressionConfig, State};
 
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{Region, Value},
     plonk::Error,
 };
-use halo2curves::pasta::pallas;
 
 impl CompressionConfig {
     #[allow(clippy::many_single_char_names)]

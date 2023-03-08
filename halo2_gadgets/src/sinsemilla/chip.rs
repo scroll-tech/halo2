@@ -13,6 +13,7 @@ use crate::{
 };
 use std::marker::PhantomData;
 
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Value},
     plonk::{
@@ -21,7 +22,6 @@ use halo2_proofs::{
     },
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 mod generator_table;
 use generator_table::GeneratorTableConfig;

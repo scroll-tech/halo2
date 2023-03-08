@@ -1,10 +1,11 @@
 use super::EccPoint;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
     circuit::Region,
     plonk::{Advice, Assigned, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, FieldExt};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -323,7 +324,7 @@ impl Config {
         #[cfg(test)]
         // Check that the correct sum is obtained.
         {
-            use group::Curve;
+            use halo2_proofs::group::Curve;
 
             let p = p.point();
             let q = q.point();
@@ -341,12 +342,12 @@ impl Config {
 
 #[cfg(test)]
 pub mod tests {
-    use group::{prime::PrimeCurveAffine, Curve};
+    use halo2_proofs::curves::{pasta::pallas, CurveExt};
+    use halo2_proofs::group::{prime::PrimeCurveAffine, Curve};
     use halo2_proofs::{
         circuit::{Layouter, Value},
         plonk::Error,
     };
-    use halo2curves::{pasta::pallas, CurveExt};
 
     use crate::ecc::{chip::EccPoint, EccInstructions, NonIdentityPoint};
 

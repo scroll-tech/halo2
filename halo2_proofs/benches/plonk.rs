@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate criterion;
 
-use group::ff::Field;
-use halo2_proofs::arithmetic::FieldExt;
+use ff::Field;
+use ff::PrimeField;
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::*;
 use halo2_proofs::poly::{commitment::ParamsProver, Rotation};
@@ -43,7 +43,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         sm: Column<Fixed>,
     }
 
-    trait StandardCs<FF: FieldExt> {
+    trait StandardCs<FF: PrimeField> {
         fn raw_multiply<F>(
             &self,
             layouter: &mut impl Layouter<FF>,
@@ -62,17 +62,17 @@ fn criterion_benchmark(c: &mut Criterion) {
     }
 
     #[derive(Clone)]
-    struct MyCircuit<F: FieldExt> {
+    struct MyCircuit<F: PrimeField> {
         a: Value<F>,
         k: u32,
     }
 
-    struct StandardPlonk<F: FieldExt> {
+    struct StandardPlonk<F: PrimeField> {
         config: PlonkConfig,
         _marker: PhantomData<F>,
     }
 
-    impl<FF: FieldExt> StandardPlonk<FF> {
+    impl<FF: PrimeField> StandardPlonk<FF> {
         fn new(config: PlonkConfig) -> Self {
             StandardPlonk {
                 config,
@@ -81,7 +81,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         }
     }
 
-    impl<FF: FieldExt> StandardCs<FF> for StandardPlonk<FF> {
+    impl<FF: PrimeField> StandardCs<FF> for StandardPlonk<FF> {
         fn raw_multiply<F>(
             &self,
             layouter: &mut impl Layouter<FF>,
@@ -181,7 +181,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         }
     }
 
-    impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+    impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
         type Config = PlonkConfig;
         type FloorPlanner = SimpleFloorPlanner;
 

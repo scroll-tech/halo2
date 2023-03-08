@@ -1,5 +1,5 @@
 use super::K;
-use halo2curves::pasta::pallas;
+use halo2_proofs::curves::pasta::pallas;
 
 /// The precomputed bases for the [Sinsemilla hash function][concretesinsemillahash].
 ///

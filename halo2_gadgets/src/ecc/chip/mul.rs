@@ -8,16 +8,15 @@ use std::{
     ops::{Deref, Range},
 };
 
-use ff::PrimeField;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
-    arithmetic::FieldExt,
     circuit::{AssignedCell, Layouter, Region, Value},
     plonk::{Advice, Assigned, Column, ConstraintSystem, Constraints, Error, Selector},
     poly::Rotation,
 };
 use uint::construct_uint;
 
-use halo2curves::pasta::pallas;
+use halo2_proofs::curves::pasta::pallas;
 
 mod complete;
 pub(super) mod incomplete;
@@ -261,7 +260,7 @@ impl Config {
                 #[cfg(test)]
                 // Check that the correct multiple is obtained.
                 {
-                    use group::Curve;
+                    use halo2_proofs::group::Curve;
 
                     let base = base.point();
                     let alpha = alpha
@@ -389,8 +388,8 @@ impl Config {
 
 #[derive(Clone, Debug)]
 // `x`-coordinate of the accumulator.
-struct X<F: FieldExt>(AssignedCell<Assigned<F>, F>);
-impl<F: FieldExt> Deref for X<F> {
+struct X<F: PrimeField>(AssignedCell<Assigned<F>, F>);
+impl<F: PrimeField> Deref for X<F> {
     type Target = AssignedCell<Assigned<F>, F>;
 
     fn deref(&self) -> &Self::Target {
@@ -400,8 +399,8 @@ impl<F: FieldExt> Deref for X<F> {
 
 #[derive(Clone, Debug)]
 // `y`-coordinate of the accumulator.
-struct Y<F: FieldExt>(AssignedCell<Assigned<F>, F>);
-impl<F: FieldExt> Deref for Y<F> {
+struct Y<F: PrimeField>(AssignedCell<Assigned<F>, F>);
+impl<F: PrimeField> Deref for Y<F> {
     type Target = AssignedCell<Assigned<F>, F>;
 
     fn deref(&self) -> &Self::Target {
@@ -411,8 +410,8 @@ impl<F: FieldExt> Deref for Y<F> {
 
 #[derive(Clone, Debug)]
 // Cumulative sum `z` used to decompose the scalar.
-struct Z<F: FieldExt>(AssignedCell<F, F>);
-impl<F: FieldExt> Deref for Z<F> {
+struct Z<F: PrimeField>(AssignedCell<F, F>);
+impl<F: PrimeField> Deref for Z<F> {
     type Target = AssignedCell<F, F>;
 
     fn deref(&self) -> &Self::Target {
@@ -461,7 +460,8 @@ fn decompose_for_scalar_mul(scalar: Value<&pallas::Base>) -> Vec<Value<bool>> {
 
 #[cfg(test)]
 pub mod tests {
-    use group::{
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::{
         ff::{Field, PrimeField},
         Curve,
     };
@@ -469,7 +469,6 @@ pub mod tests {
         circuit::{Chip, Layouter, Value},
         plonk::Error,
     };
-    use halo2curves::pasta::pallas;
     use rand::rngs::OsRng;
 
     use crate::{

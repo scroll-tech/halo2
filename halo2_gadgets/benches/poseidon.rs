@@ -1,4 +1,5 @@
-use ff::Field;
+use halo2_proofs::curves::pasta::{pallas, vesta, EqAffine, Fp};
+use halo2_proofs::ff::Field;
 use halo2_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{
@@ -18,7 +19,6 @@ use halo2_proofs::{
         Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWriterBuffer,
     },
 };
-use halo2curves::pasta::{pallas, vesta, EqAffine, Fp};
 
 use halo2_gadgets::poseidon::{
     primitives::{self as poseidon, ConstantLength, Spec},

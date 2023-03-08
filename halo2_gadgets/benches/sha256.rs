@@ -1,10 +1,10 @@
+use halo2_proofs::curves::pasta::{pallas, EqAffine};
 use halo2_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{create_proof, keygen_pk, keygen_vk, verify_proof, Circuit, ConstraintSystem, Error},
     poly::commitment::Params,
     transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
-use halo2curves::pasta::{pallas, EqAffine};
 use rand::rngs::OsRng;
 
 use std::{

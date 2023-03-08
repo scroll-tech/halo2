@@ -1,6 +1,8 @@
 //! Make use of a K-bit lookup table to decompose a field element into K-bit
 //! words.
 
+use halo2_proofs::ff::PrimeField;
+use halo2_proofs::ff::PrimeFieldBits;
 use halo2_proofs::{
     circuit::{AssignedCell, Layouter, Region},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector, TableColumn},
@@ -8,14 +10,12 @@ use halo2_proofs::{
 };
 use std::{convert::TryInto, marker::PhantomData};
 
-use ff::PrimeFieldBits;
-
 use super::*;
 
 /// The running sum $[z_0, ..., z_W]$. If created in strict mode, $z_W = 0$.
 #[derive(Debug)]
-pub struct RunningSum<F: FieldExt + PrimeFieldBits>(Vec<AssignedCell<F, F>>);
-impl<F: FieldExt + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
+pub struct RunningSum<F: PrimeField + PrimeFieldBits>(Vec<AssignedCell<F, F>>);
+impl<F: PrimeField + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
     type Target = Vec<AssignedCell<F, F>>;
 
     fn deref(&self) -> &Vec<AssignedCell<F, F>> {
@@ -23,7 +23,7 @@ impl<F: FieldExt + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
     }
 }
 
-impl<F: FieldExt + PrimeFieldBits> RangeConstrained<F, AssignedCell<F, F>> {
+impl<F: PrimeField + PrimeFieldBits> RangeConstrained<F, AssignedCell<F, F>> {
     /// Witnesses a subset of the bits in `value` and constrains them to be the correct
     /// number of bits.
     ///
@@ -56,7 +56,7 @@ impl<F: FieldExt + PrimeFieldBits> RangeConstrained<F, AssignedCell<F, F>> {
 
 /// Configuration that provides methods for a lookup range check.
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub struct LookupRangeCheckConfig<F: FieldExt + PrimeFieldBits, const K: usize> {
+pub struct LookupRangeCheckConfig<F: PrimeField + PrimeFieldBits, const K: usize> {
     q_lookup: Selector,
     q_running: Selector,
     q_bitshift: Selector,
@@ -65,7 +65,7 @@ pub struct LookupRangeCheckConfig<F: FieldExt + PrimeFieldBits, const K: usize> 
     _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt + PrimeFieldBits, const K: usize> LookupRangeCheckConfig<F, K> {
+impl<F: PrimeField + PrimeFieldBits, const K: usize> LookupRangeCheckConfig<F, K> {
     /// The `running_sum` advice column breaks the field element into `K`-bit
     /// words. It is used to construct the input expression to the lookup
     /// argument.
@@ -118,7 +118,7 @@ impl<F: FieldExt + PrimeFieldBits, const K: usize> LookupRangeCheckConfig<F, K> 
             // In the short range check, the word is directly witnessed.
             let short_lookup = {
                 let short_word = z_cur;
-                let q_short = Expression::Constant(F::one()) - q_running;
+                let q_short = Expression::Constant(F::ONE) - q_running;
 
                 q_short * short_word
             };
@@ -285,7 +285,7 @@ impl<F: FieldExt + PrimeFieldBits, const K: usize> LookupRangeCheckConfig<F, K> 
 
         if strict {
             // Constrain the final `z` to be zero.
-            region.constrain_constant(zs.last().unwrap().cell(), F::zero())?;
+            region.constrain_constant(zs.last().unwrap().cell(), F::ZERO)?;
         }
 
         Ok(RunningSum(zs))
@@ -389,25 +389,26 @@ mod tests {
     use super::super::lebs2ip;
     use crate::sinsemilla::primitives::K;
 
-    use ff::{Field, PrimeFieldBits};
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::ff::{Field, PrimeFieldBits};
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner, Value},
         dev::{FailureLocation, MockProver, VerifyFailure},
+        ff::PrimeField,
         plonk::{Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::{pasta::pallas, FieldExt};
 
     use std::{convert::TryInto, marker::PhantomData};
 
     #[test]
     fn lookup_range_check() {
         #[derive(Clone, Copy)]
-        struct MyCircuit<F: FieldExt + PrimeFieldBits> {
+        struct MyCircuit<F: PrimeField + PrimeFieldBits> {
             num_words: usize,
             _marker: PhantomData<F>,
         }
 
-        impl<F: FieldExt + PrimeFieldBits> Circuit<F> for MyCircuit<F> {
+        impl<F: PrimeField + PrimeFieldBits> Circuit<F> for MyCircuit<F> {
             type Config = LookupRangeCheckConfig<F, K>;
             type FloorPlanner = SimpleFloorPlanner;
 
@@ -434,11 +435,11 @@ mod tests {
 
                 // Lookup constraining element to be no longer than num_words * K bits.
                 let elements_and_expected_final_zs = [
-                    (F::from((1 << (self.num_words * K)) - 1), F::zero(), true), // a word that is within self.num_words * K bits long
-                    (F::from(1 << (self.num_words * K)), F::one(), false), // a word that is just over self.num_words * K bits long
+                    (F::from((1 << (self.num_words * K)) - 1), F::ZERO, true), // a word that is within self.num_words * K bits long
+                    (F::from(1 << (self.num_words * K)), F::ONE, false), // a word that is just over self.num_words * K bits long
                 ];
 
-                fn expected_zs<F: FieldExt + PrimeFieldBits, const K: usize>(
+                fn expected_zs<F: PrimeField + PrimeFieldBits, const K: usize>(
                     element: F,
                     num_words: usize,
                 ) -> Vec<F> {
@@ -498,12 +499,12 @@ mod tests {
 
     #[test]
     fn short_range_check() {
-        struct MyCircuit<F: FieldExt + PrimeFieldBits> {
+        struct MyCircuit<F: PrimeField + PrimeFieldBits> {
             element: Value<F>,
             num_bits: usize,
         }
 
-        impl<F: FieldExt + PrimeFieldBits> Circuit<F> for MyCircuit<F> {
+        impl<F: PrimeField + PrimeFieldBits> Circuit<F> for MyCircuit<F> {
             type Config = LookupRangeCheckConfig<F, K>;
             type FloorPlanner = SimpleFloorPlanner;
 

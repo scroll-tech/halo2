@@ -3,12 +3,12 @@ use super::{
     util::{i2lebsp, lebs2ip},
     AssignedBits, BlockWord, SpreadInputs, SpreadVar, Table16Assignment, ROUNDS, STATE,
 };
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{Layouter, Value},
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 use std::convert::TryInto;
 use std::ops::Range;
 
@@ -940,12 +940,12 @@ mod tests {
     use super::super::{
         super::BLOCK_SIZE, msg_schedule_test_input, BlockWord, Table16Chip, Table16Config, IV,
     };
+    use halo2_proofs::curves::pasta::pallas;
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner},
         dev::MockProver,
         plonk::{Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::pasta::pallas;
 
     #[test]
     fn compress() {

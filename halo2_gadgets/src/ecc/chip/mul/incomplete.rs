@@ -1,6 +1,8 @@
 use super::super::NonIdentityEccPoint;
 use super::{X, Y, Z};
 use crate::utilities::bool_check;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
     circuit::{Region, Value},
     plonk::{
@@ -8,7 +10,6 @@ use halo2_proofs::{
     },
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, FieldExt};
 
 /// A helper struct for implementing single-row double-and-add using incomplete addition.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -7,13 +7,13 @@ use crate::{
     utilities::{bitrange_subset, lookup_range_check::LookupRangeCheckConfig, range_check},
 };
 
-use group::ff::PrimeField;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
     circuit::{AssignedCell, Layouter},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, FieldExt};
 
 use std::convert::TryInto;
 
@@ -218,7 +218,7 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
         // Check that the correct multiple is obtained.
         {
             use super::super::FixedPoint;
-            use group::Curve;
+            use halo2_proofs::group::Curve;
 
             let scalar = &scalar
                 .base_field_elem()
@@ -377,7 +377,8 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
 
 #[cfg(test)]
 pub mod tests {
-    use group::{
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::{
         ff::{Field, PrimeField},
         Curve,
     };
@@ -385,7 +386,6 @@ pub mod tests {
         circuit::{Chip, Layouter, Value},
         plonk::Error,
     };
-    use halo2curves::pasta::pallas;
     use rand::rngs::OsRng;
 
     use crate::{

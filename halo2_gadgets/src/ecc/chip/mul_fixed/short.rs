@@ -3,12 +3,12 @@ use std::convert::TryInto;
 use super::super::{EccPoint, EccScalarFixedShort, FixedPoints, L_SCALAR_SHORT, NUM_WINDOWS_SHORT};
 use crate::{ecc::chip::MagnitudeSign, utilities::bool_check};
 
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{Layouter, Region},
     plonk::{ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config<Fixed: FixedPoints<pallas::Affine>> {
@@ -209,7 +209,7 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
         // tested at the circuit-level.
         {
             use super::super::FixedPoint;
-            use group::{ff::PrimeField, Curve};
+            use halo2_proofs::group::{ff::PrimeField, Curve};
 
             scalar
                 .magnitude
@@ -228,9 +228,9 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
                             let magnitude = pallas::Scalar::from_repr(magnitude.to_repr()).unwrap();
 
                             let sign = if sign == &&pallas::Base::one() {
-                                pallas::Scalar::one()
+                                pallas::Scalar::ONE
                             } else {
-                                -pallas::Scalar::one()
+                                -pallas::Scalar::ONE
                             };
 
                             magnitude * sign
@@ -248,13 +248,14 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
 
 #[cfg(test)]
 pub mod tests {
-    use group::{ff::PrimeField, Curve};
+    use halo2_proofs::arithmetic::Field;
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::{ff::PrimeField, Curve};
     use halo2_proofs::{
         arithmetic::CurveAffine,
         circuit::{AssignedCell, Chip, Layouter, Value},
         plonk::{Any, Error},
     };
-    use halo2curves::{pasta::pallas, FieldExt};
 
     use crate::{
         ecc::{
@@ -359,9 +360,9 @@ pub mod tests {
             let scalar = {
                 let magnitude = pallas::Scalar::from_repr(magnitude.to_repr()).unwrap();
                 let sign = if *sign == pallas::Base::one() {
-                    pallas::Scalar::one()
+                    pallas::Scalar::ONE
                 } else {
-                    -pallas::Scalar::one()
+                    -pallas::Scalar::ONE
                 };
                 magnitude * sign
             };
@@ -499,7 +500,7 @@ pub mod tests {
 
         // Copied from halo2_proofs::dev::util
         fn format_value(v: pallas::Base) -> String {
-            use ff::Field;
+            use halo2_proofs::ff::Field;
             if v.is_zero_vartime() {
                 "0".into()
             } else if v == pallas::Base::one() {

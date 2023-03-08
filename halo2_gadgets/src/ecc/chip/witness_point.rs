@@ -1,7 +1,8 @@
 use super::{EccPoint, NonIdentityEccPoint};
 
-use group::prime::PrimeCurveAffine;
+use halo2_proofs::group::prime::PrimeCurveAffine;
 
+use halo2_proofs::curves::{pasta::pallas, CurveAffine};
 use halo2_proofs::{
     circuit::{AssignedCell, Region, Value},
     plonk::{
@@ -10,7 +11,6 @@ use halo2_proofs::{
     },
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, CurveAffine};
 
 type Coordinates = (
     AssignedCell<Assigned<pallas::Base>, pallas::Base>,
@@ -152,7 +152,7 @@ impl Config {
 #[cfg(test)]
 pub mod tests {
     use halo2_proofs::circuit::Layouter;
-    use halo2curves::pasta::pallas;
+    use halo2_proofs::curves::pasta::pallas;
 
     use super::*;
     use crate::ecc::{EccInstructions, NonIdentityPoint};

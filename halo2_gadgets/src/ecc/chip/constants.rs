@@ -1,12 +1,12 @@
 //! Constants required for the ECC chip.
 
 use arrayvec::ArrayVec;
-use group::{
+use halo2_proofs::arithmetic::lagrange_interpolate;
+use halo2_proofs::curves::{pasta::pallas, CurveAffine};
+use halo2_proofs::group::{
     ff::{Field, PrimeField},
     Curve,
 };
-use halo2_proofs::arithmetic::lagrange_interpolate;
-use halo2curves::{pasta::pallas, CurveAffine, FieldExt};
 
 /// Window size for fixed-base scalar multiplication
 pub const FIXED_BASE_WINDOW_SIZE: usize = 3;
@@ -61,7 +61,7 @@ fn compute_window_table<C: CurveAffine>(base: C, num_windows: usize) -> Vec<[C; 
     // Generate window table entries for the last window, w = `num_windows - 1`.
     // For the last window, we compute [k * (2^3)^w - sum]B, where sum is defined
     // as sum = \sum_{j = 0}^{`num_windows - 2`} 2^{3j+1}
-    let sum = (0..(num_windows - 1)).fold(C::Scalar::zero(), |acc, j| {
+    let sum = (0..(num_windows - 1)).fold(C::Scalar::ZERO, |acc, j| {
         acc + C::Scalar::from(2).pow(&[FIXED_BASE_WINDOW_SIZE as u64 * j as u64 + 1, 0, 0, 0])
     });
     window_table.push(
@@ -181,7 +181,7 @@ pub fn test_lagrange_coeffs<C: CurveAffine>(base: C, num_windows: usize) {
             .rev()
             .cloned()
             .reduce(|acc, coeff| acc * x + coeff)
-            .unwrap_or_else(C::Base::zero)
+            .unwrap_or(C::Base::ZERO)
     }
 
     let lagrange_coeffs = compute_lagrange_coeffs(base, num_windows);
@@ -213,7 +213,7 @@ pub fn test_lagrange_coeffs<C: CurveAffine>(base: C, num_windows: usize) {
 
         // Compute the actual x-coordinate of the multiple [k * (8^84) - offset]B,
         // where offset = \sum_{j = 0}^{83} 2^{3j+1}
-        let offset = (0..(num_windows - 1)).fold(C::Scalar::zero(), |acc, w| {
+        let offset = (0..(num_windows - 1)).fold(C::Scalar::ZERO, |acc, w| {
             acc + C::Scalar::from(2).pow(&[FIXED_BASE_WINDOW_SIZE as u64 * w as u64 + 1, 0, 0, 0])
         });
         let scalar = C::Scalar::from(bits as u64)
@@ -229,11 +229,11 @@ pub fn test_lagrange_coeffs<C: CurveAffine>(base: C, num_windows: usize) {
 
 #[cfg(test)]
 mod tests {
-    use group::{ff::Field, Curve, Group};
-    use halo2curves::{pasta::pallas, CurveAffine, FieldExt};
-    use proptest::prelude::*;
-
     use super::{compute_window_table, find_zs_and_us, test_lagrange_coeffs, H, NUM_WINDOWS};
+    use halo2_proofs::curves::{pasta::pallas, CurveAffine};
+    use halo2_proofs::ff::FromUniformBytes;
+    use halo2_proofs::group::{ff::Field, Curve, Group};
+    use proptest::prelude::*;
 
     prop_compose! {
         /// Generate an arbitrary Pallas point.
@@ -241,7 +241,7 @@ mod tests {
             // Instead of rejecting out-of-range bytes, let's reduce them.
             let mut buf = [0; 64];
             buf[..32].copy_from_slice(&bytes);
-            let scalar = pallas::Scalar::from_bytes_wide(&buf);
+            let scalar = pallas::Scalar::from_uniform_bytes(&buf);
             pallas::Point::generator() * scalar
         }
     }

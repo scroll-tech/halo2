@@ -5,11 +5,11 @@ use super::{
 use crate::sha256::table16::{
     util::*, AssignedBits, SpreadVar, SpreadWord, StateWord, Table16Assignment,
 };
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{Region, Value},
     plonk::{Advice, Column, Error},
 };
-use halo2curves::pasta::pallas;
 use std::convert::TryInto;
 
 // Test vector 'abc'

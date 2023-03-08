@@ -577,15 +577,15 @@ impl<C: CurveAffine, EccChip: EccInstructions<C>> FixedPointShort<C, EccChip> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use ff::PrimeField;
-    use group::{prime::PrimeCurveAffine, Curve, Group};
+    use halo2_proofs::ff::PrimeField;
+    use halo2_proofs::group::{prime::PrimeCurveAffine, Curve, Group};
 
+    use halo2_proofs::curves::pasta::pallas;
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner, Value},
         dev::MockProver,
         plonk::{Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::pasta::pallas;
     use lazy_static::lazy_static;
 
     use super::{

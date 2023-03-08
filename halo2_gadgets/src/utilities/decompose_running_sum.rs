@@ -22,7 +22,7 @@
 //! This means that $2^K$ has to be at most `degree_bound - 1` in order for
 //! the range check constraint to stay within the degree bound.
 
-use ff::PrimeFieldBits;
+use halo2_proofs::ff::{PrimeField, PrimeFieldBits};
 use halo2_proofs::{
     circuit::{AssignedCell, Region, Value},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
@@ -30,13 +30,12 @@ use halo2_proofs::{
 };
 
 use super::range_check;
-use halo2curves::FieldExt;
 use std::marker::PhantomData;
 
 /// The running sum $[z_0, ..., z_W]$. If created in strict mode, $z_W = 0$.
 #[derive(Debug)]
-pub struct RunningSum<F: FieldExt + PrimeFieldBits>(Vec<AssignedCell<F, F>>);
-impl<F: FieldExt + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
+pub struct RunningSum<F: PrimeField + PrimeFieldBits>(Vec<AssignedCell<F, F>>);
+impl<F: PrimeField + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
     type Target = Vec<AssignedCell<F, F>>;
 
     fn deref(&self) -> &Vec<AssignedCell<F, F>> {
@@ -46,13 +45,13 @@ impl<F: FieldExt + PrimeFieldBits> std::ops::Deref for RunningSum<F> {
 
 /// Configuration that provides methods for running sum decomposition.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct RunningSumConfig<F: FieldExt + PrimeFieldBits, const WINDOW_NUM_BITS: usize> {
+pub struct RunningSumConfig<F: PrimeField + PrimeFieldBits, const WINDOW_NUM_BITS: usize> {
     q_range_check: Selector,
     z: Column<Advice>,
     _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt + PrimeFieldBits, const WINDOW_NUM_BITS: usize>
+impl<F: PrimeField + PrimeFieldBits, const WINDOW_NUM_BITS: usize>
     RunningSumConfig<F, WINDOW_NUM_BITS>
 {
     /// Returns the q_range_check selector of this [`RunningSumConfig`].
@@ -200,7 +199,7 @@ impl<F: FieldExt + PrimeFieldBits, const WINDOW_NUM_BITS: usize>
 
         if strict {
             // Constrain the final running sum output to be zero.
-            region.constrain_constant(zs.last().unwrap().cell(), F::zero())?;
+            region.constrain_constant(zs.last().unwrap().cell(), F::ZERO)?;
         }
 
         Ok(RunningSum(zs))
@@ -210,13 +209,13 @@ impl<F: FieldExt + PrimeFieldBits, const WINDOW_NUM_BITS: usize>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use group::ff::{Field, PrimeField};
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::ff::{Field, PrimeField};
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner},
         dev::{FailureLocation, MockProver, VerifyFailure},
         plonk::{Any, Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::{pasta::pallas, FieldExt};
     use rand::rngs::OsRng;
 
     use crate::ecc::chip::{
@@ -228,7 +227,7 @@ mod tests {
     #[test]
     fn test_running_sum() {
         struct MyCircuit<
-            F: FieldExt + PrimeFieldBits,
+            F: PrimeField + PrimeFieldBits,
             const WORD_NUM_BITS: usize,
             const WINDOW_NUM_BITS: usize,
             const NUM_WINDOWS: usize,
@@ -238,7 +237,7 @@ mod tests {
         }
 
         impl<
-                F: FieldExt + PrimeFieldBits,
+                F: PrimeField + PrimeFieldBits,
                 const WORD_NUM_BITS: usize,
                 const WINDOW_NUM_BITS: usize,
                 const NUM_WINDOWS: usize,

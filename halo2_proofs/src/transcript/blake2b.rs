@@ -103,7 +103,7 @@ impl<R: Read, C: CurveAffine> Transcript<C, Challenge255<C>>
             }
             None => {
                 // Infinity point
-                self.state.update(C::Base::zero().to_repr().as_ref());
+                self.state.update(C::Base::ZERO.to_repr().as_ref());
                 self.state.update(C::Base::from(5).to_repr().as_ref());
             }
         }
@@ -185,7 +185,7 @@ impl<W: Write, C: CurveAffine> Transcript<C, Challenge255<C>>
             }
             None => {
                 // Infinity point
-                self.state.update(C::Base::zero().to_repr().as_ref());
+                self.state.update(C::Base::ZERO.to_repr().as_ref());
                 self.state.update(C::Base::from(5).to_repr().as_ref());
             }
         }

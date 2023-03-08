@@ -2,15 +2,14 @@ use super::{T_Q, Z};
 use crate::{
     sinsemilla::primitives as sinsemilla, utilities::lookup_range_check::LookupRangeCheckConfig,
 };
-
 use halo2_proofs::circuit::AssignedCell;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::ff::PrimeField;
 use halo2_proofs::{
     circuit::Layouter,
     plonk::{Advice, Assigned, Column, ConstraintSystem, Constraints, Error, Expression, Selector},
     poly::Rotation,
 };
-
-use halo2curves::{pasta::pallas, FieldExt};
 
 use std::iter;
 

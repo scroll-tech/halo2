@@ -1,8 +1,8 @@
 //! Implementation of Sinsemilla outside the circuit.
 
-use group::{Curve, Wnaf};
 use halo2_proofs::arithmetic::{CurveAffine, CurveExt};
-use halo2curves::pasta::pallas;
+use halo2_proofs::curves::pasta::pallas;
+use halo2_proofs::group::{Curve, Wnaf};
 use subtle::CtOption;
 
 mod addition;
@@ -245,7 +245,7 @@ impl CommitDomain {
 #[cfg(test)]
 mod tests {
     use super::{Pad, K};
-    use halo2curves::{pasta::pallas, CurveExt};
+    use halo2_proofs::curves::{pasta::pallas, CurveExt};
 
     #[test]
     fn pad() {
@@ -291,8 +291,8 @@ mod tests {
     #[test]
     fn sinsemilla_s() {
         use super::sinsemilla_s::SINSEMILLA_S;
-        use group::Curve;
-        use halo2curves::CurveAffine;
+        use halo2_proofs::curves::CurveAffine;
+        use halo2_proofs::group::Curve;
 
         let hasher = pallas::Point::hash_to_curve(super::S_PERSONALIZATION);
 

@@ -1,11 +1,11 @@
 //! Chip implementing a Merkle hash using Sinsemilla as the hash function.
 
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Value},
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::{pasta::pallas, FieldExt};
 
 use super::MerkleInstructions;
 
@@ -24,7 +24,7 @@ use crate::{
         },
     },
 };
-use group::ff::PrimeField;
+use halo2_proofs::ff::PrimeField;
 
 /// Configuration for the `MerkleChip` implementation.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -380,7 +380,7 @@ where
         {
             use crate::{sinsemilla::primitives::HashDomain, utilities::i2lebsp};
 
-            use group::ff::PrimeFieldBits;
+            use halo2_proofs::group::ff::PrimeFieldBits;
 
             left.value()
                 .zip(right.value())

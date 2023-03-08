@@ -2,11 +2,11 @@ use std::convert::TryInto;
 use std::marker::PhantomData;
 
 use super::Sha256Instructions;
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, Value},
     plonk::{Advice, Any, Assigned, Column, ConstraintSystem, Error},
 };
-use halo2curves::pasta::pallas;
 
 mod compression;
 mod gates;
@@ -454,11 +454,11 @@ trait Table16Assignment {
 mod tests {
     use super::super::{Sha256, BLOCK_SIZE};
     use super::{message_schedule::msg_schedule_test_input, Table16Chip, Table16Config};
+    use halo2_proofs::curves::pasta::pallas;
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner},
         plonk::{Circuit, ConstraintSystem, Error},
     };
-    use halo2curves::pasta::pallas;
 
     #[test]
     fn print_sha256_circuit() {

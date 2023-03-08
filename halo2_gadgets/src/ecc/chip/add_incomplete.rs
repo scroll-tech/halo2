@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use super::NonIdentityEccPoint;
+use halo2_proofs::curves::pasta::pallas;
 use halo2_proofs::{
     circuit::Region,
     plonk::{Advice, Column, ConstraintSystem, Constraints, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Config {
@@ -147,12 +147,12 @@ impl Config {
 
 #[cfg(test)]
 pub mod tests {
-    use group::Curve;
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::Curve;
     use halo2_proofs::{
         circuit::{Layouter, Value},
         plonk::Error,
     };
-    use halo2curves::pasta::pallas;
 
     use crate::ecc::{EccInstructions, NonIdentityPoint};
 

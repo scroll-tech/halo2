@@ -1,5 +1,5 @@
 use halo2_proofs::arithmetic::Field;
-use halo2curves::pasta::{pallas::Base as Fp, vesta::Base as Fq};
+use halo2_proofs::curves::pasta::{pallas::Base as Fp, vesta::Base as Fq};
 
 use super::{Mds, Spec};
 
@@ -66,10 +66,8 @@ impl Spec<Fq, 3, 2> for P128Pow5T3 {
 
 #[cfg(test)]
 mod tests {
-    use ff::PrimeField;
+    use halo2_proofs::ff::{FromUniformBytes, PrimeField};
     use std::marker::PhantomData;
-
-    use halo2curves::FieldExt;
 
     use super::{
         super::{fp, fq},
@@ -80,15 +78,17 @@ mod tests {
     /// The same Poseidon specification as poseidon::P128Pow5T3, but constructed
     /// such that its constants will be generated at runtime.
     #[derive(Debug)]
-    pub struct P128Pow5T3Gen<F: FieldExt, const SECURE_MDS: usize>(PhantomData<F>);
+    pub struct P128Pow5T3Gen<F: PrimeField, const SECURE_MDS: usize>(PhantomData<F>);
 
-    impl<F: FieldExt, const SECURE_MDS: usize> P128Pow5T3Gen<F, SECURE_MDS> {
+    impl<F: PrimeField, const SECURE_MDS: usize> P128Pow5T3Gen<F, SECURE_MDS> {
         pub fn new() -> Self {
             P128Pow5T3Gen(PhantomData::default())
         }
     }
 
-    impl<F: FieldExt, const SECURE_MDS: usize> Spec<F, 3, 2> for P128Pow5T3Gen<F, SECURE_MDS> {
+    impl<F: PrimeField + FromUniformBytes<64> + Ord, const SECURE_MDS: usize> Spec<F, 3, 2>
+        for P128Pow5T3Gen<F, SECURE_MDS>
+    {
         fn full_rounds() -> usize {
             8
         }
@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn verify_constants() {
-        fn verify_constants_helper<F: FieldExt>(
+        fn verify_constants_helper<F: PrimeField + FromUniformBytes<64> + Ord>(
             expected_round_constants: [[F; 3]; 64],
             expected_mds: [[F; 3]; 3],
             expected_mds_inv: [[F; 3]; 3],

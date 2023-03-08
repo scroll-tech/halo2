@@ -5,12 +5,12 @@ use crate::{
     ecc::{self, EccInstructions, FixedPoints},
     utilities::{FieldValue, RangeConstrained, Var},
 };
-use group::ff::{Field, PrimeField};
+use halo2_proofs::curves::CurveAffine;
+use halo2_proofs::ff::{Field, PrimeField};
 use halo2_proofs::{
     circuit::{Layouter, Value},
     plonk::Error,
 };
-use halo2curves::CurveAffine;
 use std::fmt::Debug;
 
 pub mod chip;
@@ -203,9 +203,9 @@ where
         let to_base_field = |bits: &[Value<bool>]| -> Value<C::Base> {
             let bits: Value<Vec<bool>> = bits.iter().cloned().collect();
             bits.map(|bits| {
-                bits.into_iter().rev().fold(C::Base::zero(), |acc, bit| {
+                bits.into_iter().rev().fold(C::Base::ZERO, |acc, bit| {
                     if bit {
-                        acc.double() + C::Base::one()
+                        acc.double() + C::Base::ONE
                     } else {
                         acc.double()
                     }
@@ -243,7 +243,7 @@ where
         subpieces: impl IntoIterator<Item = RangeConstrained<C::Base, Value<C::Base>>>,
     ) -> Result<Self, Error> {
         let (field_elem, total_bits) = subpieces.into_iter().fold(
-            (Value::known(C::Base::zero()), 0),
+            (Value::known(C::Base::ZERO), 0),
             |(acc, bits), subpiece| {
                 assert!(bits < 64);
                 let subpiece_shifted = subpiece
@@ -477,8 +477,8 @@ pub(crate) mod tests {
         },
     };
 
-    use group::{ff::Field, Curve};
-    use halo2curves::pasta::pallas;
+    use halo2_proofs::curves::pasta::pallas;
+    use halo2_proofs::group::{ff::Field, Curve};
     use lazy_static::lazy_static;
 
     use std::convert::TryInto;

@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use ff::Field;
 use halo2_gadgets::{
     poseidon::primitives::{self as poseidon, ConstantLength, P128Pow5T3},
     sinsemilla::primitives as sinsemilla,
 };
+use halo2_proofs::ff::Field;
 
-use halo2curves::pasta::pallas;
+use halo2_proofs::curves::pasta::pallas;
 #[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{rngs::OsRng, Rng};
