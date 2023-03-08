@@ -672,7 +672,7 @@ impl<F: PrimeField + WithSmallOrderMulGroup<3> + FromUniformBytes<64> + Ord> Moc
             _advice_prev: vec![],
             instance,
             selectors,
-            challenges: challenges.clone(),
+            challenges,
             permutation,
             usable_rows: 0..usable_rows,
             current_phase: ThirdPhase.to_sealed(),

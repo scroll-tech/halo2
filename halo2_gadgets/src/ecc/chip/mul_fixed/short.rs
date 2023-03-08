@@ -209,6 +209,7 @@ impl<Fixed: FixedPoints<pallas::Affine>> Config<Fixed> {
         // tested at the circuit-level.
         {
             use super::super::FixedPoint;
+            use halo2_proofs::ff::Field;
             use halo2_proofs::group::{ff::PrimeField, Curve};
 
             scalar

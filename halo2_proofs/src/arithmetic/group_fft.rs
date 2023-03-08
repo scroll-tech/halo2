@@ -227,7 +227,7 @@ where
         let twiddle_lut = &*twiddle_lut;
         for (chunk_idx, tmp) in tmp.chunks_mut(sub_n).enumerate() {
             scope.spawn(move |_| {
-                let split_fft_offset = chunk_idx * sub_n >> log_split;
+                let split_fft_offset = (chunk_idx * sub_n) >> log_split;
                 for (i, tmp) in tmp.chunks_mut(split_m).enumerate() {
                     let split_fft_offset = split_fft_offset + i;
                     split_radix_fft(tmp, a, twiddle_lut, n, split_fft_offset, log_split);
