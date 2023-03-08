@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::arithmetic::{eval_polynomial, FieldExt};
+    use crate::arithmetic::eval_polynomial;
     use crate::plonk::Error;
     use crate::poly::commitment::ParamsProver;
     use crate::poly::commitment::{Blind, ParamsVerifier, MSM};

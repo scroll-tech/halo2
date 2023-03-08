@@ -2,13 +2,10 @@
 
 use std::{convert::TryInto, fmt, marker::PhantomData};
 
-use ff::Field;
+use ff::{Field, PrimeField};
 
-use crate::{
-    arithmetic::FieldExt,
-    plonk::{
-        Advice, Any, Assigned, Challenge, Column, Error, Fixed, Instance, Selector, TableColumn,
-    },
+use crate::plonk::{
+    Advice, Any, Assigned, Challenge, Column, Error, Fixed, Instance, Selector, TableColumn,
 };
 
 mod value;
@@ -28,7 +25,7 @@ pub mod layouter;
 /// The chip also loads any fixed configuration needed at synthesis time
 /// using its own implementation of `load`, and stores it in [`Chip::Loaded`].
 /// This can be accessed via [`Chip::loaded`].
-pub trait Chip<F: FieldExt>: Sized {
+pub trait Chip<F: PrimeField>: Sized {
     /// A type that holds the configuration for this chip, and any other state it may need
     /// during circuit synthesis, that can be derived during [`Circuit::configure`].
     ///

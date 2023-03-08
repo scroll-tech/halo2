@@ -15,7 +15,7 @@ use crate::{
     },
     transcript::{EncodedChallenge, TranscriptRead},
 };
-use ff::Field;
+use ff::{Field, PrimeField, WithSmallOrderMulGroup};
 use group::Group;
 use halo2curves::{
     pairing::{Engine, MillerLoopResult, MultiMillerLoop},
@@ -25,7 +25,10 @@ use rand_core::OsRng;
 
 /// Wrapper for linear verification accumulator
 #[derive(Debug, Clone)]
-pub struct GuardKZG<'params, E: MultiMillerLoop + Debug> {
+pub struct GuardKZG<'params, E: MultiMillerLoop + Debug>
+where
+    E::Scalar: PrimeField,
+{
     pub(crate) msm_accumulator: DualMSM<'params, E>,
 }
 
@@ -33,6 +36,7 @@ pub struct GuardKZG<'params, E: MultiMillerLoop + Debug> {
 impl<'params, E> Guard<KZGCommitmentScheme<E>> for GuardKZG<'params, E>
 where
     E: MultiMillerLoop + Debug,
+    E::Scalar: WithSmallOrderMulGroup<3>,
     E::G1Affine: SerdeCurveAffine,
     E::G2Affine: SerdeCurveAffine,
 {
@@ -40,7 +44,10 @@ where
 }
 
 /// KZG specific operations
-impl<'params, E: MultiMillerLoop + Debug> GuardKZG<'params, E> {
+impl<'params, E: MultiMillerLoop + Debug> GuardKZG<'params, E>
+where
+    E::Scalar: PrimeField,
+{
     pub(crate) fn new(msm_accumulator: DualMSM<'params, E>) -> Self {
         Self { msm_accumulator }
     }
@@ -48,11 +55,17 @@ impl<'params, E: MultiMillerLoop + Debug> GuardKZG<'params, E> {
 
 /// A verifier that checks multiple proofs in a batch
 #[derive(Clone, Debug)]
-pub struct AccumulatorStrategy<'params, E: Engine> {
+pub struct AccumulatorStrategy<'params, E: Engine>
+where
+    E::Scalar: PrimeField,
+{
     pub(crate) msm_accumulator: DualMSM<'params, E>,
 }
 
-impl<'params, E: MultiMillerLoop + Debug> AccumulatorStrategy<'params, E> {
+impl<'params, E: MultiMillerLoop + Debug> AccumulatorStrategy<'params, E>
+where
+    E::Scalar: PrimeField,
+{
     /// Constructs an empty batch verifier
     pub fn new(params: &'params ParamsKZG<E>) -> Self {
         AccumulatorStrategy {
@@ -68,11 +81,17 @@ impl<'params, E: MultiMillerLoop + Debug> AccumulatorStrategy<'params, E> {
 
 /// A verifier that checks a single proof
 #[derive(Clone, Debug)]
-pub struct SingleStrategy<'params, E: Engine> {
+pub struct SingleStrategy<'params, E: Engine>
+where
+    E::Scalar: PrimeField,
+{
     pub(crate) msm: DualMSM<'params, E>,
 }
 
-impl<'params, E: MultiMillerLoop + Debug> SingleStrategy<'params, E> {
+impl<'params, E: MultiMillerLoop + Debug> SingleStrategy<'params, E>
+where
+    E::Scalar: PrimeField,
+{
     /// Constructs an empty batch verifier
     pub fn new(params: &'params ParamsKZG<E>) -> Self {
         SingleStrategy {
@@ -92,6 +111,7 @@ impl<
         >,
     > VerificationStrategy<'params, KZGCommitmentScheme<E>, V> for AccumulatorStrategy<'params, E>
 where
+    E::Scalar: WithSmallOrderMulGroup<3>,
     E::G1Affine: SerdeCurveAffine,
     E::G2Affine: SerdeCurveAffine,
 {
@@ -130,6 +150,7 @@ impl<
         >,
     > VerificationStrategy<'params, KZGCommitmentScheme<E>, V> for SingleStrategy<'params, E>
 where
+    E::Scalar: WithSmallOrderMulGroup<3>,
     E::G1Affine: SerdeCurveAffine,
     E::G2Affine: SerdeCurveAffine,
 {

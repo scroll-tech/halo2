@@ -4,7 +4,7 @@
 //! [halo]: https://eprint.iacr.org/2019/1021
 
 use crate::arithmetic::{
-    best_fft, best_multiexp, g_to_lagrange, parallelize, CurveAffine, CurveExt, FieldExt, Group,
+    best_fft, best_multiexp, g_to_lagrange, parallelize, CurveAffine, CurveExt,
 };
 use crate::helpers::CurveRead;
 use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, ParamsVerifier, MSM};
@@ -234,9 +234,7 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
 #[cfg(test)]
 mod test {
 
-    use crate::arithmetic::{
-        best_fft, best_multiexp, parallelize, CurveAffine, CurveExt, FieldExt, Group,
-    };
+    use crate::arithmetic::{best_fft, best_multiexp, parallelize, CurveAffine, CurveExt};
     use crate::helpers::CurveRead;
     use crate::poly::commitment::ParamsProver;
     use crate::poly::commitment::{Blind, CommitmentScheme, Params, MSM};
@@ -309,7 +307,7 @@ mod test {
         use rand_core::OsRng;
 
         use super::super::commitment::{Blind, Params};
-        use crate::arithmetic::{eval_polynomial, FieldExt};
+        use crate::arithmetic::eval_polynomial;
         use crate::halo2curves::pasta::{EpAffine, Fq};
         use crate::poly::EvaluationDomain;
         use crate::transcript::{
@@ -363,7 +361,7 @@ mod test {
         assert_eq!(v, v_prime);
 
         let mut commitment_msm = MSMIPA::new(&params);
-        commitment_msm.append_term(Field::one(), p.into());
+        commitment_msm.append_term(Field::ONE, p.into());
 
         let guard = verify_proof(&params, commitment_msm, &mut transcript, *x, v).unwrap();
         let ch_verifier = transcript.squeeze_challenge();

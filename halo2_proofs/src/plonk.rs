@@ -6,11 +6,12 @@
 //! [plonk]: https://eprint.iacr.org/2019/953
 
 use blake2b_simd::Params as Blake2bParams;
-use ff::PrimeField;
+use ff::{FromUniformBytes, PrimeField};
 use group::ff::Field;
 use halo2curves::pairing::Engine;
+use halo2curves::CurveAffineExt;
 
-use crate::arithmetic::{CurveAffine, FieldExt};
+use crate::arithmetic::CurveAffine;
 use crate::helpers::{
     polynomial_slice_byte_length, read_polynomial_vec, write_polynomial_slice, SerdeCurveAffine,
     SerdePrimeField,
@@ -61,7 +62,7 @@ pub struct VerifyingKey<C: CurveAffine> {
 
 impl<C: SerdeCurveAffine> VerifyingKey<C>
 where
-    C::Scalar: SerdePrimeField,
+    C::Scalar: SerdePrimeField + FromUniformBytes<64>,
 {
     /// Writes a verifying key to a buffer.
     ///
@@ -117,7 +118,6 @@ where
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
-        
         // read selectors
         let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors]
             .into_iter()
@@ -131,7 +131,7 @@ where
             })
             .collect::<io::Result<_>>()?;
         let (cs, _) = cs.compress_selectors(selectors.clone());
-        
+
         Ok(Self::from_parts(
             domain,
             fixed_commitments,
@@ -157,18 +157,21 @@ where
     }
 }
 
-impl<C: CurveAffine> VerifyingKey<C> {
+impl<C: CurveAffine> VerifyingKey<C>
+where
+    C::Scalar: FromUniformBytes<64>,
+{
     fn bytes_length(&self) -> usize {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()
-            /* 
-            + self.selectors.len()
-                * (self
-                    .selectors
-                    .get(0)
-                    .map(|selector| selector.len() / 8 + 1)
-                    .unwrap_or(0))
-                    */
+        /*
+        + self.selectors.len()
+            * (self
+                .selectors
+                .get(0)
+                .map(|selector| selector.len() / 8 + 1)
+                .unwrap_or(0))
+                */
     }
 
     fn from_parts(
@@ -188,7 +191,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
             cs,
             cs_degree,
             // Temporary, this is not pinned.
-            transcript_repr: C::Scalar::zero(),
+            transcript_repr: C::Scalar::ZERO,
             selectors,
         };
 
@@ -203,7 +206,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
         hasher.update(s.as_bytes());
 
         // Hash in final Blake2bState
-        vk.transcript_repr = C::Scalar::from_bytes_wide(hasher.finalize().as_array());
+        vk.transcript_repr = C::Scalar::from_uniform_bytes(hasher.finalize().as_array());
 
         vk
     }
@@ -274,7 +277,10 @@ pub struct ProvingKey<C: CurveAffine> {
     ev: Evaluator<C>,
 }
 
-impl<C: CurveAffine> ProvingKey<C> {
+impl<C: CurveAffine> ProvingKey<C>
+where
+    C::Scalar: FromUniformBytes<64>,
+{
     /// Get the underlying [`VerifyingKey`].
     pub fn get_vk(&self) -> &VerifyingKey<C> {
         &self.vk
@@ -295,7 +301,7 @@ impl<C: CurveAffine> ProvingKey<C> {
 
 impl<C: SerdeCurveAffine> ProvingKey<C>
 where
-    C::Scalar: SerdePrimeField,
+    C::Scalar: SerdePrimeField + FromUniformBytes<64>,
 {
     /// Writes a proving key to a buffer.
     ///

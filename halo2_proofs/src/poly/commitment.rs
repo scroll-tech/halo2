@@ -5,9 +5,9 @@ use super::{
 };
 use crate::poly::Error;
 use crate::transcript::{EncodedChallenge, TranscriptRead, TranscriptWrite};
-use ff::Field;
+use ff::{Field, PrimeField, WithSmallOrderMulGroup};
 use group::Curve;
-use halo2curves::{CurveAffine, CurveExt, FieldExt};
+use halo2curves::{CurveAffine, CurveExt};
 use rand_core::RngCore;
 use std::{
     fmt::Debug,
@@ -18,7 +18,7 @@ use std::{
 /// Defines components of a commitment scheme.
 pub trait CommitmentScheme {
     /// Application field of this commitment scheme
-    type Scalar: FieldExt + halo2curves::Group;
+    type Scalar: PrimeField + WithSmallOrderMulGroup<3>;
 
     /// Elliptic curve used to commit the application and witnesses
     type Curve: CurveAffine<ScalarExt = Self::Scalar>;
@@ -192,20 +192,20 @@ pub trait Verifier<'params, Scheme: CommitmentScheme> {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Blind<F>(pub F);
 
-impl<F: FieldExt> Default for Blind<F> {
+impl<F: PrimeField> Default for Blind<F> {
     fn default() -> Self {
-        Blind(F::one())
+        Blind(F::ONE)
     }
 }
 
-impl<F: FieldExt> Blind<F> {
+impl<F: PrimeField> Blind<F> {
     /// Given `rng` creates new blinding scalar
     pub fn new<R: RngCore>(rng: &mut R) -> Self {
         Blind(F::random(rng))
     }
 }
 
-impl<F: FieldExt> Add for Blind<F> {
+impl<F: PrimeField> Add for Blind<F> {
     type Output = Self;
 
     fn add(self, rhs: Blind<F>) -> Self {
@@ -213,7 +213,7 @@ impl<F: FieldExt> Add for Blind<F> {
     }
 }
 
-impl<F: FieldExt> Mul for Blind<F> {
+impl<F: PrimeField> Mul for Blind<F> {
     type Output = Self;
 
     fn mul(self, rhs: Blind<F>) -> Self {
@@ -221,25 +221,25 @@ impl<F: FieldExt> Mul for Blind<F> {
     }
 }
 
-impl<F: FieldExt> AddAssign for Blind<F> {
+impl<F: PrimeField> AddAssign for Blind<F> {
     fn add_assign(&mut self, rhs: Blind<F>) {
         self.0 += rhs.0;
     }
 }
 
-impl<F: FieldExt> MulAssign for Blind<F> {
+impl<F: PrimeField> MulAssign for Blind<F> {
     fn mul_assign(&mut self, rhs: Blind<F>) {
         self.0 *= rhs.0;
     }
 }
 
-impl<F: FieldExt> AddAssign<F> for Blind<F> {
+impl<F: PrimeField> AddAssign<F> for Blind<F> {
     fn add_assign(&mut self, rhs: F) {
         self.0 += rhs;
     }
 }
 
-impl<F: FieldExt> MulAssign<F> for Blind<F> {
+impl<F: PrimeField> MulAssign<F> for Blind<F> {
     fn mul_assign(&mut self, rhs: F) {
         self.0 *= rhs;
     }

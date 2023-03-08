@@ -503,13 +503,13 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> TableLayouter<F>
 
 #[cfg(test)]
 mod tests {
-    use halo2curves::pasta::vesta;
-
     use super::SimpleFloorPlanner;
     use crate::{
         dev::MockProver,
         plonk::{Advice, Circuit, Column, Error},
     };
+    use ff::Field;
+    use halo2curves::pasta::vesta;
 
     #[test]
     fn not_enough_columns_for_constants() {
@@ -535,12 +535,7 @@ mod tests {
                 layouter.assign_region(
                     || "assign constant",
                     |mut region| {
-                        region.assign_advice_from_constant(
-                            || "one",
-                            config,
-                            0,
-                            vesta::Scalar::one(),
-                        )
+                        region.assign_advice_from_constant(|| "one", config, 0, vesta::Scalar::ONE)
                     },
                 )?;
 

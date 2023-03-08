@@ -1,7 +1,7 @@
 use crate::poly::Polynomial;
 use ff::Field;
+use ff::FromUniformBytes;
 use ff::PrimeField;
-use halo2curves::FieldExt;
 use halo2curves::{pairing::Engine, serde::SerdeObject, CurveAffine};
 use num_bigint::BigUint;
 use std::io;
@@ -34,25 +34,27 @@ pub(crate) trait CurveRead: CurveAffine {
 }
 impl<C: CurveAffine> CurveRead for C {}
 
-
-pub fn field_to_bn<F: FieldExt>(f: &F) -> BigUint {
+pub fn field_to_bn<F: PrimeField>(f: &F) -> BigUint {
     BigUint::from_bytes_le(f.to_repr().as_ref())
 }
 
 /// Input a big integer `bn`, compute a field element `f`
 /// such that `f == bn % F::MODULUS`.
-pub fn bn_to_field<F: FieldExt>(bn: &BigUint) -> F {
+pub fn bn_to_field<F: PrimeField + FromUniformBytes<64>>(bn: &BigUint) -> F {
     let mut buf = bn.to_bytes_le();
     buf.resize(64, 0u8);
 
     let mut buf_array = [0u8; 64];
     buf_array.copy_from_slice(buf.as_ref());
-    F::from_bytes_wide(&buf_array)
+    F::from_uniform_bytes(&buf_array)
 }
 
 /// Input a base field element `b`, output a scalar field
 /// element `s` s.t. `s == b % ScalarField::MODULUS`
-pub(crate) fn base_to_scalar<C: CurveAffine>(base: &C::Base) -> C::Scalar {
+pub(crate) fn base_to_scalar<C: CurveAffine>(base: &C::Base) -> C::Scalar
+where
+    C::ScalarExt: FromUniformBytes<64>,
+{
     let bn = field_to_bn(base);
     // bn_to_field will perform a mod reduction
     bn_to_field(&bn)

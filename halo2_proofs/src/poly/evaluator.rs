@@ -230,7 +230,7 @@ impl<E, F: Field, B: Basis> Evaluator<E, F, B> {
                     lhs
                 }
                 Ast::DistributePowers(terms, base) => terms.iter().fold(
-                    B::constant_term(ctx.poly_len, ctx.chunk_size, ctx.chunk_index, F::zero()),
+                    B::constant_term(ctx.poly_len, ctx.chunk_size, ctx.chunk_index, F::ZERO),
                     |mut acc, term| {
                         let term = recurse(term, ctx);
                         for (acc, term) in acc.iter_mut().zip(term) {
@@ -347,7 +347,7 @@ impl<E, F: Field, B: Basis> From<AstLeaf<E, B>> for Ast<E, F, B> {
 
 impl<E, F: Field, B: Basis> Ast<E, F, B> {
     pub(crate) fn one() -> Self {
-        Self::ConstantTerm(F::one())
+        Self::ConstantTerm(F::ONE)
     }
 }
 
@@ -355,7 +355,7 @@ impl<E, F: Field, B: Basis> Neg for Ast<E, F, B> {
     type Output = Ast<E, F, B>;
 
     fn neg(self) -> Self::Output {
-        Ast::Scale(Arc::new(self), -F::one())
+        Ast::Scale(Arc::new(self), -F::ONE)
     }
 }
 
@@ -521,7 +521,7 @@ impl BasisOps for Coeff {
         chunk_index: usize,
         scalar: F,
     ) -> Vec<F> {
-        let mut chunk = vec![F::zero(); cmp::min(chunk_size, poly_len - chunk_size * chunk_index)];
+        let mut chunk = vec![F::ZERO; cmp::min(chunk_size, poly_len - chunk_size * chunk_index)];
         if chunk_index == 0 {
             chunk[0] = scalar;
         }
@@ -535,7 +535,7 @@ impl BasisOps for Coeff {
         chunk_index: usize,
         scalar: F,
     ) -> Vec<F> {
-        let mut chunk = vec![F::zero(); cmp::min(chunk_size, poly_len - chunk_size * chunk_index)];
+        let mut chunk = vec![F::ZERO; cmp::min(chunk_size, poly_len - chunk_size * chunk_index)];
         // If the chunk size is 1 (e.g. if we have a small k and many threads), then the
         // linear coefficient is the second chunk. Otherwise, the chunk size is greater
         // than one, and the linear coefficient is the second element of the first chunk.

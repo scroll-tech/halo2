@@ -1,11 +1,12 @@
 mod prover;
 mod verifier;
 
+use ff::PrimeField;
 pub use prover::ProverGWC;
 pub use verifier::VerifierGWC;
 
 use crate::{
-    arithmetic::{eval_polynomial, CurveAffine, FieldExt},
+    arithmetic::{eval_polynomial, CurveAffine},
     poly::{
         commitment::{Params, ParamsVerifier},
         query::Query,
@@ -27,13 +28,15 @@ type ChallengeU<F> = ChallengeScalar<F, U>;
 struct V {}
 type ChallengeV<F> = ChallengeScalar<F, V>;
 
-struct CommitmentData<F: FieldExt, Q: Query<F>> {
+struct CommitmentData<F: PrimeField, Q: Query<F>> {
     queries: Vec<Q>,
     point: F,
     _marker: PhantomData<F>,
 }
 
-fn construct_intermediate_sets<F: FieldExt, I, Q: Query<F>>(queries: I) -> Vec<CommitmentData<F, Q>>
+fn construct_intermediate_sets<F: PrimeField, I, Q: Query<F>>(
+    queries: I,
+) -> Vec<CommitmentData<F, Q>>
 where
     I: IntoIterator<Item = Q> + Clone,
 {

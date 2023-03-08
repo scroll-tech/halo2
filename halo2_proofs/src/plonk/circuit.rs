@@ -348,11 +348,10 @@ impl TryFrom<Column<Any>> for Column<Instance> {
 /// row when required:
 /// ```
 /// use halo2_proofs::{
-///     arithmetic::FieldExt,
 ///     circuit::{Chip, Layouter, Value},
 ///     plonk::{Advice, Column, Error, Selector},
 /// };
-/// # use ff::Field;
+/// use ff::{Field, PrimeField};
 /// # use halo2_proofs::plonk::Fixed;
 ///
 /// struct Config {
@@ -361,12 +360,12 @@ impl TryFrom<Column<Any>> for Column<Instance> {
 ///     s: Selector,
 /// }
 ///
-/// fn circuit_logic<F: FieldExt, C: Chip<F>>(chip: C, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+/// fn circuit_logic<F: PrimeField, C: Chip<F>>(chip: C, mut layouter: impl Layouter<F>) -> Result<(), Error> {
 ///     let config = chip.config();
 ///     # let config: Config = todo!();
 ///     layouter.assign_region(|| "bar", |mut region| {
-///         region.assign_advice(|| "a", config.a, 0, || Value::known(F::one()))?;
-///         region.assign_advice(|| "a", config.b, 1, || Value::known(F::one()))?;
+///         region.assign_advice(|| "a", config.a, 0, || Value::known(F::ONE))?;
+///         region.assign_advice(|| "a", config.b, 1, || Value::known(F::ONE))?;
 ///         config.s.enable(&mut region, 1)
 ///     })?;
 ///     Ok(())

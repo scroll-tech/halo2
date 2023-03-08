@@ -70,7 +70,7 @@ impl<R: Read, C: CurveAffine> TranscriptRead<C, Challenge255<C>>
             Some(p) => p,
             // TODO: check that this is actually safe to push an
             // identity point to the transcript
-            None => C::Scalar::zero(),
+            None => C::Scalar::ZERO,
         };
         self.common_scalar(scalar)?;
 

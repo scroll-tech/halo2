@@ -9,13 +9,16 @@ use std::time::{Duration, Instant};
 
 use blake2b_simd::blake2b;
 use ff::Field;
+use ff::FromUniformBytes;
+use ff::PrimeField;
+use ff::WithSmallOrderMulGroup;
+use group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::plonk::sealed::SealedPhase;
 use crate::plonk::FirstPhase;
 use crate::plonk::ThirdPhase;
 use crate::{
-    arithmetic::{FieldExt, Group},
     circuit,
     plonk::{
         permutation, Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, ColumnType,
@@ -91,7 +94,7 @@ impl Region {
 
 /// The value of a particular cell within the circuit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CellValue<F: Group + Field> {
+pub enum CellValue<F: WithSmallOrderMulGroup<3> + Field> {
     /// An unassigned cell.
     Unassigned,
     /// A cell that has been assigned a value.
@@ -102,23 +105,23 @@ pub enum CellValue<F: Group + Field> {
 
 /// A value within an expression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
-enum Value<F: Group + Field> {
+enum Value<F: Field + WithSmallOrderMulGroup<3>> {
     Real(F),
     Poison,
 }
 
-impl<F: Group + Field> From<CellValue<F>> for Value<F> {
+impl<F: WithSmallOrderMulGroup<3> + Field> From<CellValue<F>> for Value<F> {
     fn from(value: CellValue<F>) -> Self {
         match value {
             // Cells that haven't been explicitly assigned to, default to zero.
-            CellValue::Unassigned => Value::Real(F::zero()),
+            CellValue::Unassigned => Value::Real(F::ZERO),
             CellValue::Assigned(v) => Value::Real(v),
             CellValue::Poison(_) => Value::Poison,
         }
     }
 }
 
-impl<F: Group + Field> Neg for Value<F> {
+impl<F: WithSmallOrderMulGroup<3> + Field> Neg for Value<F> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -129,7 +132,7 @@ impl<F: Group + Field> Neg for Value<F> {
     }
 }
 
-impl<F: Group + Field> Add for Value<F> {
+impl<F: WithSmallOrderMulGroup<3> + Field> Add for Value<F> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -140,7 +143,7 @@ impl<F: Group + Field> Add for Value<F> {
     }
 }
 
-impl<F: Group + Field> Mul for Value<F> {
+impl<F: WithSmallOrderMulGroup<3> + Field> Mul for Value<F> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -151,14 +154,14 @@ impl<F: Group + Field> Mul for Value<F> {
             (Value::Real(x), Value::Poison) | (Value::Poison, Value::Real(x))
                 if x.is_zero_vartime() =>
             {
-                Value::Real(F::zero())
+                Value::Real(F::ZERO)
             }
             _ => Value::Poison,
         }
     }
 }
 
-impl<F: Group + Field> Mul<F> for Value<F> {
+impl<F: WithSmallOrderMulGroup<3> + Field> Mul<F> for Value<F> {
     type Output = Self;
 
     fn mul(self, rhs: F) -> Self::Output {
@@ -166,7 +169,7 @@ impl<F: Group + Field> Mul<F> for Value<F> {
             Value::Real(lhs) => Value::Real(lhs * rhs),
             // If poison is multiplied by zero, then we treat the poison as unconstrained
             // and we don't propagate it.
-            Value::Poison if rhs.is_zero_vartime() => Value::Real(F::zero()),
+            Value::Poison if rhs.is_zero_vartime() => Value::Real(F::ZERO),
             _ => Value::Poison,
         }
     }
@@ -184,12 +187,12 @@ impl<F: Group + Field> Mul<F> for Value<F> {
 ///
 /// ```
 /// use halo2_proofs::{
-///     arithmetic::FieldExt,
 ///     circuit::{Layouter, SimpleFloorPlanner, Value},
 ///     dev::{FailureLocation, MockProver, VerifyFailure},
 ///     plonk::{Advice, Any, Circuit, Column, ConstraintSystem, Error, Selector},
 ///     poly::Rotation,
 /// };
+/// use ff::PrimeField;
 /// use halo2curves::pasta::Fp;
 /// const K: u32 = 5;
 ///
@@ -207,7 +210,7 @@ impl<F: Group + Field> Mul<F> for Value<F> {
 ///     b: Value<u64>,
 /// }
 ///
-/// impl<F: FieldExt> Circuit<F> for MyCircuit {
+/// impl<F: PrimeField> Circuit<F> for MyCircuit {
 ///     type Config = MyConfig;
 ///     type FloorPlanner = SimpleFloorPlanner;
 ///
@@ -286,7 +289,7 @@ impl<F: Group + Field> Mul<F> for Value<F> {
 /// ));
 /// ```
 #[derive(Debug)]
-pub struct MockProver<F: Group + Field> {
+pub struct MockProver<F: WithSmallOrderMulGroup<3> + Field> {
     k: u32,
     n: u32,
     cs: ConstraintSystem<F>,
@@ -301,7 +304,7 @@ pub struct MockProver<F: Group + Field> {
     fixed: Vec<Vec<CellValue<F>>>,
     // The advice cells in the circuit, arranged as [column][row].
     pub(crate) advice: Vec<Vec<CellValue<F>>>,
-    advice_prev: Vec<Vec<CellValue<F>>>,
+    _advice_prev: Vec<Vec<CellValue<F>>>,
     // The instance cells in the circuit, arranged as [column][row].
     instance: Vec<Vec<F>>,
 
@@ -317,7 +320,7 @@ pub struct MockProver<F: Group + Field> {
     current_phase: crate::plonk::sealed::Phase,
 }
 
-impl<F: Field + Group> Assignment<F> for MockProver<F> {
+impl<F: Field + WithSmallOrderMulGroup<3>> Assignment<F> for MockProver<F> {
     fn enter_region<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
@@ -536,7 +539,7 @@ impl<F: Field + Group> Assignment<F> for MockProver<F> {
     }
 }
 
-impl<F: FieldExt> MockProver<F> {
+impl<F: PrimeField + WithSmallOrderMulGroup<3> + FromUniformBytes<64> + Ord> MockProver<F> {
     /// Runs a synthetic keygen-and-prove operation on the given circuit, collecting data
     /// about the constraints and their assignments.
     pub fn run<ConcreteCircuit: Circuit<F>>(
@@ -565,7 +568,7 @@ impl<F: FieldExt> MockProver<F> {
                     return Err(Error::InstanceTooLarge);
                 }
 
-                instance.resize(n, F::zero());
+                instance.resize(n, F::ZERO);
                 Ok(instance)
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -595,7 +598,7 @@ impl<F: FieldExt> MockProver<F> {
             let mut hash: [u8; 64] = blake2b(b"Halo2-MockProver").as_bytes().try_into().unwrap();
             iter::repeat_with(|| {
                 hash = blake2b(&hash).as_bytes().try_into().unwrap();
-                F::from_bytes_wide(&hash)
+                F::from_uniform_bytes(&hash)
             })
             .take(cs.num_challenges)
             .collect()
@@ -616,7 +619,7 @@ impl<F: FieldExt> MockProver<F> {
                     current_region: None,
                     fixed: fixed.clone(),
                     advice: advice.clone(),
-                    advice_prev: last_advice.clone(),
+                    _advice_prev: last_advice.clone(),
                     instance: instance.clone(),
                     selectors: selectors.clone(),
                     challenges: cur_challenges.clone(),
@@ -666,7 +669,7 @@ impl<F: FieldExt> MockProver<F> {
             current_region: None,
             fixed,
             advice,
-            advice_prev: vec![],
+            _advice_prev: vec![],
             instance,
             selectors,
             challenges: challenges.clone(),
@@ -802,7 +805,7 @@ impl<F: FieldExt> MockProver<F> {
                                 &|a, b| a + b,
                                 &|a, b| a * b,
                                 &|a, scalar| a * scalar,
-                                &Value::Real(F::zero()),
+                                &Value::Real(F::ZERO),
                             ) {
                                 Value::Real(x) if x.is_zero_vartime() => None,
                                 Value::Real(_) => Some(VerifyFailure::ConstraintNotSatisfied {
@@ -887,7 +890,7 @@ impl<F: FieldExt> MockProver<F> {
                             &|a, b| a + b,
                             &|a, b| a * b,
                             &|a, scalar| a * scalar,
-                            &Value::Real(F::zero()),
+                            &Value::Real(F::ZERO),
                         )
                     };
 
@@ -1175,7 +1178,7 @@ impl<F: FieldExt> MockProver<F> {
                                 &|a, b| a + b,
                                 &|a, b| a * b,
                                 &|a, scalar| a * scalar,
-                                &Value::Real(F::zero()),
+                                &Value::Real(F::ZERO),
                             ) {
                                 Value::Real(x) if x.is_zero_vartime() => None,
                                 Value::Real(_) => Some(VerifyFailure::ConstraintNotSatisfied {
@@ -1253,7 +1256,7 @@ impl<F: FieldExt> MockProver<F> {
                             &|a, b| a + b,
                             &|a, b| a * b,
                             &|a, scalar| a * scalar,
-                            &Value::Real(F::zero()),
+                            &Value::Real(F::ZERO),
                         )
                     };
 

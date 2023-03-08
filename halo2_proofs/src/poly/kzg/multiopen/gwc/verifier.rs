@@ -3,7 +3,7 @@ use std::io::Read;
 use std::marker::PhantomData;
 
 use super::{construct_intermediate_sets, ChallengeU, ChallengeV};
-use crate::arithmetic::{eval_polynomial, lagrange_interpolate, powers, CurveAffine, FieldExt};
+use crate::arithmetic::{eval_polynomial, lagrange_interpolate, powers, CurveAffine};
 use crate::helpers::SerdeCurveAffine;
 use crate::poly::commitment::Verifier;
 use crate::poly::commitment::MSM;
@@ -19,20 +19,24 @@ use crate::poly::{
 };
 use crate::transcript::{EncodedChallenge, TranscriptRead};
 
-use ff::Field;
+use ff::{Field, PrimeField, WithSmallOrderMulGroup};
 use group::Group;
 use halo2curves::pairing::{Engine, MillerLoopResult, MultiMillerLoop};
 use rand_core::OsRng;
 
 #[derive(Debug)]
 /// Concrete KZG verifier with GWC variant
-pub struct VerifierGWC<'params, E: Engine> {
+pub struct VerifierGWC<'params, E: Engine>
+where
+    E::Scalar: PrimeField,
+{
     params: &'params ParamsKZG<E>,
 }
 
 impl<'params, E> Verifier<'params, KZGCommitmentScheme<E>> for VerifierGWC<'params, E>
 where
     E: MultiMillerLoop + Debug,
+    E::Scalar: PrimeField + WithSmallOrderMulGroup<3>,
     E::G1Affine: SerdeCurveAffine,
     E::G2Affine: SerdeCurveAffine,
 {
@@ -70,7 +74,7 @@ where
         let u: ChallengeU<_> = transcript.squeeze_challenge_scalar();
 
         let mut commitment_multi = MSMKZG::<E>::new();
-        let mut eval_multi = E::Scalar::zero();
+        let mut eval_multi = E::Scalar::ZERO;
 
         let mut witness = MSMKZG::<E>::new();
         let mut witness_with_aux = MSMKZG::<E>::new();

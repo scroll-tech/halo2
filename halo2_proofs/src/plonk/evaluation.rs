@@ -4,13 +4,15 @@ use crate::plonk::permutation::Argument;
 use crate::plonk::{lookup, permutation, AdviceQuery, Any, FixedQuery, InstanceQuery, ProvingKey};
 use crate::poly::Basis;
 use crate::{
-    arithmetic::{eval_polynomial, parallelize, CurveAffine, FieldExt},
+    arithmetic::{eval_polynomial, parallelize, CurveAffine},
     poly::{
         commitment::Params, Coeff, EvaluationDomain, ExtendedLagrangeCoeff, LagrangeCoeff,
         Polynomial, ProverQuery, Rotation,
     },
     transcript::{EncodedChallenge, TranscriptWrite},
 };
+use ff::PrimeField;
+use ff::WithSmallOrderMulGroup;
 use group::prime::PrimeCurve;
 use group::{
     ff::{BatchInvert, Field},
@@ -296,7 +298,7 @@ impl<C: CurveAffine> Evaluator<C> {
         let extended_omega = domain.get_extended_omega();
         let omega = domain.get_omega();
         let isize = size as i32;
-        let one = C::ScalarExt::one();
+        let one = C::ScalarExt::ONE;
         let p = &pk.vk.cs.permutation;
         let num_parts = domain.extended_len() >> domain.k();
 
@@ -527,7 +529,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                     &gamma,
                                     &theta,
                                     &y,
-                                    &C::ScalarExt::zero(),
+                                    &C::ScalarExt::ZERO,
                                     idx,
                                     rot_scale,
                                     isize,
@@ -587,8 +589,8 @@ impl<C: CurveAffine> Default for GraphEvaluator<C> {
         Self {
             // Fixed positions to allow easy access
             constants: vec![
-                C::ScalarExt::zero(),
-                C::ScalarExt::one(),
+                C::ScalarExt::ZERO,
+                C::ScalarExt::ONE,
                 C::ScalarExt::from(2u64),
             ],
             rotations: Vec::new(),
@@ -736,9 +738,9 @@ impl<C: CurveAffine> GraphEvaluator<C> {
                 }
             }
             Expression::Scaled(a, f) => {
-                if *f == C::ScalarExt::zero() {
+                if *f == C::ScalarExt::ZERO {
                     ValueSource::Constant(0)
-                } else if *f == C::ScalarExt::one() {
+                } else if *f == C::ScalarExt::ONE {
                     self.add_expression(a)
                 } else {
                     let cst = self.add_constant(f);
@@ -752,7 +754,7 @@ impl<C: CurveAffine> GraphEvaluator<C> {
     /// Creates a new evaluation structure
     pub fn instance(&self) -> EvaluationData<C> {
         EvaluationData {
-            intermediates: vec![C::ScalarExt::zero(); self.num_intermediates],
+            intermediates: vec![C::ScalarExt::ZERO; self.num_intermediates],
             rotations: vec![0usize; self.rotations.len()],
         }
     }
@@ -800,13 +802,13 @@ impl<C: CurveAffine> GraphEvaluator<C> {
         if let Some(calc) = self.calculations.last() {
             data.intermediates[calc.target]
         } else {
-            C::ScalarExt::zero()
+            C::ScalarExt::ZERO
         }
     }
 }
 
 /// Simple evaluation of an expression
-pub fn evaluate<F: FieldExt, B: Basis>(
+pub fn evaluate<F: PrimeField, B: Basis>(
     expression: &Expression<F>,
     size: usize,
     rot_scale: i32,
@@ -815,7 +817,7 @@ pub fn evaluate<F: FieldExt, B: Basis>(
     instance: &[Polynomial<F, B>],
     challenges: &[F],
 ) -> Vec<F> {
-    let mut values = vec![F::zero(); size];
+    let mut values = vec![F::ZERO; size];
     let isize = size as i32;
     parallelize(&mut values, |values, start| {
         for (i, value) in values.iter_mut().enumerate() {

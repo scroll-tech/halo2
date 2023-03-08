@@ -116,15 +116,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                         || value.unwrap().map(|v| v.2),
                     )?;
 
-                    region.assign_fixed(|| "a", self.config.sa, 0, || Value::known(FF::zero()))?;
-                    region.assign_fixed(|| "b", self.config.sb, 0, || Value::known(FF::zero()))?;
-                    region.assign_fixed(|| "c", self.config.sc, 0, || Value::known(FF::one()))?;
-                    region.assign_fixed(
-                        || "a * b",
-                        self.config.sm,
-                        0,
-                        || Value::known(FF::one()),
-                    )?;
+                    region.assign_fixed(|| "a", self.config.sa, 0, || Value::known(FF::ZERO))?;
+                    region.assign_fixed(|| "b", self.config.sb, 0, || Value::known(FF::ZERO))?;
+                    region.assign_fixed(|| "c", self.config.sc, 0, || Value::known(FF::ONE))?;
+                    region.assign_fixed(|| "a * b", self.config.sm, 0, || Value::known(FF::ONE))?;
                     Ok((lhs.cell(), rhs.cell(), out.cell()))
                 },
             )
@@ -163,14 +158,14 @@ fn criterion_benchmark(c: &mut Criterion) {
                         || value.unwrap().map(|v| v.2),
                     )?;
 
-                    region.assign_fixed(|| "a", self.config.sa, 0, || Value::known(FF::one()))?;
-                    region.assign_fixed(|| "b", self.config.sb, 0, || Value::known(FF::one()))?;
-                    region.assign_fixed(|| "c", self.config.sc, 0, || Value::known(FF::one()))?;
+                    region.assign_fixed(|| "a", self.config.sa, 0, || Value::known(FF::ONE))?;
+                    region.assign_fixed(|| "b", self.config.sb, 0, || Value::known(FF::ONE))?;
+                    region.assign_fixed(|| "c", self.config.sc, 0, || Value::known(FF::ONE))?;
                     region.assign_fixed(
                         || "a * b",
                         self.config.sm,
                         0,
-                        || Value::known(FF::zero()),
+                        || Value::known(FF::ZERO),
                     )?;
                     Ok((lhs.cell(), rhs.cell(), out.cell()))
                 },

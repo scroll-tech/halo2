@@ -5,6 +5,7 @@ use crate::{
     arithmetic::{best_multiexp, parallelize, CurveAffine},
     poly::commitment::MSM,
 };
+use ff::PrimeField;
 use group::{Curve, Group};
 use halo2curves::pairing::{Engine, MillerLoopResult, MultiMillerLoop};
 
@@ -27,7 +28,7 @@ impl<E: Engine> MSMKZG<E> {
     /// Prepares all scalars in the MSM to linear combination
     pub fn combine_with_base(&mut self, base: E::Scalar) {
         use ff::Field;
-        let mut acc = E::Scalar::one();
+        let mut acc = E::Scalar::ONE;
         if !self.scalars.is_empty() {
             for scalar in self.scalars.iter_mut().rev() {
                 *scalar *= &acc;
@@ -111,7 +112,10 @@ impl<E: Engine + Debug> PreMSM<E> {
     }
 }
 
-impl<'params, E: MultiMillerLoop + Debug> From<&'params ParamsKZG<E>> for DualMSM<'params, E> {
+impl<'params, E: MultiMillerLoop + Debug> From<&'params ParamsKZG<E>> for DualMSM<'params, E>
+where
+    E::Scalar: PrimeField,
+{
     fn from(params: &'params ParamsKZG<E>) -> Self {
         DualMSM::new(params)
     }
@@ -119,13 +123,19 @@ impl<'params, E: MultiMillerLoop + Debug> From<&'params ParamsKZG<E>> for DualMS
 
 /// Two channel MSM accumulator
 #[derive(Debug, Clone)]
-pub struct DualMSM<'a, E: Engine> {
+pub struct DualMSM<'a, E: Engine>
+where
+    E::Scalar: PrimeField,
+{
     pub(crate) params: &'a ParamsKZG<E>,
     pub(crate) left: MSMKZG<E>,
     pub(crate) right: MSMKZG<E>,
 }
 
-impl<'a, E: MultiMillerLoop + Debug> DualMSM<'a, E> {
+impl<'a, E: MultiMillerLoop + Debug> DualMSM<'a, E>
+where
+    E::Scalar: PrimeField,
+{
     /// Create a new two channel MSM accumulator instance
     pub fn new(params: &'a ParamsKZG<E>) -> Self {
         Self {
