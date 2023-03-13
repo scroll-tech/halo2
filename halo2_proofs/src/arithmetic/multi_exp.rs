@@ -1,6 +1,6 @@
 use super::multicore;
-pub use ff::Field;
-use group::{
+pub use halo2curves::ff::Field;
+use halo2curves::group::{
     ff::{BatchInvert, PrimeField},
     Curve, Group,
 };

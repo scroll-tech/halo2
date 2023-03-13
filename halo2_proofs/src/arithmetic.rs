@@ -12,11 +12,9 @@ pub use multi_exp::{best_multiexp, small_multiexp};
 pub use util::{generate_twiddle_lookup_table, parallelize};
 
 use super::multicore;
-pub use ff::Field;
-use group::{
-    ff::{BatchInvert, PrimeField},
-    Curve, Group,
-};
+pub use halo2curves::ff::Field;
+use halo2curves::ff::{BatchInvert, PrimeField};
+use halo2curves::group::{Curve, Group};
 
 pub use halo2curves::{CurveAffine, CurveExt};
 

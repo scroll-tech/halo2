@@ -1,6 +1,6 @@
 use core::cmp::max;
 use core::ops::{Add, Mul};
-use ff::Field;
+use halo2curves::ff::Field;
 use std::collections::HashMap;
 use std::{
     convert::TryFrom,
@@ -351,7 +351,7 @@ impl TryFrom<Column<Any>> for Column<Instance> {
 ///     circuit::{Chip, Layouter, Value},
 ///     plonk::{Advice, Column, Error, Selector},
 /// };
-/// use ff::{Field, PrimeField};
+/// use halo2curves::ff::{Field, PrimeField};
 /// # use halo2_proofs::plonk::Fixed;
 ///
 /// struct Config {

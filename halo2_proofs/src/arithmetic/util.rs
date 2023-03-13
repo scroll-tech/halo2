@@ -1,4 +1,4 @@
-use ff::Field;
+use halo2curves::ff::Field;
 
 use crate::multicore;
 

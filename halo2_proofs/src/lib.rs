@@ -36,6 +36,6 @@ pub mod dev;
 mod helpers;
 pub use helpers::SerdeFormat;
 
-pub use ff;
-pub use group;
 pub use halo2curves as curves;
+pub use halo2curves::ff;
+pub use halo2curves::group;

@@ -1,8 +1,8 @@
 use crate::arithmetic::{log2_floor, util::bitreverse};
 
 use super::{multicore, util::parallelize};
-pub use ff::Field;
-use group::{
+pub use halo2curves::ff::Field;
+use halo2curves::group::{
     ff::{BatchInvert, PrimeField},
     Curve, Group,
 };

@@ -6,8 +6,8 @@
 //! [plonk]: https://eprint.iacr.org/2019/953
 
 use blake2b_simd::Params as Blake2bParams;
-use ff::{FromUniformBytes, PrimeField};
-use group::ff::Field;
+use halo2curves::ff::Field;
+use halo2curves::ff::{FromUniformBytes, PrimeField};
 use halo2curves::pairing::Engine;
 use halo2curves::CurveAffineExt;
 

@@ -1,5 +1,5 @@
-use ff::{Field, FromUniformBytes};
-use group::Curve;
+use halo2curves::ff::{Field, FromUniformBytes};
+use halo2curves::group::Curve;
 use halo2curves::CurveExt;
 use rand_core::RngCore;
 use std::collections::BTreeSet;
@@ -32,7 +32,7 @@ use crate::{
     poly::batch_invert_assigned,
     transcript::{EncodedChallenge, TranscriptWrite},
 };
-use group::prime::PrimeCurveAffine;
+use halo2curves::group::prime::PrimeCurveAffine;
 
 /// This creates a proof for the provided `circuit` when given the public
 /// parameters `params` and the proving key [`ProvingKey`] that was

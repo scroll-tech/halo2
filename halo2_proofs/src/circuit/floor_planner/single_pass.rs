@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
 
-use ff::Field;
+use halo2curves::ff::Field;
 
 use ark_std::{end_timer, start_timer};
 
@@ -508,7 +508,7 @@ mod tests {
         dev::MockProver,
         plonk::{Advice, Circuit, Column, Error},
     };
-    use ff::Field;
+    use halo2curves::ff::Field;
     use halo2curves::pasta::vesta;
 
     #[test]

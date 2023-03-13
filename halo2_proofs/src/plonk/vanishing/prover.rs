@@ -1,7 +1,7 @@
 use std::iter;
 
-use ff::Field;
-use group::Curve;
+use halo2curves::ff::Field;
+use halo2curves::group::Curve;
 use rand_core::RngCore;
 
 use super::Argument;

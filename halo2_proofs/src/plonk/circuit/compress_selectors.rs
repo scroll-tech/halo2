@@ -1,5 +1,5 @@
 use super::Expression;
-use ff::Field;
+use halo2curves::ff::Field;
 
 /// This describes a selector and where it is activated.
 #[derive(Debug, Clone)]

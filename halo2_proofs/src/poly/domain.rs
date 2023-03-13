@@ -8,8 +8,8 @@ use crate::{
 
 use super::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation};
 
-use ff::WithSmallOrderMulGroup;
-use group::{
+use halo2curves::ff::WithSmallOrderMulGroup;
+use halo2curves::group::{
     ff::{BatchInvert, Field, PrimeField},
     Group,
 };

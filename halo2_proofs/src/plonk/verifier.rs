@@ -1,5 +1,5 @@
-use ff::{Field, FromUniformBytes};
-use group::Curve;
+use halo2curves::ff::{Field, FromUniformBytes};
+use halo2curves::group::Curve;
 use rand_core::RngCore;
 use std::iter;
 

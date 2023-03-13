@@ -3,8 +3,8 @@ use super::{
     TranscriptWrite, TranscriptWriterBuffer,
 };
 use blake2b_simd::{Params as Blake2bParams, State as Blake2bState};
-use ff::Field;
-use group::ff::PrimeField;
+use halo2curves::ff::Field;
+use halo2curves::ff::PrimeField;
 use halo2curves::{Coordinates, CurveAffine, FieldExt};
 use num_bigint::BigUint;
 use std::convert::TryInto;

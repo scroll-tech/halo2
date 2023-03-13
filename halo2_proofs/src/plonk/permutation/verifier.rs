@@ -1,4 +1,4 @@
-use ff::Field;
+use halo2curves::ff::Field;
 use std::iter;
 
 use super::super::{circuit::Any, ChallengeBeta, ChallengeGamma, ChallengeX};
@@ -9,7 +9,7 @@ use crate::{
     poly::{commitment::MSM, Rotation, VerifierQuery},
     transcript::{EncodedChallenge, TranscriptRead},
 };
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 
 #[derive(Debug)]
 pub struct Committed<C: CurveAffine> {

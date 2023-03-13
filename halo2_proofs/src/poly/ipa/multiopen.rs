@@ -11,7 +11,7 @@ use crate::{arithmetic::CurveAffine, poly::query::Query, transcript::ChallengeSc
 mod prover;
 mod verifier;
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 pub use prover::ProverIPA;
 pub use verifier::VerifierIPA;
 

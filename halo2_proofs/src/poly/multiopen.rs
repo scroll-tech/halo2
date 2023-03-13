@@ -11,8 +11,8 @@ use crate::{
 };
 
 use crate::poly::Rotation;
-use ff::Field;
-use group::Group;
+use halo2curves::ff::Field;
+use halo2curves::group::Group;
 use rand::RngCore;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -153,7 +153,7 @@ mod tests {
         TranscriptWrite,
     };
 
-    use ff::Field;
+    use halo2curves::ff::Field;
     use rand::RngCore;
     use rand_core::OsRng;
     use std::collections::BTreeSet;
@@ -168,8 +168,8 @@ mod tests {
 
     #[test]
     fn test_roundtrip() {
-        use ff::Field;
-        use group::Curve;
+        use halo2curves::ff::Field;
+        use halo2curves::group::Curve;
         use rand_core::OsRng;
 
         use super::*;

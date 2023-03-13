@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::{Add, Mul, Neg, Sub};
 
-use group::ff::Field;
+use halo2curves::ff::Field;
 
 use crate::plonk::{Assigned, Error};
 

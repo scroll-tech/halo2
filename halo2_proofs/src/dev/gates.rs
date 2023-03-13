@@ -3,7 +3,7 @@ use std::{
     fmt::{self, Write},
 };
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 
 use crate::{
     dev::util,
@@ -31,7 +31,7 @@ struct Gate {
 /// # Examples
 ///
 /// ```
-/// use ff::Field;
+/// use halo2curves::ff::Field;
 /// use halo2_proofs::{
 ///     circuit::{Layouter, SimpleFloorPlanner},
 ///     dev::CircuitGates,

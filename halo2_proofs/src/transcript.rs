@@ -2,8 +2,8 @@
 //! transcripts.
 
 use blake2b_simd::{Params as Blake2bParams, State as Blake2bState};
-use ff::FromUniformBytes;
-use group::ff::PrimeField;
+use halo2curves::ff::FromUniformBytes;
+use halo2curves::ff::PrimeField;
 use sha3::{Digest, Keccak256};
 use std::convert::TryInto;
 

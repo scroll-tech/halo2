@@ -8,11 +8,11 @@ use std::ops::{Add, Mul, Neg, Range};
 use std::time::{Duration, Instant};
 
 use blake2b_simd::blake2b;
-use ff::Field;
-use ff::FromUniformBytes;
-use ff::PrimeField;
-use ff::WithSmallOrderMulGroup;
-use group::Group;
+use halo2curves::ff::Field;
+use halo2curves::ff::FromUniformBytes;
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::WithSmallOrderMulGroup;
+use halo2curves::group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::plonk::sealed::SealedPhase;
@@ -192,7 +192,7 @@ impl<F: WithSmallOrderMulGroup<3> + Field> Mul<F> for Value<F> {
 ///     plonk::{Advice, Any, Circuit, Column, ConstraintSystem, Error, Selector},
 ///     poly::Rotation,
 /// };
-/// use ff::PrimeField;
+/// use halo2curves::ff::PrimeField;
 /// use halo2curves::pasta::Fp;
 /// const K: u32 = 5;
 ///

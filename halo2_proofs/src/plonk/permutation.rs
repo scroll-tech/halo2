@@ -8,7 +8,7 @@ use crate::{
     poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial},
     SerdeFormat,
 };
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 
 pub(crate) mod keygen;
 pub(crate) mod prover;

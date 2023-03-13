@@ -1,5 +1,5 @@
-use ff::PrimeField;
-use group::{
+use halo2curves::ff::PrimeField;
+use halo2curves::group::{
     ff::{BatchInvert, Field},
     Curve,
 };

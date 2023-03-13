@@ -1,4 +1,4 @@
-use ff::Field;
+use halo2curves::ff::Field;
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{Cell, Layouter, Region, SimpleFloorPlanner, Value},

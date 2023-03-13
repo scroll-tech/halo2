@@ -5,8 +5,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ff::Field;
-use group::{Curve, Group};
+use halo2curves::ff::Field;
+use halo2curves::group::{Curve, Group};
 use gumdrop::Options;
 use halo2_proofs::arithmetic::best_multiexp;
 use halo2curves::pasta::pallas;

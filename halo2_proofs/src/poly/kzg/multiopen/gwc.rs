@@ -1,7 +1,7 @@
 mod prover;
 mod verifier;
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 pub use prover::ProverGWC;
 pub use verifier::VerifierGWC;
 

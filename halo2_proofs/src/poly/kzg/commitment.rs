@@ -6,8 +6,8 @@ use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, Par
 use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 use crate::SerdeFormat;
 
-use ff::{Field, PrimeField, WithSmallOrderMulGroup};
-use group::{prime::PrimeCurveAffine, Curve, Group as _};
+use halo2curves::ff::{Field, PrimeField, WithSmallOrderMulGroup};
+use halo2curves::group::{prime::PrimeCurveAffine, Curve, Group as _};
 use halo2curves::pairing::Engine;
 use rand_core::{OsRng, RngCore};
 use std::fmt::Debug;
@@ -188,7 +188,7 @@ where
 
         let (g, g_lagrange) = match format {
             SerdeFormat::Processed => {
-                use group::GroupEncoding;
+                use halo2curves::group::GroupEncoding;
                 let load_points_from_file_parallelly =
                     |reader: &mut R| -> io::Result<Vec<Option<E::G1Affine>>> {
                         let mut points_compressed =
@@ -370,8 +370,8 @@ mod test {
     use crate::poly::kzg::multiopen::ProverSHPLONK;
     use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
-    use ff::{Field, PrimeField};
-    use group::{prime::PrimeCurveAffine, Curve, Group as _};
+    use halo2curves::ff::{Field, PrimeField};
+    use halo2curves::group::{prime::PrimeCurveAffine, Curve, Group as _};
     use halo2curves::bn256::G1Affine;
     use std::marker::PhantomData;
     use std::ops::{Add, AddAssign, Mul, MulAssign};
@@ -407,7 +407,7 @@ mod test {
     fn test_parameter_serialisation_roundtrip() {
         const K: u32 = 4;
 
-        use ff::Field;
+        use halo2curves::ff::Field;
         use rand_core::OsRng;
 
         use super::super::commitment::{Blind, Params};

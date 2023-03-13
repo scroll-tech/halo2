@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Debug};
 
-use ff::{PrimeField, WithSmallOrderMulGroup};
-use group::ff::Field;
+use halo2curves::ff::{PrimeField, WithSmallOrderMulGroup};
+use halo2curves::ff::Field;
 
 use super::metadata::{DebugColumn, DebugVirtualCell};
 use super::MockProver;

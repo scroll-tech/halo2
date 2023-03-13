@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use group::{
+use halo2curves::group::{
     ff::{BatchInvert, Field},
     Curve,
 };

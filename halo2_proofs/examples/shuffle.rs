@@ -1,5 +1,5 @@
-use ff::PrimeField;
-use ff::{BatchInvert, FromUniformBytes, WithSmallOrderMulGroup};
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::{BatchInvert, FromUniformBytes, WithSmallOrderMulGroup};
 use halo2_proofs::{
     arithmetic::CurveAffine,
     circuit::{floor_planner::V1, Layouter, Value},

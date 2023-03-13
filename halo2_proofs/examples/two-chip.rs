@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector},
@@ -496,7 +496,7 @@ impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
 
 #[allow(clippy::many_single_char_names)]
 fn main() {
-    use group::ff::Field;
+    use halo2curves::ff::Field;
     use halo2_proofs::dev::MockProver;
     use halo2curves::pasta::Fp;
     use rand_core::OsRng;

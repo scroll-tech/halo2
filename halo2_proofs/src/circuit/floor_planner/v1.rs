@@ -1,6 +1,6 @@
 use std::fmt;
 
-use ff::Field;
+use halo2curves::ff::Field;
 
 use crate::{
     circuit::{
@@ -522,7 +522,7 @@ mod tests {
         dev::MockProver,
         plonk::{Advice, Circuit, Column, Error},
     };
-    use ff::Field;
+    use halo2curves::ff::Field;
     use halo2curves::pasta::vesta;
 
     #[test]

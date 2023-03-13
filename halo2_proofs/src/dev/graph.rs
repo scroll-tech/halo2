@@ -1,4 +1,4 @@
-use ff::Field;
+use halo2curves::ff::Field;
 use tabbycat::{AttrList, Edge, GraphBuilder, GraphType, Identity, StmtList};
 
 use crate::{

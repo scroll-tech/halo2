@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector},

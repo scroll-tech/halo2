@@ -5,7 +5,7 @@ use crate::{
     arithmetic::eval_polynomial,
     poly::{commitment, Coeff, Polynomial},
 };
-use ff::Field;
+use halo2curves::ff::Field;
 use halo2curves::CurveAffine;
 
 pub trait Query<F>: Sized + Clone + Send + Sync {

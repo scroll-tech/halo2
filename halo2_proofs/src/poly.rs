@@ -7,8 +7,8 @@ use crate::helpers::SerdePrimeField;
 use crate::plonk::Assigned;
 use crate::SerdeFormat;
 
-use ff::PrimeField;
-use group::ff::{BatchInvert, Field};
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::{BatchInvert, Field};
 use std::fmt::Debug;
 use std::io;
 use std::marker::PhantomData;

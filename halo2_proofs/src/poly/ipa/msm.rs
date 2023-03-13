@@ -4,8 +4,8 @@ use crate::poly::{
     commitment::{CommitmentScheme, Params, MSM},
     ipa::commitment::ParamsVerifierIPA,
 };
-use ff::Field;
-use group::Group;
+use halo2curves::ff::Field;
+use halo2curves::group::Group;
 use std::collections::BTreeMap;
 
 /// A multiscalar multiplication in the polynomial commitment scheme
@@ -70,7 +70,7 @@ impl<'a, C: CurveAffine> MSMIPA<'a, C> {
 impl<'a, C: CurveAffine> MSM<C> for MSMIPA<'a, C> {
     fn append_term(&mut self, scalar: C::Scalar, point: C::Curve) {
         if !bool::from(point.is_identity()) {
-            use group::Curve;
+            use halo2curves::group::Curve;
             let point = point.to_affine();
             let xy = point.coordinates().unwrap();
             let x = *xy.x();
@@ -228,7 +228,7 @@ mod tests {
         commitment::{Params, MSM},
         ipa::msm::MSMIPA,
     };
-    use group::Curve;
+    use halo2curves::group::Curve;
     use halo2curves::{
         pasta::{Ep, EpAffine, Fp, Fq},
         CurveAffine,

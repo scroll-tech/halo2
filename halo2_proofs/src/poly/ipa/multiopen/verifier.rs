@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::io::Read;
 use std::marker::PhantomData;
 
-use ff::Field;
+use halo2curves::ff::Field;
 use rand_core::RngCore;
 
 use super::{

@@ -10,7 +10,7 @@ use crate::{
     poly::{commitment::MSM, Rotation, VerifierQuery},
     transcript::{EncodedChallenge, TranscriptRead},
 };
-use ff::{Field, PrimeField};
+use halo2curves::ff::{Field, PrimeField};
 
 #[derive(Debug)]
 pub struct PermutationCommitments<C: CurveAffine> {

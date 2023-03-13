@@ -11,8 +11,8 @@ use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, Par
 use crate::poly::ipa::msm::MSMIPA;
 use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
-use ff::{Field, PrimeField};
-use group::{prime::PrimeCurveAffine, Curve, Group as _};
+use halo2curves::ff::{Field, PrimeField};
+use halo2curves::group::{prime::PrimeCurveAffine, Curve, Group as _};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Mul, MulAssign};
 
@@ -242,8 +242,8 @@ mod test {
     use crate::poly::ipa::msm::MSMIPA;
     use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
-    use ff::{Field, PrimeField};
-    use group::{prime::PrimeCurveAffine, Curve, Group as _};
+    use halo2curves::ff::{Field, PrimeField};
+    use halo2curves::group::{prime::PrimeCurveAffine, Curve, Group as _};
     use std::marker::PhantomData;
     use std::ops::{Add, AddAssign, Mul, MulAssign};
 
@@ -303,7 +303,7 @@ mod test {
     fn test_opening_proof() {
         const K: u32 = 6;
 
-        use ff::Field;
+        use halo2curves::ff::Field;
         use rand_core::OsRng;
 
         use super::super::commitment::{Blind, Params};

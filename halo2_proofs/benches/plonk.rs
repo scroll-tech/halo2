@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate criterion;
 
-use ff::Field;
-use ff::PrimeField;
+use halo2curves::ff::Field;
+use halo2curves::ff::PrimeField;
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::*;
 use halo2_proofs::poly::{commitment::ParamsProver, Rotation};

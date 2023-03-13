@@ -13,8 +13,8 @@ use crate::poly::Rotation;
 use crate::poly::{commitment::Params, Coeff, Polynomial};
 use crate::transcript::{EncodedChallenge, TranscriptWrite};
 
-use ff::{Field, PrimeField, WithSmallOrderMulGroup};
-use group::Curve;
+use halo2curves::ff::{Field, PrimeField, WithSmallOrderMulGroup};
+use halo2curves::group::Curve;
 use halo2curves::pairing::Engine;
 use rand_core::RngCore;
 use rayon::prelude::*;

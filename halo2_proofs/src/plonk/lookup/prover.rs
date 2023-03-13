@@ -13,9 +13,9 @@ use crate::{
     },
     transcript::{EncodedChallenge, TranscriptWrite},
 };
-use ff::{PrimeField, WithSmallOrderMulGroup};
-use group::prime::PrimeCurveAffine;
-use group::{
+use halo2curves::ff::{PrimeField, WithSmallOrderMulGroup};
+use halo2curves::group::prime::PrimeCurveAffine;
+use halo2curves::group::{
     ff::{BatchInvert, Field},
     Curve,
 };

@@ -1,5 +1,5 @@
-use ff::Field;
-use group::Curve;
+use halo2curves::ff::Field;
+use halo2curves::group::Curve;
 
 use super::{Argument, ProvingKey, VerifyingKey};
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         EvaluationDomain,
     },
 };
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 
 /// Struct that accumulates all the necessary data in order to construct the permutation argument.
 #[derive(Debug, Clone, PartialEq, Eq)]

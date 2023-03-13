@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use group::ff::Field;
+use halo2curves::ff::Field;
 use halo2curves::FieldExt;
 
 use super::{

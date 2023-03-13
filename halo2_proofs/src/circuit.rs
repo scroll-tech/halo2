@@ -2,7 +2,7 @@
 
 use std::{convert::TryInto, fmt, marker::PhantomData};
 
-use ff::{Field, PrimeField};
+use halo2curves::ff::{Field, PrimeField};
 
 use crate::plonk::{
     Advice, Any, Assigned, Challenge, Column, Error, Fixed, Instance, Selector, TableColumn,

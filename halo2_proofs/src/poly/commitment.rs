@@ -5,8 +5,8 @@ use super::{
 };
 use crate::poly::Error;
 use crate::transcript::{EncodedChallenge, TranscriptRead, TranscriptWrite};
-use ff::{Field, PrimeField, WithSmallOrderMulGroup};
-use group::Curve;
+use halo2curves::ff::{Field, PrimeField, WithSmallOrderMulGroup};
+use halo2curves::group::Curve;
 use halo2curves::{CurveAffine, CurveExt};
 use rand_core::RngCore;
 use std::{

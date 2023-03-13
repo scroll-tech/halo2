@@ -1,7 +1,7 @@
 mod prover;
 mod verifier;
 
-use ff::PrimeField;
+use halo2curves::ff::PrimeField;
 pub use prover::ProverSHPLONK;
 pub use verifier::VerifierSHPLONK;
 
@@ -149,7 +149,7 @@ where
 
 #[cfg(test)]
 mod proptests {
-    use ff::FromUniformBytes;
+    use halo2curves::ff::FromUniformBytes;
     use proptest::{
         collection::vec,
         prelude::*,

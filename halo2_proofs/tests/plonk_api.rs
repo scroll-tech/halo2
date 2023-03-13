@@ -2,9 +2,9 @@
 #![allow(clippy::op_ref)]
 
 use assert_matches::assert_matches;
-use ff::FromUniformBytes;
-use ff::PrimeField;
-use ff::WithSmallOrderMulGroup;
+use halo2curves::ff::FromUniformBytes;
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::WithSmallOrderMulGroup;
 use halo2_proofs::arithmetic::Field;
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;

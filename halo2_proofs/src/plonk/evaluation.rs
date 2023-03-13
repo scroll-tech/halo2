@@ -11,10 +11,10 @@ use crate::{
     },
     transcript::{EncodedChallenge, TranscriptWrite},
 };
-use ff::PrimeField;
-use ff::WithSmallOrderMulGroup;
-use group::prime::PrimeCurve;
-use group::{
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::WithSmallOrderMulGroup;
+use halo2curves::group::prime::PrimeCurve;
+use halo2curves::group::{
     ff::{BatchInvert, Field},
     Curve,
 };

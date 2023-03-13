@@ -1,7 +1,7 @@
 use super::{Challenge255, EncodedChallenge, Transcript, TranscriptRead, TranscriptWrite};
 use crate::helpers::base_to_scalar;
-use ff::{Field, FromUniformBytes};
-use group::ff::PrimeField;
+use halo2curves::ff::{Field, FromUniformBytes};
+use halo2curves::ff::PrimeField;
 use halo2curves::serde::SerdeObject;
 use halo2curves::{Coordinates, CurveAffine};
 use num_bigint::BigUint;

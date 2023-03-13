@@ -2,8 +2,8 @@
 
 use std::ops::Range;
 
-use ff::{Field, FromUniformBytes};
-use group::Curve;
+use halo2curves::ff::{Field, FromUniformBytes};
+use halo2curves::group::Curve;
 
 use super::{
     circuit::{
