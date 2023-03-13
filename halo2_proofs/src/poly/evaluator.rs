@@ -9,7 +9,7 @@ use std::{
 };
 
 use halo2curves::ff::Field;
-use halo2curves::FieldExt;
+use halo2curves::PrimeField;
 
 use super::{
     Basis, Coeff, EvaluationDomain, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation,
@@ -135,7 +135,7 @@ impl<E, F: Field, B: Basis> Evaluator<E, F, B> {
     ) -> Polynomial<F, B>
     where
         E: Copy + Send + Sync,
-        F: FieldExt,
+        F: PrimeField,
         B: BasisOps,
     {
         // Traverse `ast` to collect the used leaves.
@@ -192,7 +192,7 @@ impl<E, F: Field, B: Basis> Evaluator<E, F, B> {
             })
             .collect();
 
-        struct AstContext<'a, E, F: FieldExt, B: Basis> {
+        struct AstContext<'a, E, F: PrimeField, B: Basis> {
             domain: &'a EvaluationDomain<F>,
             poly_len: usize,
             chunk_size: usize,
@@ -200,7 +200,7 @@ impl<E, F: Field, B: Basis> Evaluator<E, F, B> {
             leaves: &'a HashMap<AstLeaf<E, B>, &'a [F]>,
         }
 
-        fn recurse<E, F: FieldExt, B: BasisOps>(
+        fn recurse<E, F: PrimeField, B: BasisOps>(
             ast: &Ast<E, F, B>,
             ctx: &AstContext<'_, E, F, B>,
         ) -> Vec<F> {
@@ -489,21 +489,21 @@ impl<E: Clone, F: Field> MulAssign for Ast<E, F, ExtendedLagrangeCoeff> {
 
 /// Operations which can be performed over a given basis.
 pub(crate) trait BasisOps: Basis {
-    fn empty_poly<F: FieldExt>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self>;
-    fn constant_term<F: FieldExt>(
+    fn empty_poly<F: PrimeField>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self>;
+    fn constant_term<F: PrimeField>(
         poly_len: usize,
         chunk_size: usize,
         chunk_index: usize,
         scalar: F,
     ) -> Vec<F>;
-    fn linear_term<F: FieldExt>(
+    fn linear_term<F: PrimeField>(
         domain: &EvaluationDomain<F>,
         poly_len: usize,
         chunk_size: usize,
         chunk_index: usize,
         scalar: F,
     ) -> Vec<F>;
-    fn rotate<F: FieldExt>(
+    fn rotate<F: PrimeField>(
         domain: &EvaluationDomain<F>,
         poly: &Polynomial<F, Self>,
         rotation: Rotation,
@@ -511,11 +511,11 @@ pub(crate) trait BasisOps: Basis {
 }
 
 impl BasisOps for Coeff {
-    fn empty_poly<F: FieldExt>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
+    fn empty_poly<F: PrimeField>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
         domain.empty_coeff()
     }
 
-    fn constant_term<F: FieldExt>(
+    fn constant_term<F: PrimeField>(
         poly_len: usize,
         chunk_size: usize,
         chunk_index: usize,
@@ -528,7 +528,7 @@ impl BasisOps for Coeff {
         chunk
     }
 
-    fn linear_term<F: FieldExt>(
+    fn linear_term<F: PrimeField>(
         _: &EvaluationDomain<F>,
         poly_len: usize,
         chunk_size: usize,
@@ -550,7 +550,7 @@ impl BasisOps for Coeff {
         chunk
     }
 
-    fn rotate<F: FieldExt>(
+    fn rotate<F: PrimeField>(
         _: &EvaluationDomain<F>,
         _: &Polynomial<F, Self>,
         _: Rotation,
@@ -560,11 +560,11 @@ impl BasisOps for Coeff {
 }
 
 impl BasisOps for LagrangeCoeff {
-    fn empty_poly<F: FieldExt>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
+    fn empty_poly<F: PrimeField>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
         domain.empty_lagrange()
     }
 
-    fn constant_term<F: FieldExt>(
+    fn constant_term<F: PrimeField>(
         poly_len: usize,
         chunk_size: usize,
         chunk_index: usize,
@@ -573,7 +573,7 @@ impl BasisOps for LagrangeCoeff {
         vec![scalar; cmp::min(chunk_size, poly_len - chunk_size * chunk_index)]
     }
 
-    fn linear_term<F: FieldExt>(
+    fn linear_term<F: PrimeField>(
         domain: &EvaluationDomain<F>,
         poly_len: usize,
         chunk_size: usize,
@@ -592,7 +592,7 @@ impl BasisOps for LagrangeCoeff {
             .collect()
     }
 
-    fn rotate<F: FieldExt>(
+    fn rotate<F: PrimeField>(
         _: &EvaluationDomain<F>,
         poly: &Polynomial<F, Self>,
         rotation: Rotation,
@@ -602,11 +602,11 @@ impl BasisOps for LagrangeCoeff {
 }
 
 impl BasisOps for ExtendedLagrangeCoeff {
-    fn empty_poly<F: FieldExt>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
+    fn empty_poly<F: PrimeField>(domain: &EvaluationDomain<F>) -> Polynomial<F, Self> {
         domain.empty_extended()
     }
 
-    fn constant_term<F: FieldExt>(
+    fn constant_term<F: PrimeField>(
         poly_len: usize,
         chunk_size: usize,
         chunk_index: usize,
@@ -615,7 +615,7 @@ impl BasisOps for ExtendedLagrangeCoeff {
         vec![scalar; cmp::min(chunk_size, poly_len - chunk_size * chunk_index)]
     }
 
-    fn linear_term<F: FieldExt>(
+    fn linear_term<F: PrimeField>(
         domain: &EvaluationDomain<F>,
         poly_len: usize,
         chunk_size: usize,
@@ -637,7 +637,7 @@ impl BasisOps for ExtendedLagrangeCoeff {
             .collect()
     }
 
-    fn rotate<F: FieldExt>(
+    fn rotate<F: PrimeField>(
         domain: &EvaluationDomain<F>,
         poly: &Polynomial<F, Self>,
         rotation: Rotation,

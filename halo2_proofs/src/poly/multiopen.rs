@@ -5,7 +5,7 @@
 
 use super::{commitment::ParamsVerifier, PairMSM};
 use crate::{
-    arithmetic::{eval_polynomial, CurveAffine, FieldExt},
+    arithmetic::{eval_polynomial, CurveAffine, PrimeField},
     pairing::arithmetic::{MillerLoopResult, MultiMillerLoop},
     poly::{msm::MSM, Coeff, Error, Polynomial},
 };
@@ -129,7 +129,7 @@ impl<'r, 'params: 'r, C: CurveAffine> PartialEq for CommitmentReference<'r, C> {
     }
 }
 
-trait Query<F: FieldExt>: Sized + Clone {
+trait Query<F: PrimeField>: Sized + Clone {
     type Commitment: PartialEq + Clone;
 
     fn get_rotation(&self) -> Rotation;
@@ -141,7 +141,7 @@ trait Query<F: FieldExt>: Sized + Clone {
 #[cfg(test)]
 mod tests {
 
-    use crate::arithmetic::{eval_polynomial, FieldExt};
+    use crate::arithmetic::{eval_polynomial, PrimeField};
     use crate::pairing::bn256::{Bn256, Fr, G1Affine};
     use crate::poly::{
         commitment::{Params, ParamsVerifier},
@@ -173,7 +173,7 @@ mod tests {
         use rand_core::OsRng;
 
         use super::*;
-        use crate::arithmetic::{eval_polynomial, FieldExt};
+        use crate::arithmetic::{eval_polynomial, PrimeField};
         use crate::poly::{commitment::Params, EvaluationDomain};
         use crate::transcript::Challenge255;
 

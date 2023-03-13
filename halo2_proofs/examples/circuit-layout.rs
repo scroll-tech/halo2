@@ -1,9 +1,8 @@
 use halo2curves::ff::Field;
 use halo2_proofs::{
-    arithmetic::FieldExt,
     circuit::{Cell, Layouter, Region, SimpleFloorPlanner, Value},
     plonk::{Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Fixed, TableColumn},
-    poly::Rotation,
+    poly::Rotation, ff::PrimeField,
 };
 use halo2curves::pasta::Fp;
 use rand_core::OsRng;
@@ -28,7 +27,7 @@ struct PlonkConfig {
     sl: TableColumn,
 }
 
-trait StandardCs<FF: FieldExt> {
+trait StandardCs<FF: PrimeField> {
     fn raw_multiply<F>(&self, region: &mut Region<FF>, f: F) -> Result<(Cell, Cell, Cell), Error>
     where
         F: FnMut() -> Value<(Assigned<FF>, Assigned<FF>, Assigned<FF>)>;
@@ -39,17 +38,17 @@ trait StandardCs<FF: FieldExt> {
     fn lookup_table(&self, layouter: &mut impl Layouter<FF>, values: &[FF]) -> Result<(), Error>;
 }
 
-struct MyCircuit<F: FieldExt> {
+struct MyCircuit<F: PrimeField> {
     a: Value<F>,
     lookup_table: Vec<F>,
 }
 
-struct StandardPlonk<F: FieldExt> {
+struct StandardPlonk<F: PrimeField> {
     config: PlonkConfig,
     _marker: PhantomData<F>,
 }
 
-impl<FF: FieldExt> StandardPlonk<FF> {
+impl<FF: PrimeField> StandardPlonk<FF> {
     fn new(config: PlonkConfig) -> Self {
         StandardPlonk {
             config,
@@ -58,7 +57,7 @@ impl<FF: FieldExt> StandardPlonk<FF> {
     }
 }
 
-impl<FF: FieldExt> StandardCs<FF> for StandardPlonk<FF> {
+impl<FF: PrimeField> StandardCs<FF> for StandardPlonk<FF> {
     fn raw_multiply<F>(
         &self,
         region: &mut Region<FF>,
@@ -159,7 +158,7 @@ impl<FF: FieldExt> StandardCs<FF> for StandardPlonk<FF> {
     }
 }
 
-impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = PlonkConfig;
     type FloorPlanner = SimpleFloorPlanner;
 

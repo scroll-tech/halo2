@@ -5,7 +5,7 @@ use super::{
 use blake2b_simd::{Params as Blake2bParams, State as Blake2bState};
 use halo2curves::ff::Field;
 use halo2curves::ff::PrimeField;
-use halo2curves::{Coordinates, CurveAffine, FieldExt};
+use halo2curves::{Coordinates, CurveAffine, PrimeField};
 use num_bigint::BigUint;
 use std::convert::TryInto;
 use std::io::{self, Read, Write};
