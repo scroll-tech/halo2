@@ -8,12 +8,13 @@ mod util;
 
 pub use field_fft::{best_fft, parallel_fft};
 pub use group_fft::{best_group_fft, g_to_lagrange, parallel_group_fft};
+use halo2curves::serde::SerdeObject;
 pub use multi_exp::{best_multiexp, small_multiexp};
 pub use util::{generate_twiddle_lookup_table, parallelize};
 
 use super::multicore;
 pub use halo2curves::ff::Field;
-use halo2curves::ff::{BatchInvert, PrimeField};
+use halo2curves::ff::{BatchInvert, FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
 use halo2curves::group::{Curve, Group};
 
 pub use halo2curves::{CurveAffine, CurveExt};

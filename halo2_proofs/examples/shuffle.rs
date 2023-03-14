@@ -1,5 +1,3 @@
-use halo2curves::ff::PrimeField;
-use halo2curves::ff::{BatchInvert, FromUniformBytes, WithSmallOrderMulGroup};
 use halo2_proofs::{
     arithmetic::CurveAffine,
     circuit::{floor_planner::V1, Layouter, Value},
@@ -19,6 +17,8 @@ use halo2_proofs::{
         Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWriterBuffer,
     },
 };
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::{BatchInvert, FromUniformBytes, WithSmallOrderMulGroup};
 use rand_core::{OsRng, RngCore};
 use std::iter;
 

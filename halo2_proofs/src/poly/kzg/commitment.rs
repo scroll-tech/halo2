@@ -370,9 +370,9 @@ mod test {
     use crate::poly::kzg::multiopen::ProverSHPLONK;
     use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
+    use halo2curves::bn256::G1Affine;
     use halo2curves::ff::{Field, PrimeField};
     use halo2curves::group::{prime::PrimeCurveAffine, Curve, Group as _};
-    use halo2curves::bn256::G1Affine;
     use std::marker::PhantomData;
     use std::ops::{Add, AddAssign, Mul, MulAssign};
 

@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
+use halo2curves::ff::Field;
 use halo2curves::ff::PrimeField;
 use halo2curves::ff::WithSmallOrderMulGroup;
-use halo2curves::ff::Field;
 
 use super::{metadata, CellValue, Value};
 use crate::{

@@ -1,9 +1,10 @@
-use halo2curves::ff::Field;
 use halo2_proofs::{
     circuit::{Cell, Layouter, Region, SimpleFloorPlanner, Value},
+    ff::PrimeField,
     plonk::{Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Fixed, TableColumn},
-    poly::Rotation, ff::PrimeField,
+    poly::Rotation,
 };
+use halo2curves::ff::Field;
 use halo2curves::pasta::Fp;
 use rand_core::OsRng;
 use std::marker::PhantomData;

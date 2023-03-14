@@ -2,9 +2,6 @@
 #![allow(clippy::op_ref)]
 
 use assert_matches::assert_matches;
-use halo2curves::ff::FromUniformBytes;
-use halo2curves::ff::PrimeField;
-use halo2curves::ff::WithSmallOrderMulGroup;
 use halo2_proofs::arithmetic::Field;
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;
@@ -20,6 +17,9 @@ use halo2_proofs::transcript::{
     Blake2bRead, Blake2bWrite, Challenge255, EncodedChallenge, TranscriptReadBuffer,
     TranscriptWriterBuffer,
 };
+use halo2curves::ff::FromUniformBytes;
+use halo2curves::ff::PrimeField;
+use halo2curves::ff::WithSmallOrderMulGroup;
 use rand_core::{OsRng, RngCore};
 use std::marker::PhantomData;
 

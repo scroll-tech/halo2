@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-use halo2curves::ff::PrimeField;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector},
     poly::Rotation,
 };
+use halo2curves::ff::PrimeField;
 
 // ANCHOR: instructions
 trait NumericInstructions<F: PrimeField>: Chip<F> {

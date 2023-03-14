@@ -1,7 +1,7 @@
 use std::{io, marker::PhantomData};
 
-use halo2curves::ff::FromUniformBytes;
 use halo2curves::ff::Field;
+use halo2curves::ff::FromUniformBytes;
 use halo2curves::CurveAffine;
 use rand_core::{OsRng, RngCore};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};

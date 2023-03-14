@@ -3,7 +3,6 @@ use std::{
     io::{BufReader, BufWriter, Write},
 };
 
-use halo2curves::ff::Field;
 use halo2_proofs::{
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{
@@ -24,6 +23,7 @@ use halo2_proofs::{
     SerdeFormat,
 };
 use halo2curves::bn256::{Bn256, Fr, G1Affine};
+use halo2curves::ff::Field;
 use rand_core::OsRng;
 
 #[derive(Clone, Copy)]
