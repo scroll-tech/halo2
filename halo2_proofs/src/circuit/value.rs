@@ -14,7 +14,7 @@ use crate::plonk::{Assigned, Error};
 ///   for improved usability.
 #[derive(Clone, Copy, Debug)]
 pub struct Value<V> {
-    inner: Option<V>,
+    pub inner: Option<V>,
 }
 
 impl<V> Default for Value<V> {
@@ -45,7 +45,7 @@ impl<V> Value<V> {
     /// Obtains the inner value for assigning into the circuit.
     ///
     /// Returns `Error::Synthesis` if this is [`Value::unknown()`].
-    pub(crate) fn assign(self) -> Result<V, Error> {
+    pub fn assign(self) -> Result<V, Error> {
         self.inner.ok_or(Error::Synthesis)
     }
 
