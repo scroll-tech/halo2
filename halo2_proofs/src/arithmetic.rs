@@ -650,3 +650,25 @@ fn test_lagrange_interpolate() {
         }
     }
 }
+
+#[test]
+fn test_msm() {
+    use crate::poly::kzg::commitment::ParamsKZG;
+    use halo2curves::bn256::{Bn256, Fr, G1};
+    use group::GroupEncoding;
+
+    let max_base_size = 20;
+    let min_base_size = 10;
+
+    for k in min_base_size..=max_base_size.try_into().unwrap() {
+        let n = 1 << k;
+        println!("[k = {}]", k);
+        let scalars = (0..n)
+            .into_iter()
+            .map(|i| Fr::from(i as u64))
+            .collect::<Vec<_>>();
+        let params = ParamsKZG::<Bn256>::unsafe_setup_with_s(k, Fr::from(9527u64));
+        let cpu_result = best_multiexp(&scalars, &params.g);
+        println!("cpu_result: {:?}", cpu_result.to_bytes());
+    }
+}
