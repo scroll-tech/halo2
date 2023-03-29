@@ -1373,6 +1373,7 @@ pub struct ConstraintSystem<F: Field> {
     pub num_fixed_columns: usize,
     pub num_advice_columns: usize,
     pub num_instance_columns: usize,
+    pub num_simple_selectors: usize,
     pub num_selectors: usize,
     pub(crate) num_challenges: usize,
 
@@ -1475,6 +1476,7 @@ impl<F: Field> Default for ConstraintSystem<F> {
             num_fixed_columns: 0,
             num_advice_columns: 0,
             num_instance_columns: 0,
+            num_simple_selectors: 0,
             num_selectors: 0,
             num_challenges: 0,
             advice_column_phase: Vec::new(),
@@ -1853,6 +1855,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// inputs.
     pub fn selector(&mut self) -> Selector {
         let index = self.num_selectors;
+        self.num_simple_selectors += 1;
         self.num_selectors += 1;
         Selector(index, true)
     }
