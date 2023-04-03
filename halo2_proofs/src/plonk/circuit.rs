@@ -568,10 +568,14 @@ pub trait Assignment<F: Field>: Sized + Send {
         AR: Into<String>;
 
     /// Fork
-    fn fork(&mut self, ranges: &[Range<usize>]) -> Result<Vec<Self>, Error>;
+    fn fork(&mut self, ranges: &[Range<usize>]) -> Result<Vec<Self>, Error> {
+        unimplemented!("fork is not implemented by default")
+    }
 
     /// Merge
-    fn merge(&mut self, sub_cs: Vec<Self>) -> Result<(), Error>;
+    fn merge(&mut self, sub_cs: Vec<Self>) -> Result<(), Error> {
+        unimplemented!("merge is not implemented by default")
+    }
 
     /// Queries the cell of an instance column at a particular absolute row.
     ///
