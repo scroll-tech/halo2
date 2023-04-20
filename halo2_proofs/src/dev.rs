@@ -1413,7 +1413,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                 assert!(table.binary_search(input).is_err());
 
                                 Some(VerifyFailure::Lookup {
-                                    name: lookup.name,
+                                    name: lookup.name.clone(),
                                     lookup_index,
                                     location: FailureLocation::find_expressions(
                                         &self.cs,
@@ -1787,7 +1787,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                         .filter_map(move |(input, input_row)| {
                             if table.binary_search(input).is_err() {
                                 Some(VerifyFailure::Lookup {
-                                    name: lookup.name,
+                                    name: lookup.name.clone(),
                                     lookup_index,
                                     location: FailureLocation::find_expressions(
                                         &self.cs,
@@ -2221,7 +2221,7 @@ mod tests {
         assert_eq!(
             prover.verify(),
             Err(vec![VerifyFailure::Lookup {
-                name: "lookup",
+                name: "lookup".to_string(),
                 lookup_index: 0,
                 location: FailureLocation::InRegion {
                     region: (1, "Faulty synthesis").into(),
@@ -2355,7 +2355,7 @@ mod tests {
         assert_eq!(
             prover.verify(),
             Err(vec![VerifyFailure::Lookup {
-                name: "lookup",
+                name: "lookup".to_string(),
                 lookup_index: 0,
                 location: FailureLocation::InRegion {
                     region: (2, "Faulty synthesis").into(),
