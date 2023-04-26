@@ -283,7 +283,7 @@ mod tests {
             let (combination_assignments, selector_assignments) =
                 process::<Fp, _>(selectors.clone(), max_degree, || {
                     let tmp = Expression::Fixed(FixedQuery {
-                        index: query,
+                        index: Some(query),
                         column_index: query,
                         rotation: Rotation::cur(),
                     });
@@ -322,7 +322,7 @@ mod tests {
                         &|_| panic!("should not occur in returned expressions"),
                         &|query| {
                             // Should be the correct combination in the expression
-                            assert_eq!(selector.combination_index, query.index);
+                            assert_eq!(selector.combination_index, query.index.unwrap());
                             assignment
                         },
                         &|_| panic!("should not occur in returned expressions"),

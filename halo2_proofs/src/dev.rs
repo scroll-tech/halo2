@@ -1303,7 +1303,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                             &|scalar| Value::Real(scalar),
                             &|_| panic!("virtual selectors are removed during optimization"),
                             &|query| {
-                                let query = self.cs.fixed_queries[query.index];
+                                let query = self.cs.fixed_queries[query.index.unwrap()];
                                 let column_index = query.0.index();
                                 let rotation = query.1 .0;
                                 self.fixed[column_index]
@@ -1311,7 +1311,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                     .into()
                             },
                             &|query| {
-                                let query = self.cs.advice_queries[query.index];
+                                let query = self.cs.advice_queries[query.index.unwrap()];
                                 let column_index = query.0.index();
                                 let rotation = query.1 .0;
                                 self.advice[column_index]
@@ -1319,7 +1319,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                     .into()
                             },
                             &|query| {
-                                let query = self.cs.instance_queries[query.index];
+                                let query = self.cs.instance_queries[query.index.unwrap()];
                                 let column_index = query.0.index();
                                 let rotation = query.1 .0;
                                 Value::Real(
