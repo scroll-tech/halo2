@@ -1709,6 +1709,11 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         self.fixed_vec.as_ref()
     }
 
+    /// Returns the list of Advice Columns used within a MockProver instance and the associated values contained on each Cell.
+    pub fn advices(&self) -> &Vec<Vec<CellValue<F>>> {
+        self.advice_vec.as_ref()
+    }
+
     /// Returns the permutation argument (`Assembly`) used within a MockProver instance.
     pub fn permutation(&self) -> &Assembly {
         self.permutation.as_ref().unwrap()
