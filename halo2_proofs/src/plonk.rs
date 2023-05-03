@@ -168,14 +168,13 @@ where
     fn bytes_length(&self) -> usize {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()
-        /*
-        + self.selectors.len()
-            * (self
-                .selectors
-                .get(0)
-                .map(|selector| selector.len() / 8 + 1)
-                .unwrap_or(0))
-                */
+        // scroll/halo2: we don’t need to store
+        // + self.selectors.len()
+        //     * (self
+        //         .selectors
+        //         .get(0)
+        //         .map(|selector| (selector.len() + 7) / 8)
+        //         .unwrap_or(0))
     }
 
     fn from_parts(
