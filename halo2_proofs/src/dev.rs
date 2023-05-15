@@ -231,7 +231,7 @@ impl<F: Group + Field> Mul<F> for Value<F> {
 ///
 ///     fn synthesize(&self, config: MyConfig, mut layouter: impl Layouter<F>) -> Result<(), Error> {
 ///         layouter.assign_region(|| "Example region", |mut region| {
-///             config.s.enable(&mut region, 0)?;
+///             config.s.enable(&mut region, "", 0)?;
 ///             region.assign_advice(|| "a", config.a, 0, || {
 ///                 self.a.map(F::from)
 ///             })?;
@@ -1455,7 +1455,7 @@ mod tests {
                     || "Faulty synthesis",
                     |mut region| {
                         // Enable the equality gate.
-                        config.q.enable(&mut region, 1)?;
+                        config.q.enable(&mut region, "", 1)?;
 
                         // Assign a = 0.
                         region.assign_advice(|| "a", config.a, 0, || Value::known(Fp::zero()))?;
@@ -1564,8 +1564,8 @@ mod tests {
                     || "Good synthesis",
                     |mut region| {
                         // Enable the lookup on rows 0 and 1.
-                        config.q.enable(&mut region, 0)?;
-                        config.q.enable(&mut region, 1)?;
+                        config.q.enable(&mut region, "", 0)?;
+                        config.q.enable(&mut region, "", 1)?;
 
                         for i in 0..4 {
                             // Load Advice lookup table with Instance lookup table values.
@@ -1600,8 +1600,8 @@ mod tests {
                     || "Faulty synthesis",
                     |mut region| {
                         // Enable the lookup on rows 0 and 1.
-                        config.q.enable(&mut region, 0)?;
-                        config.q.enable(&mut region, 1)?;
+                        config.q.enable(&mut region, "", 0)?;
+                        config.q.enable(&mut region, "", 1)?;
 
                         for i in 0..4 {
                             // Load Advice lookup table with Instance lookup table values.
@@ -1729,8 +1729,8 @@ mod tests {
                     || "Good synthesis",
                     |mut region| {
                         // Enable the lookup on rows 0 and 1.
-                        config.q.enable(&mut region, 0)?;
-                        config.q.enable(&mut region, 1)?;
+                        config.q.enable(&mut region, "", 0)?;
+                        config.q.enable(&mut region, "", 1)?;
 
                         // Assign a = 2 and a = 6.
                         region.assign_advice(
@@ -1754,8 +1754,8 @@ mod tests {
                     || "Faulty synthesis",
                     |mut region| {
                         // Enable the lookup on rows 0 and 1.
-                        config.q.enable(&mut region, 0)?;
-                        config.q.enable(&mut region, 1)?;
+                        config.q.enable(&mut region, "", 0)?;
+                        config.q.enable(&mut region, "", 1)?;
 
                         // Assign a = 4.
                         region.assign_advice(
@@ -1848,7 +1848,7 @@ mod tests {
                     || "Correct synthesis",
                     |mut region| {
                         // Enable the equality gate.
-                        config.q.enable(&mut region, 0)?;
+                        config.q.enable(&mut region, "", 0)?;
 
                         // Assign a = 1.
                         region.assign_advice(|| "a", config.a, 0, || Value::known(Fp::one()))?;
@@ -1877,7 +1877,7 @@ mod tests {
                     || "Wrong synthesis",
                     |mut region| {
                         // Enable the equality gate.
-                        config.q.enable(&mut region, 0)?;
+                        config.q.enable(&mut region, "", 0)?;
 
                         // Assign a = 1.
                         region.assign_advice(|| "a", config.a, 0, || Value::known(Fp::one()))?;

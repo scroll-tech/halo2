@@ -3,7 +3,7 @@ use plotters::{
     coord::Shift,
     prelude::{DrawingArea, DrawingAreaErrorKind, DrawingBackend},
 };
-use std::cmp;
+use std::{cmp, println};
 use std::collections::HashSet;
 use std::ops::Range;
 
@@ -106,8 +106,21 @@ impl CircuitLayout {
             cs.constants.clone(),
         )
         .unwrap();
+
+        println!("\nDone synthesize. \n{:?}", layout.regions[0].columns);
+    
         let (cs, selector_polys) = cs.compress_selectors(layout.selectors);
         let non_selector_fixed_columns = cs.num_fixed_columns - selector_polys.len();
+
+ 
+        println!("\nConstraintSystem: total_fixed {:?} = fixed {:?} + selector {:?}, advice {:?}, instance {:?}", 
+            cs.num_fixed_columns,
+            non_selector_fixed_columns,
+            selector_polys.len(),
+            cs.num_advice_columns,
+            cs.num_instance_columns
+        );
+
 
         // Figure out what order to render the columns in.
         // TODO: For now, just render them in the order they were configured.
@@ -115,7 +128,7 @@ impl CircuitLayout {
         let column_index = |cs: &ConstraintSystem<F>, column: RegionColumn| {
             let column: Column<Any> = match column {
                 RegionColumn::Column(col) => col,
-                RegionColumn::Selector(selector) => cs.selector_map[selector.0].into(),
+                RegionColumn::Selector(_, selector) => cs.selector_map[selector.0].into(),
             };
             column.index()
                 + match column.column_type() {
@@ -129,6 +142,10 @@ impl CircuitLayout {
         let view_height = self.view_height.unwrap_or(0..n);
         let view_bottom = view_height.end;
 
+        println!("view_width {:?}, view_height {:?}, view_bottom {:?}", 
+            view_width, view_height, view_bottom
+        );
+
         // Prepare the grid layout. We render a red background for advice columns, white for
         // instance columns, and blue for fixed columns (with a darker blue for selectors).
         let root =
@@ -137,10 +154,14 @@ impl CircuitLayout {
                 view_height,
                 drawing_area.get_pixel_range(),
             ));
+
+        // All Cols & Rows
         root.draw(&Rectangle::new(
             [(0, 0), (total_columns, view_bottom)],
             ShapeStyle::from(&WHITE).filled(),
         ))?;
+
+        // Advice - Red
         root.draw(&Rectangle::new(
             [
                 (cs.num_instance_columns, 0),
@@ -148,6 +169,8 @@ impl CircuitLayout {
             ],
             ShapeStyle::from(&RED.mix(0.2)).filled(),
         ))?;
+
+        // Fixed - Blue
         root.draw(&Rectangle::new(
             [
                 (cs.num_instance_columns + cs.num_advice_columns, 0),
@@ -155,6 +178,8 @@ impl CircuitLayout {
             ],
             ShapeStyle::from(&BLUE.mix(0.2)).filled(),
         ))?;
+        
+        // Selector - Dark Blue
         {
             root.draw(&Rectangle::new(
                 [
@@ -206,6 +231,7 @@ impl CircuitLayout {
                 [(column, row), (column + 1, row + 1)],
                 ShapeStyle::from(&BLACK.mix(0.1)).filled(),
             ))
+    
         };
 
         // Render the regions!
@@ -219,7 +245,15 @@ impl CircuitLayout {
                 // Render contiguous parts of the same region as a single box.
                 let mut width = None;
                 for column in columns {
+                    println!("RegionColumn {:?}", column);
+                    let column_name = match column {
+                        RegionColumn::Column(c) => c.name().map_or("", |s| s).to_owned(),
+                        RegionColumn::Selector(name, s) => name.to_owned(),
+                    };
                     let column = column_index(&cs, column);
+                    if let Some(labels) = &mut labels{
+                        labels.push((column_name, (column, offset)));
+                    }
                     match width {
                         Some((start, end)) if end == column => width = Some((start, end + 1)),
                         Some((start, end)) => {
@@ -293,12 +327,21 @@ impl CircuitLayout {
             ShapeStyle::from(&BLACK),
         ))?;
 
+        root.draw_mesh(
+            |b, l| {
+                l.draw(b, &ShapeStyle::from(&BLACK.mix(0.2)).filled())
+            }, 
+            n, 
+            total_columns
+        );
+
         // Render labels last, on top of everything else.
         if let Some(labels) = labels {
             for (label, top_left) in labels {
+                println!("label - {:?}, {:?}", label, top_left);
                 root.draw(
                     &(EmptyElement::at(top_left)
-                        + Text::new(label, (10, 10), ("sans-serif", 15.0).into_font())),
+                        + Text::new(label, (10, 10), ("sans-serif", 25.0).into_font())),
                 )?;
             }
             root.draw(
@@ -306,7 +349,7 @@ impl CircuitLayout {
                     + Text::new(
                         format!("{} used rows", layout.total_rows),
                         (10, 10),
-                        ("sans-serif", 15.0).into_font(),
+                        ("sans-serif", 25.0).into_font(),
                     )),
             )?;
             root.draw(
@@ -314,7 +357,7 @@ impl CircuitLayout {
                     + Text::new(
                         format!("{} usable rows", usable_rows),
                         (10, 10),
-                        ("sans-serif", 15.0).into_font(),
+                        ("sans-serif", 25.0).into_font(),
                     )),
             )?;
         }
@@ -393,6 +436,7 @@ impl Layout {
             self.loose_cells.push((column, row));
         }
     }
+
 }
 
 impl<F: Field> Assignment<F> for Layout {
@@ -417,7 +461,7 @@ impl<F: Field> Assignment<F> for Layout {
         self.current_region = None;
     }
 
-    fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
+    fn enable_selector<A, AR>(&mut self, annotation: A, selector: &Selector, row: usize) -> Result<(), Error>
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
@@ -428,7 +472,7 @@ impl<F: Field> Assignment<F> for Layout {
             return Err(Error::not_enough_rows_available(self.k));
         }
 
-        self.update((*selector).into(), row);
+        self.update((annotation().into(), *selector).into(), row);
         Ok(())
     }
 
@@ -494,12 +538,26 @@ impl<F: Field> Assignment<F> for Layout {
         Value::unknown()
     }
 
-    fn annotate_column<A, AR>(&mut self, _annotation: A, _column: Column<Any>)
+    fn annotate_column<A, AR>(&mut self, annotation: A, mut column: Column<Any>)
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        // Do nothing
+        if let Some(region) = self.current_region {
+            let region =  &mut self.regions[region];
+
+            let before: RegionColumn = column.clone().into();
+            let res = region.columns.remove(&before);
+            // assert!(res);
+            println!("~~~ layout.annotate_column {:?} \n {:?}", before, region.columns);
+
+            column.set_name(annotation().into());
+            let after = column.clone().into();
+            println!("  {:?}", after);
+
+
+            region.columns.insert(after);
+        }
     }
 
     fn push_namespace<NR, N>(&mut self, _: N)

@@ -1,6 +1,6 @@
 //! Implementations of common circuit layouters.
 
-use std::cmp;
+use std::{cmp, print, println};
 use std::collections::HashSet;
 use std::fmt;
 
@@ -55,7 +55,7 @@ pub trait RegionLayouter<F: Field>: fmt::Debug {
     fn name_column<'v>(
         &'v mut self,
         annotation: &'v (dyn Fn() -> String + 'v),
-        column: Column<Any>,
+        column: &mut Column<Any>,
     );
 
     /// Assign an advice column value (witness)
@@ -148,7 +148,7 @@ pub enum RegionColumn {
     /// Concrete column
     Column(Column<Any>),
     /// Virtual column representing a (boolean) selector
-    Selector(Selector),
+    Selector(&'static str, Selector),
 }
 
 impl From<Column<Any>> for RegionColumn {
@@ -159,7 +159,13 @@ impl From<Column<Any>> for RegionColumn {
 
 impl From<Selector> for RegionColumn {
     fn from(selector: Selector) -> RegionColumn {
-        RegionColumn::Selector(selector)
+        RegionColumn::Selector("", selector)
+    }
+}
+
+impl From<(String, Selector)> for RegionColumn {
+    fn from(named_selector: (String, Selector)) -> RegionColumn {
+        RegionColumn::Selector(Box::leak(named_selector.0.into_boxed_str()), named_selector.1)
     }
 }
 
@@ -167,9 +173,9 @@ impl Ord for RegionColumn {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         match (self, other) {
             (Self::Column(ref a), Self::Column(ref b)) => a.cmp(b),
-            (Self::Selector(ref a), Self::Selector(ref b)) => a.0.cmp(&b.0),
-            (Self::Column(_), Self::Selector(_)) => cmp::Ordering::Less,
-            (Self::Selector(_), Self::Column(_)) => cmp::Ordering::Greater,
+            (Self::Selector(s_a, ref a), Self::Selector(s_b, ref b)) => a.0.cmp(&b.0),
+            (Self::Column(_), Self::Selector(_, _)) => cmp::Ordering::Less,
+            (Self::Selector(_, _), Self::Column(_)) => cmp::Ordering::Greater,
         }
     }
 }
@@ -209,12 +215,15 @@ impl RegionShape {
 impl<F: Field> RegionLayouter<F> for RegionShape {
     fn enable_selector<'v>(
         &'v mut self,
-        _: &'v (dyn Fn() -> String + 'v),
+        annotation: &'v (dyn Fn() -> String + 'v),
         selector: &Selector,
         offset: usize,
     ) -> Result<(), Error> {
+
+        println!("selector annotation - {:?}", annotation());
+
         // Track the selector's fixed column as part of the region's shape.
-        self.columns.insert((*selector).into());
+        self.columns.insert((annotation(), *selector).into());
         self.row_count = cmp::max(self.row_count, offset + 1);
         Ok(())
     }
@@ -287,10 +296,11 @@ impl<F: Field> RegionLayouter<F> for RegionShape {
 
     fn name_column<'v>(
         &'v mut self,
-        _annotation: &'v (dyn Fn() -> String + 'v),
-        _column: Column<Any>,
+        annotation: &'v (dyn Fn() -> String + 'v),
+        column: &mut Column<Any>,
     ) {
-        // Do nothing
+        column.set_name(annotation());
+        print!("column.set_name(annotation()) - {:?}", annotation());
     }
 
     fn constrain_constant(&mut self, _cell: Cell, _constant: Assigned<F>) -> Result<(), Error> {

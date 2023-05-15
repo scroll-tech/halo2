@@ -20,20 +20,26 @@ mod compress_selectors;
 /// A column type
 pub trait ColumnType:
     'static + Sized + Copy + std::fmt::Debug + PartialEq + Eq + Into<Any>
-{
-}
+{}
 
 /// A column with an index and type
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Column<C: ColumnType> {
+    name: Option<&'static str>,
     index: usize,
     column_type: C,
 }
 
+
 impl<C: ColumnType> Column<C> {
     #[cfg(test)]
     pub(crate) fn new(index: usize, column_type: C) -> Self {
-        Column { index, column_type }
+        Column { name: None, index, column_type }
+    }
+
+    /// Index of this column.
+    pub fn name(&self) -> Option<&str> {
+        self.name
     }
 
     /// Index of this column.
@@ -44,6 +50,10 @@ impl<C: ColumnType> Column<C> {
     /// Type of this column.
     pub fn column_type(&self) -> &C {
         &self.column_type
+    }
+
+    pub fn set_name(&mut self, name: String ) {
+        self.name = Some(Box::leak(name.clone().into_boxed_str()));
     }
 }
 
@@ -254,6 +264,7 @@ impl From<Instance> for Any {
 impl From<Column<Advice>> for Column<Any> {
     fn from(advice: Column<Advice>) -> Column<Any> {
         Column {
+            name: advice.name,
             index: advice.index(),
             column_type: Any::Advice(advice.column_type),
         }
@@ -263,6 +274,7 @@ impl From<Column<Advice>> for Column<Any> {
 impl From<Column<Fixed>> for Column<Any> {
     fn from(advice: Column<Fixed>) -> Column<Any> {
         Column {
+            name: advice.name,
             index: advice.index(),
             column_type: Any::Fixed,
         }
@@ -272,11 +284,13 @@ impl From<Column<Fixed>> for Column<Any> {
 impl From<Column<Instance>> for Column<Any> {
     fn from(advice: Column<Instance>) -> Column<Any> {
         Column {
+            name: advice.name,
             index: advice.index(),
             column_type: Any::Instance,
         }
     }
 }
+
 
 impl TryFrom<Column<Any>> for Column<Advice> {
     type Error = &'static str;
@@ -284,6 +298,7 @@ impl TryFrom<Column<Any>> for Column<Advice> {
     fn try_from(any: Column<Any>) -> Result<Self, Self::Error> {
         match any.column_type() {
             Any::Advice(advice) => Ok(Column {
+                name: any.name,
                 index: any.index(),
                 column_type: *advice,
             }),
@@ -298,6 +313,7 @@ impl TryFrom<Column<Any>> for Column<Fixed> {
     fn try_from(any: Column<Any>) -> Result<Self, Self::Error> {
         match any.column_type() {
             Any::Fixed => Ok(Column {
+                name: any.name,
                 index: any.index(),
                 column_type: Fixed,
             }),
@@ -312,6 +328,7 @@ impl TryFrom<Column<Any>> for Column<Instance> {
     fn try_from(any: Column<Any>) -> Result<Self, Self::Error> {
         match any.column_type() {
             Any::Instance => Ok(Column {
+                name: any.name,
                 index: any.index(),
                 column_type: Instance,
             }),
@@ -367,7 +384,7 @@ impl TryFrom<Column<Any>> for Column<Instance> {
 ///     layouter.assign_region(|| "bar", |mut region| {
 ///         region.assign_advice(|| "a", config.a, 0, || Value::known(F::one()))?;
 ///         region.assign_advice(|| "a", config.b, 1, || Value::known(F::one()))?;
-///         config.s.enable(&mut region, 1)
+///         config.s.enable(&mut region, "", 1)
 ///     })?;
 ///     Ok(())
 /// }
@@ -377,8 +394,8 @@ pub struct Selector(pub(crate) usize, bool);
 
 impl Selector {
     /// Enable this selector at the given offset within the given region.
-    pub fn enable<F: Field>(&self, region: &mut Region<F>, offset: usize) -> Result<(), Error> {
-        region.enable_selector(|| "", self, offset)
+    pub fn enable<F: Field>(&self, region: &mut Region<F>, annotation: &str, offset: usize) -> Result<(), Error> {
+        region.enable_selector(|| annotation, self, offset)
     }
 
     /// Is this selector "simple"? Simple selectors can only be multiplied
@@ -1885,6 +1902,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Allocate a new fixed column
     pub fn fixed_column(&mut self) -> Column<Fixed> {
         let tmp = Column {
+            name: None,
             index: self.num_fixed_columns,
             column_type: Fixed,
         };
@@ -1908,6 +1926,7 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         let tmp = Column {
+            name: None,
             index: self.num_advice_columns,
             column_type: Advice { phase },
         };
@@ -1920,6 +1939,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Allocate a new instance column
     pub fn instance_column(&mut self) -> Column<Instance> {
         let tmp = Column {
+            name: None,
             index: self.num_instance_columns,
             column_type: Instance,
         };
