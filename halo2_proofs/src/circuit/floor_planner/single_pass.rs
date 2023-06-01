@@ -12,7 +12,7 @@ use ark_std::{end_timer, start_timer};
 
 use crate::{
     circuit::{
-        layouter::{RegionColumn, RegionLayouter, RegionShape, TableLayouter},
+        layouter::{RegionColumn, RegionLayouter, RegionShape, SyncDeps, TableLayouter},
         Cell, Layouter, Region, RegionIndex, RegionStart, Table, Value,
     },
     multicore,
@@ -31,7 +31,7 @@ use crate::{
 pub struct SimpleFloorPlanner;
 
 impl FloorPlanner for SimpleFloorPlanner {
-    fn synthesize<F: Field, CS: Assignment<F>, C: Circuit<F>>(
+    fn synthesize<F: Field, CS: Assignment<F> + SyncDeps, C: Circuit<F>>(
         cs: &mut CS,
         circuit: &C,
         config: C::Config,
@@ -96,7 +96,9 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> SingleChipLayouter<'a, F, CS> {
     }
 }
 
-impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a, F, CS> {
+impl<'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> Layouter<F>
+    for SingleChipLayouter<'a, F, CS>
+{
     type Root = Self;
 
     fn assign_region<A, AR, N, NR>(&mut self, name: N, mut assignment: A) -> Result<AR, Error>
@@ -465,7 +467,12 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> SingleChipLayouterRegion<'r, 'a, 
     }
 }
 
-impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F>
+impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> SyncDeps
+    for SingleChipLayouterRegion<'r, 'a, F, CS>
+{
+}
+
+impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> RegionLayouter<F>
     for SingleChipLayouterRegion<'r, 'a, F, CS>
 {
     fn enable_selector<'v>(

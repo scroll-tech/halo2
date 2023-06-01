@@ -13,6 +13,7 @@ use ff::FromUniformBytes;
 use ff::{BatchInvert, Field};
 use group::Group;
 
+use crate::circuit::layouter::SyncDeps;
 use crate::plonk::permutation::keygen::Assembly;
 use crate::{
     circuit,
@@ -1121,6 +1122,9 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         };
         debug_assert_eq!(Arc::strong_count(&prover.fixed_vec), 1);
 
+        #[cfg(feature = "thread-safe-region")]
+        prover.permutation.build_ordered_mapping();
+
         Ok(prover)
     }
 
@@ -1428,7 +1432,11 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                         })
                         .collect::<Vec<_>>()
                 });
-
+        let mapping = self
+            .permutation
+            .as_ref()
+            .expect("root cs permutation must be Some")
+            .mapping();
         // Check that permutations preserve the original values of the cells.
         let perm_errors = {
             // Original values of columns involved in the permutation.
@@ -1446,16 +1454,12 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             };
 
             // Iterate over each column of the permutation
-            self.permutation
-                .as_ref()
-                .expect("root cs permutation must be Some")
-                .mapping()
-                .iter()
-                .enumerate()
-                .flat_map(move |(column, values)| {
-                    // Iterate over each row of the column to check that the cell's
-                    // value is preserved by the mapping.
-                    values.iter().enumerate().filter_map(move |(row, cell)| {
+            mapping.enumerate().flat_map(move |(column, values)| {
+                // Iterate over each row of the column to check that the cell's
+                // value is preserved by the mapping.
+                values
+                    .enumerate()
+                    .filter_map(move |(row, cell)| {
                         let original_cell = original(column, row);
                         let permuted_cell = original(cell.0, cell.1);
                         if original_cell == permuted_cell {
@@ -1473,7 +1477,8 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                             })
                         }
                     })
-                })
+                    .collect::<Vec<_>>()
+            })
         };
 
         let mut errors: Vec<_> = iter::empty()
@@ -1802,7 +1807,11 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                         })
                         .collect::<Vec<_>>()
                 });
-
+        let mapping = self
+            .permutation
+            .as_ref()
+            .expect("root cs permutation must be Some")
+            .mapping();
         // Check that permutations preserve the original values of the cells.
         let perm_errors = {
             // Original values of columns involved in the permutation.
@@ -1820,38 +1829,31 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             };
 
             // Iterate over each column of the permutation
-            self.permutation
-                .as_ref()
-                .expect("root cs permutation must be Some")
-                .mapping()
-                .iter()
-                .enumerate()
-                .flat_map(move |(column, values)| {
-                    // Iterate over each row of the column to check that the cell's
-                    // value is preserved by the mapping.
-                    values
-                        .par_iter()
-                        .enumerate()
-                        .filter_map(move |(row, cell)| {
-                            let original_cell = original(column, row);
-                            let permuted_cell = original(cell.0, cell.1);
-                            if original_cell == permuted_cell {
-                                None
-                            } else {
-                                let columns = self.cs.permutation.get_columns();
-                                let column = columns.get(column).unwrap();
-                                Some(VerifyFailure::Permutation {
-                                    column: (*column).into(),
-                                    location: FailureLocation::find(
-                                        &self.regions,
-                                        row,
-                                        Some(column).into_iter().cloned().collect(),
-                                    ),
-                                })
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
+            mapping.enumerate().flat_map(move |(column, values)| {
+                // Iterate over each row of the column to check that the cell's
+                // value is preserved by the mapping.
+                values
+                    .enumerate()
+                    .filter_map(move |(row, cell)| {
+                        let original_cell = original(column, row);
+                        let permuted_cell = original(cell.0, cell.1);
+                        if original_cell == permuted_cell {
+                            None
+                        } else {
+                            let columns = self.cs.permutation.get_columns();
+                            let column = columns.get(column).unwrap();
+                            Some(VerifyFailure::Permutation {
+                                column: (*column).into(),
+                                location: FailureLocation::find(
+                                    &self.regions,
+                                    row,
+                                    Some(column).into_iter().cloned().collect(),
+                                ),
+                            })
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
         };
 
         let mut errors: Vec<_> = iter::empty()
@@ -2548,3 +2550,5 @@ mod tests {
         )
     }
 }
+
+impl<F: Field> SyncDeps for MockProver<F> {}

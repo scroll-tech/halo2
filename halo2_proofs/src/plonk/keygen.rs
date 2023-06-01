@@ -18,7 +18,7 @@ use super::{
 use crate::helpers::CopyCell;
 use crate::{
     arithmetic::{parallelize, CurveAffine},
-    circuit::Value,
+    circuit::{layouter::SyncDeps, Value},
     poly::{
         batch_invert_assigned,
         commitment::{Blind, Params, MSM},
@@ -67,6 +67,8 @@ struct Assembly<'a, F: Field> {
     usable_rows: Range<usize>,
     _marker: std::marker::PhantomData<F>,
 }
+
+impl<'a, F: Field> SyncDeps for Assembly<'a, F> {}
 
 impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
     fn enter_region<NR, N>(&mut self, _: N)
