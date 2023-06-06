@@ -117,8 +117,10 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
             assignment(region.into())?;
             end_timer!(timer_1st);
         }
-        let row_count = shape.row_count();
-        let log_region_info = row_count >= 40;
+        // let row_count = shape.row_count();
+        // println!("row_count: {}", row_count);
+        println!("shape row_count: {}", shape.row_count());
+        let log_region_info = true; //row_count >= 40;
         if log_region_info {
             log::debug!(
                 "region row_count \"{}\": {}",
@@ -130,10 +132,11 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         // Lay out this region. We implement the simplest approach here: position the
         // region starting at the earliest row for which none of the columns are in use.
         let mut region_start = 0;
+        println!("shape.columns.len() = {}", shape.columns.len());
         for column in &shape.columns {
             let column_start = self.columns.get(column).cloned().unwrap_or(0);
             if column_start != 0 && log_region_info {
-                log::trace!(
+                log::info!(
                     "columns {:?} reused between multi regions. Start: {}. Region: \"{}\"",
                     column,
                     column_start,
@@ -141,6 +144,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
                 );
             }
             region_start = cmp::max(region_start, column_start);
+            println!("    region_start = {}", region_start);
         }
         if log_region_info {
             log::debug!(
@@ -155,6 +159,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         // Update column usage information.
         for column in shape.columns {
             self.columns.insert(column, region_start + shape.row_count);
+            println!("    column.insert = {}", region_start + shape.row_count);
         }
 
         // Assign region cells.
@@ -223,13 +228,17 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
             // Get shape of the ith sub-region.
             let mut shape = RegionShape::new((region_index + i).into());
             let region: &mut dyn RegionLayouter<F> = &mut shape;
+            println!("region_1st[{}] = {:?}", i, region);
             assignment(region.into())?;
 
             let mut region_start = 0;
+            println!("shape.columns.len() = {}", shape.columns.len());
             for column in &shape.columns {
                 let column_start = self.columns.get(column).cloned().unwrap_or(0);
                 region_start = cmp::max(region_start, column_start);
+                println!("    column_start={} region_start >> {}", column_start, region_start);
             }
+            println!("shape row_count: {}", shape.row_count());
             log::debug!(
                 "{}_{} start: {}, end: {}",
                 region_name,
@@ -237,8 +246,14 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
                 region_start,
                 region_start + shape.row_count()
             );
+            log::debug!(
+                "region row_count \"{}\": {}",
+                region_name,
+                shape.row_count()
+            );
             self.regions.push(region_start.into());
             ranges.push(region_start..(region_start + shape.row_count()));
+            // ranges.push(region_start..(region_start + 524279));
 
             // Update column usage information.
             for column in shape.columns.iter() {
@@ -249,7 +264,9 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
 
         // Do actual synthesis of sub-regions in parallel
         let cs_fork_time = Instant::now();
+        println!("before self.cs.fork(&ranges)?");
         let mut sub_cs = self.cs.fork(&ranges)?;
+        println!("after self.cs.fork(&ranges)?");
         log::info!(
             "CS forked into {} subCS took {:?}",
             sub_cs.len(),
@@ -272,6 +289,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
                     let mut region =
                         SingleChipLayouterRegion::new(&mut sub_layouter, (region_index + i).into());
                     let region_ref: &mut dyn RegionLayouter<F> = &mut region;
+                    println!("region_2nd[{}] = {:?}", i, region_ref);
                     let result = assignment(region_ref.into());
                     let constant = region.constants.clone();
                     sub_layouter.cs.exit_region();

@@ -375,6 +375,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         }
 
         if !self.rw_rows.contains(&row) {
+            println!("row: {}, rw_rows: {:?}", row, self.rw_rows);
             return Err(Error::InvalidRange(
                 row,
                 self.current_region
@@ -402,12 +403,27 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
     fn fork(&mut self, ranges: &[Range<usize>]) -> Result<Vec<Self>, Error> {
         // check ranges are non-overlapping and monotonically increasing
         let mut range_start = self.rw_rows.start;
+        println!("fork self.rw_rows: {:?}", self.rw_rows);
         for (i, sub_range) in ranges.iter().enumerate() {
+            println!("sub_range[{}]: {:?}", i, sub_range);
             if sub_range.start < range_start {
                 // TODO: use more precise error type
+                log::debug!(
+                    "[error]: sub_range.start < range_start : subCS_{} rw_rows: {}..{}",
+                    i,
+                    sub_range.start,
+                    sub_range.end
+                );
                 return Err(Error::Synthesis);
             }
             if i == ranges.len() - 1 && sub_range.end >= self.rw_rows.end {
+                log::debug!(
+                    "[error]: sub_range.end >= self.rw_rows.end[{}] : subCS_{} rw_rows: {}..{}",
+                    self.rw_rows.end,
+                    i,
+                    sub_range.start,
+                    sub_range.end
+                );
                 return Err(Error::Synthesis);
             }
             range_start = sub_range.end;
@@ -465,6 +481,8 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                     )
                 })
                 .collect::<Vec<&mut [CellValue<F>]>>();
+            
+            println!("sub_range[{}]: {:?}", _i, sub_range);
 
             sub_cs.push(Self {
                 k: self.k,
@@ -487,6 +505,8 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 current_phase: self.current_phase,
             });
         }
+
+        log::debug!("forked {} subCS", sub_cs.len());
 
         Ok(sub_cs)
     }
@@ -548,6 +568,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         }
 
         if !self.rw_rows.contains(&row) {
+            println!("assign_advice row: {}, rw_rows: {:?}", row, self.rw_rows);
             return Err(Error::InvalidRange(
                 row,
                 self.current_region
@@ -611,6 +632,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         }
 
         if !self.rw_rows.contains(&row) {
+            println!("assign_fixed row: {}, rw_rows: {:?}", row, self.rw_rows);
             return Err(Error::InvalidRange(
                 row,
                 self.current_region
@@ -724,6 +746,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         let mut cs = ConstraintSystem::default();
         let config = ConcreteCircuit::configure(&mut cs);
         let cs = cs;
+        println!("cs.num_advice_columns: {}", cs.num_advice_columns);
 
         if n < cs.minimum_rows() {
             return Err(Error::not_enough_rows_available(k));
@@ -767,6 +790,9 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             cs.num_advice_columns
         ]);
         let advice = two_dim_vec_to_vec_of_slice!(advice_vec);
+        println!("n: {}", n);
+        println!("cs.num_advice_columns: {}", cs.num_advice_columns);
+        println!("advice len: {}", advice.len());
 
         let permutation = permutation::keygen::Assembly::new(n, &cs.permutation);
         let constants = cs.constants.clone();
@@ -885,6 +911,83 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         debug_assert_eq!(Arc::strong_count(&prover.fixed_vec), 1);
 
         Ok(prover)
+    }
+
+    pub fn construct(&self) -> Self {
+        let fixed_vec = self.fixed_vec.clone();
+        let fixed = two_dim_vec_to_vec_of_slice!(fixed_vec);
+        let advice_vec = self.advice_vec.clone();
+        let advice = two_dim_vec_to_vec_of_slice!(advice_vec);
+        let selectors_vec = self.selectors_vec.clone();
+        let selectors = two_dim_vec_to_vec_of_slice!(selectors_vec);
+        Self {
+            k: self.k,
+            n: self.n,
+            cs: self.cs.clone(),
+            regions: self.regions.clone(),
+            current_region: self.current_region.clone(),
+            fixed_vec,
+            fixed,
+            advice_vec,
+            advice,
+            advice_prev: self.advice_prev.clone(),
+            instance: self.instance.clone(),
+            selectors_vec,
+            selectors,
+            challenges: self.challenges.clone(),
+            permutation: self.permutation.clone(),
+            rw_rows: self.rw_rows.clone(),
+            usable_rows: self.usable_rows.clone(),
+            current_phase: self.current_phase,
+        }
+    }
+
+    pub fn is_mock_prover_equal(&self, other: &Self) -> bool {
+        println!("k = {} {}", self.k, other.k);
+        println!("n = {} {}", self.n, other.n);
+        println!("rw_rows = {:?} {:?}", self.rw_rows, other.rw_rows);
+        println!("k !eq: {}", self.k != other.k);
+        println!("n !eq: {}", self.n != other.n);
+        println!("fixed !eq: {}", self.fixed_vec != other.fixed_vec);
+        println!("advice !eq: {}", self.advice_vec != other.advice_vec);
+        println!("instance !eq: {}", self.instance != other.instance);
+        println!(
+            "selectors !eq: {}",
+            self.selectors_vec != other.selectors_vec
+        );
+        println!("challenges !eq: {}", self.challenges != other.challenges);
+        println!(
+            "permutation !eq: {}",
+            self.permutation != other.permutation
+        );
+        println!("rw_rows !eq: {}", self.rw_rows != other.rw_rows);
+        println!(
+            "usable_rows !eq: {}",
+            self.usable_rows != other.usable_rows
+        );
+        println!(
+            "current_phase !eq: {}",
+            self.current_phase != other.current_phase
+        );
+        if self.k != other.k
+            || self.n != other.n
+            // || self.cs != other.cs
+            // || self.regions != other.regions
+            // || self.current_region != other.current_region
+            || self.fixed_vec != other.fixed_vec
+            || self.advice_vec != other.advice_vec
+            || self.instance != other.instance
+            || self.selectors_vec != other.selectors_vec
+            || self.challenges != other.challenges
+            || self.permutation != other.permutation
+            || self.rw_rows != other.rw_rows
+            || self.usable_rows != other.usable_rows
+            || self.current_phase != other.current_phase
+        {
+            println!("not equal");
+            return false;
+        }
+        true
     }
 
     pub fn advice_values(&self, column: Column<Advice>) -> &[CellValue<F>] {

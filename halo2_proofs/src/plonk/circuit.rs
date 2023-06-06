@@ -28,12 +28,12 @@ pub trait ColumnType:
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Column<C: ColumnType> {
     pub index: usize,
-    column_type: C,
+    pub column_type: C,
 }
 
 impl<C: ColumnType> Column<C> {
-    #[cfg(test)]
-    pub(crate) fn new(index: usize, column_type: C) -> Self {
+    // #[cfg(test)]
+    pub fn new(index: usize, column_type: C) -> Self {
         Column { index, column_type }
     }
 
