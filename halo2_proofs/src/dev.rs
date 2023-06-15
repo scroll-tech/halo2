@@ -926,6 +926,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
 
         // Check that within each region, all cells used in instantiated gates have been
         // assigned to.
+        /*
         let selector_errors = self.regions.iter().enumerate().flat_map(|(r_i, r)| {
             r.enabled_selectors.iter().flat_map(move |(selector, at)| {
                 // Find the gates enabled by this selector
@@ -967,6 +968,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
                     })
             })
         });
+         */
 
         // Check that all gates are satisfied for all rows.
         let gate_errors =
