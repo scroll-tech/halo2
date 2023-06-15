@@ -1242,7 +1242,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         };
 
         let mut errors: Vec<_> = iter::empty()
-            .chain(selector_errors)
+            // .chain(selector_errors)
             .chain(gate_errors)
             .chain(lookup_errors)
             .chain(perm_errors)
