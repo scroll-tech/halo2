@@ -860,7 +860,7 @@ dependencies = [
  "ff",
  "group",
  "halo2_proofs",
- "halo2curves 0.3.1",
+ "halo2curves 0.2.1 (git+https://github.com/privacy-scaling-explorations/halo2curves?rev=83c72d4)",
  "lazy_static",
  "plotters",
  "pprof",
@@ -905,6 +905,23 @@ dependencies = [
 name = "halo2curves"
 version = "0.2.1"
 source = "git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.0#83c72d49762343ffc9576ca11a2aa615efe1029b"
+dependencies = [
+ "ff",
+ "group",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "pasta_curves",
+ "rand",
+ "rand_core",
+ "static_assertions",
+ "subtle",
+]
+
+[[package]]
+name = "halo2curves"
+version = "0.2.1"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves?rev=83c72d4#83c72d49762343ffc9576ca11a2aa615efe1029b"
 dependencies = [
  "ff",
  "group",
@@ -1401,7 +1418,7 @@ version = "0.2.0"
 source = "git+https://github.com/privacy-scaling-explorations/poseidon.git?tag=v2022_10_22#5d29df01a95e3df6334080d28e983407f56b5da3"
 dependencies = [
  "group",
- "halo2curves 0.2.1",
+ "halo2curves 0.2.1 (git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.0)",
  "subtle",
 ]
 
