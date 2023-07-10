@@ -56,7 +56,7 @@ pub struct VerifyingKey<C: CurveAffine> {
     cs_degree: usize,
     /// The representative of this `VerifyingKey` in transcripts.
     transcript_repr: C::Scalar,
-    //selectors: Vec<Vec<bool>>,
+    selectors: Vec<Vec<bool>>,
 }
 
 impl<C: SerdeCurveAffine> VerifyingKey<C>
@@ -79,7 +79,6 @@ where
             commitment.write(writer, format)?;
         }
         self.permutation.write(writer, format)?;
-        /*
         // write self.selectors
         for selector in &self.selectors {
             // since `selector` is filled with `bool`, we pack them 8 at a time into bytes and then write
@@ -87,7 +86,6 @@ where
                 writer.write_all(&[crate::helpers::pack(bits)])?;
             }
         }
-        */
         Ok(())
     }
 
@@ -137,7 +135,7 @@ where
             fixed_commitments,
             permutation,
             cs,
-            //selectors,
+            selectors,
         ))
     }
 
@@ -161,6 +159,17 @@ impl<C: CurveAffine> VerifyingKey<C> {
     fn bytes_length(&self) -> usize {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()
+            + self.selectors.len()
+                * (self
+                    .selectors
+                    .get(0)
+                    .map(|selector| (selector.len() + 7) / 8)
+                    .unwrap_or(0))
+    }
+    /*
+    fn bytes_length(&self) -> usize {
+        8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
+            + self.permutation.bytes_length()
         /*
         + self.selectors.len()
             * (self
@@ -170,13 +179,14 @@ impl<C: CurveAffine> VerifyingKey<C> {
                 .unwrap_or(0))
                 */
     }
+    */
 
     fn from_parts(
         domain: EvaluationDomain<C::Scalar>,
         fixed_commitments: Vec<C>,
         permutation: permutation::VerifyingKey<C>,
         cs: ConstraintSystem<C::Scalar>,
-        //selectors: Vec<Vec<bool>>,
+        selectors: Vec<Vec<bool>>,
     ) -> Self {
         // Compute cached values.
         let cs_degree = cs.degree();
@@ -189,7 +199,7 @@ impl<C: CurveAffine> VerifyingKey<C> {
             cs_degree,
             // Temporary, this is not pinned.
             transcript_repr: C::Scalar::zero(),
-            //selectors,
+            selectors,
         };
 
         let mut hasher = Blake2bParams::new()

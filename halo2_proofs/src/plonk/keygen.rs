@@ -405,12 +405,13 @@ where
         .map(|poly| params.commit_lagrange(poly, Blind::default()).to_affine())
         .collect();
 
+    let selectors = vec![vec![false; params.n() as usize]; cs.num_selectors];
     Ok(VerifyingKey::from_parts(
         domain,
         fixed_commitments,
         permutation_vk,
         cs,
-        //        assembly.selectors,
+        selectors,
     ))
 }
 
@@ -521,7 +522,7 @@ where
                 fixed_commitments,
                 permutation_vk,
                 cs.clone(),
-                //                assembly.selectors.clone(),
+                vec![vec![false; params.n() as usize]; cs.num_selectors],
             )
         }
     };
