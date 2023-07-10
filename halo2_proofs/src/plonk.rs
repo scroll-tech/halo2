@@ -119,7 +119,6 @@ where
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
-        /*
         // read selectors
         let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors]
             .into_iter()
@@ -133,7 +132,6 @@ where
             })
             .collect::<io::Result<_>>()?;
         let (cs, _) = cs.compress_selectors(selectors.clone());
-        */
         Ok(Self::from_parts(
             domain,
             fixed_commitments,
