@@ -134,7 +134,9 @@ where
             .collect::<io::Result<_>>()?;
         let (cs, _) = cs.compress_selectors(selectors.clone());
         */
-        let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors];
+        // let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors];
+        // Test for all true.
+        let selectors: Vec<Vec<bool>> = vec![vec![true; 1 << k]; cs.num_selectors];
         let (cs, _) = cs.compress_selectors(selectors);
         Ok(Self::from_parts(
             domain,
