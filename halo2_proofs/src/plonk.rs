@@ -74,6 +74,7 @@ where
     /// WITHOUT performing the expensive Montgomery reduction.
     pub fn write<W: io::Write>(&self, writer: &mut W, format: SerdeFormat) -> io::Result<()> {
         writer.write_all(&self.domain.k().to_be_bytes())?;
+        // the `fixed_commitments` here includes selectors
         writer.write_all(&(self.fixed_commitments.len() as u32).to_be_bytes())?;
         for commitment in &self.fixed_commitments {
             commitment.write(writer, format)?;
@@ -119,21 +120,12 @@ where
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
-        /*
-        // read selectors
-        let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors]
-            .into_iter()
-            .map(|mut selector| {
-                let mut selector_bytes = vec![0u8; (selector.len() + 7) / 8];
-                reader.read_exact(&mut selector_bytes)?;
-                for (bits, byte) in selector.chunks_mut(8).into_iter().zip(selector_bytes) {
-                    crate::helpers::unpack(byte, bits);
-                }
-                Ok(selector)
-            })
-            .collect::<io::Result<_>>()?;
+        // We already disable compressing selectors inside `compress_selectors::process`.
+        // So `selectors` values is not relevant here actually.
+        // The selector commitments are already in fixed_commitments.
+        let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors];
         let (cs, _) = cs.compress_selectors(selectors.clone());
-        */
+
         Ok(Self::from_parts(
             domain,
             fixed_commitments,
