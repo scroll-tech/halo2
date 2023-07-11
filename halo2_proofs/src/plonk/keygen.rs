@@ -91,7 +91,6 @@ impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
             return Err(Error::Synthesis);
         }
 
-        log::debug!("Selector is enabled when gen pk or ck");
         self.selectors[selector.0][row - self.rw_rows.start] = true;
 
         Ok(())

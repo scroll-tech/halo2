@@ -51,7 +51,7 @@ pub struct VerifyingKey<C: CurveAffine> {
     domain: EvaluationDomain<C::Scalar>,
     fixed_commitments: Vec<C>,
     permutation: permutation::VerifyingKey<C>,
-    cs: ConstraintSystem<C::Scalar>,
+    pub cs: ConstraintSystem<C::Scalar>,
     /// Cached maximum degree of `cs` (which doesn't change after construction).
     cs_degree: usize,
     /// The representative of this `VerifyingKey` in transcripts.
@@ -136,9 +136,11 @@ where
         */
         // let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors];
         // Test for all true.
+        /*
         log::error!("gupeng - test for all true");
         let selectors: Vec<Vec<bool>> = vec![vec![true; 1 << k]; cs.num_selectors];
         let (cs, _) = cs.compress_selectors(selectors);
+        */
         Ok(Self::from_parts(
             domain,
             fixed_commitments,
