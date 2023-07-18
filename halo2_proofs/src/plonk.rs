@@ -124,7 +124,7 @@ where
         // So `selectors` values is not relevant here actually.
         // The selector commitments are already in fixed_commitments.
         let selectors: Vec<Vec<bool>> = vec![vec![false; 1 << k]; cs.num_selectors];
-        let (cs, _) = cs.compress_selectors(selectors.clone());
+        let (cs, _) = cs.compress_selectors(selectors);
 
         Ok(Self::from_parts(
             domain,

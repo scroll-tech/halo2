@@ -179,7 +179,7 @@ pub fn create_proof<
             for (i, sub_range) in ranges.iter().enumerate() {
                 if sub_range.start < range_start {
                     log::error!(
-                        "subCS_{} sub_range.start: {} < range_start{}",
+                        "subCS_{} sub_range.start ({}) < range_start ({})",
                         i,
                         sub_range.start,
                         range_start
@@ -188,7 +188,7 @@ pub fn create_proof<
                 }
                 if i == ranges.len() - 1 && sub_range.end > self.rw_rows.end {
                     log::error!(
-                        "subCS_{} sub_range.end: {} > self.rw_rows.end{}",
+                        "subCS_{} sub_range.end ({}) > self.rw_rows.end ({})",
                         i,
                         sub_range.end,
                         self.rw_rows.end
