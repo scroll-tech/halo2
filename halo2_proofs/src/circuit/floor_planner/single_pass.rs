@@ -215,6 +215,8 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         N: Fn() -> NR,
         NR: Into<String>,
     {
+        use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+
         let region_index = self.regions.len();
         let region_name: String = name().into();
         // Get region shapes sequentially
@@ -258,39 +260,28 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         let ref_sub_cs = sub_cs.iter_mut().collect();
         let sub_layouters = self.fork(ref_sub_cs)?;
         let regions_2nd_pass = Instant::now();
-        let ret = crossbeam::scope(|scope| {
-            let mut handles = vec![];
-            for (i, (mut assignment, mut sub_layouter)) in assignments
-                .into_iter()
-                .zip(sub_layouters.into_iter())
-                .enumerate()
-            {
+        let ret = assignments
+            .into_par_iter()
+            .zip(sub_layouters.into_par_iter())
+            .enumerate()
+            .map(|(i, (mut assignment, mut sub_layouter))| {
                 let region_name = format!("{}_{}", region_name, i);
-                handles.push(scope.spawn(move |_| {
-                    let sub_region_2nd_pass = Instant::now();
-                    sub_layouter.cs.enter_region(|| region_name.clone());
-                    let mut region =
-                        SingleChipLayouterRegion::new(&mut sub_layouter, (region_index + i).into());
-                    let region_ref: &mut dyn RegionLayouter<F> = &mut region;
-                    let result = assignment(region_ref.into());
-                    let constant = region.constants.clone();
-                    sub_layouter.cs.exit_region();
-                    log::info!(
-                        "region {} 2nd pass synthesis took {:?}",
-                        region_name,
-                        sub_region_2nd_pass.elapsed()
-                    );
-
-                    (result, constant)
-                }));
-            }
-
-            handles
-                .into_iter()
-                .map(|handle| handle.join().expect("handle.join should never fail"))
-                .collect::<Vec<_>>()
-        })
-        .expect("scope should not fail");
+                let sub_region_2nd_pass = Instant::now();
+                sub_layouter.cs.enter_region(|| region_name.clone());
+                let mut region =
+                    SingleChipLayouterRegion::new(&mut sub_layouter, (region_index + i).into());
+                let region_ref: &mut dyn RegionLayouter<F> = &mut region;
+                let result = assignment(region_ref.into());
+                let constant = region.constants.clone();
+                sub_layouter.cs.exit_region();
+                log::info!(
+                    "region {} 2nd pass synthesis took {:?}",
+                    region_name,
+                    sub_region_2nd_pass.elapsed()
+                );
+                (result, constant)
+            })
+            .collect::<Vec<_>>();
         let cs_merge_time = Instant::now();
         let num_sub_cs = sub_cs.len();
         self.cs.merge(sub_cs)?;
