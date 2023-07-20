@@ -72,7 +72,8 @@ where
     // selectors or do not appear in a gate. Let's address these first.
     selectors.retain(|selector| {
         // here we disable any compression. Each selector will become a fixed column.
-        if true || selector.max_degree == 0 {
+        // if true || selector.max_degree == 0 {
+        if true {
             // This is a complex selector, or a selector that does not appear in any
             // gate constraint.
             let expression = allocate_fixed_column();
