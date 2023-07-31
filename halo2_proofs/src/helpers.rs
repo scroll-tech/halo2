@@ -48,6 +48,10 @@ pub fn field_to_bn<F: FieldExt>(f: &F) -> BigUint {
 
 /// Input a big integer `bn`, compute a field element `f`
 /// such that `f == bn % F::MODULUS`.
+/// Require:
+/// - bn is less than 512 bits.
+/// Return:
+/// - bn mod F::MODULUS when bn > F::MODULUS
 pub fn bn_to_field<F: FieldExt>(bn: &BigUint) -> F {
     let mut buf = bn.to_bytes_le();
     buf.resize(64, 0u8);
