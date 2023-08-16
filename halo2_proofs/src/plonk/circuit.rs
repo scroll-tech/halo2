@@ -1162,7 +1162,17 @@ impl<F: std::fmt::Debug> std::fmt::Debug for Expression<F> {
 impl<F: Field> Neg for Expression<F> {
     type Output = Expression<F>;
     fn neg(self) -> Self::Output {
-        Expression::Negated(Box::new(self))
+        match self {
+            // -a == a_inv, -0 == 0
+            Expression::Constant(scalar) => {
+                Expression::Constant(scalar.invert().unwrap_or_else(F::zero))
+            }
+            // -(-poly) == poly
+            Expression::Negated(poly) => *poly,
+            // -(a * poly) == (-a) * poly
+            Expression::Scaled(poly, scalar) => Expression::Scaled(poly, -scalar),
+            _ => Expression::Negated(Box::new(self)),
+        }
     }
 }
 
@@ -1172,17 +1182,68 @@ impl<F: Field> Add for Expression<F> {
         if self.contains_simple_selector() || rhs.contains_simple_selector() {
             panic!("attempted to use a simple selector in an addition");
         }
-        Expression::Sum(Box::new(self), Box::new(rhs))
+        match (self, rhs) {
+            // a + b == (a + b)
+            (Expression::Constant(a), Expression::Constant(b)) => Expression::Constant(a + b),
+            // 0 + poly == poly
+            (Expression::Constant(scalar), poly) | (poly, Expression::Constant(scalar))
+                if scalar == F::zero() =>
+            {
+                poly
+            }
+            // a * poly + b * poly == (a + b) * poly1
+            (Expression::Scaled(poly1, a), Expression::Scaled(poly2, b)) if poly1 == poly2 => {
+                Expression::Scaled(poly1, a + b)
+            }
+            // poly * poly1 + poly * poly2 = poly * (poly1 + poly2)
+            (Expression::Product(poly_l1, poly_l2), Expression::Product(ploy_r1, ploy_r2)) => {
+                // recursive optimize poly1 + poly2, which may collapse
+                if poly_l1 == ploy_r1 {
+                    Expression::Product(poly_l1, Box::new(poly_l2 + ploy_r2))
+                } else if poly_l1 == ploy_r2 {
+                    Expression::Product(poly_l1, Box::new(poly_l2 + ploy_r1))
+                } else if poly_l2 == ploy_r1 {
+                    Expression::Product(poly_l2, Box::new(poly_l1 + ploy_r2))
+                } else if poly_l2 == ploy_r2 {
+                    Expression::Product(poly_l2, Box::new(poly_l1 + ploy_r1))
+                } else {
+                    Expression::Sum(
+                        Box::new(Expression::Product(poly_l1, poly_l2)),
+                        Box::new(Expression::Product(ploy_r1, ploy_r2)),
+                    )
+                }
+            }
+            // a * poly + poly = (a + 1) * poly
+            (Expression::Scaled(poly1, a), poly2) | (poly2, Expression::Scaled(poly1, a))
+                if *poly1 == poly2 =>
+            {
+                Expression::Scaled(poly1, a + F::one())
+            }
+            // poly + (-poly) == 0
+            (a, Expression::Negated(b)) | (Expression::Negated(b), a) => {
+                if a == *b {
+                    Expression::Constant(F::zero())
+                } else {
+                    Expression::Sum(Box::new(a), Box::new(Expression::Negated(b)))
+                }
+            }
+            (a, b) => {
+                // poly + poly == 2 * poly
+                if a == b {
+                    Expression::Scaled(Box::new(a), F::one() + F::one())
+                } else {
+                    Expression::Sum(Box::new(a), Box::new(b))
+                }
+            }
+        }
     }
 }
 
 impl<F: Field> Sub for Expression<F> {
     type Output = Expression<F>;
     fn sub(self, rhs: Expression<F>) -> Expression<F> {
-        if self.contains_simple_selector() || rhs.contains_simple_selector() {
-            panic!("attempted to use a simple selector in a subtraction");
-        }
-        Expression::Sum(Box::new(self), Box::new(-rhs))
+        // reuse optimized addition/neg code
+        self.add(rhs.neg())
     }
 }
 
@@ -1192,7 +1253,32 @@ impl<F: Field> Mul for Expression<F> {
         if self.contains_simple_selector() && rhs.contains_simple_selector() {
             panic!("attempted to multiply two expressions containing simple selectors");
         }
-        Expression::Product(Box::new(self), Box::new(rhs))
+        match (self, rhs) {
+            (Expression::Constant(a), Expression::Constant(b)) => Expression::Constant(a * b),
+            // 0 * poly == poly
+            // 1 * poly == poly
+            (Expression::Constant(scalar), poly) | (poly, Expression::Constant(scalar)) => {
+                if scalar == F::zero() {
+                    Expression::Constant(F::zero())
+                } else if scalar == F::one() {
+                    poly
+                } else {
+                    Expression::Scaled(Box::new(poly), scalar)
+                }
+            }
+            // (-a) * (-b) == a * b
+            (Expression::Negated(poly1), Expression::Negated(poly2)) => (*poly1).mul(*poly2),
+            // a * poly1 * (-poly2) == (-a) * poly1 * poly2
+            (Expression::Scaled(poly1, a), Expression::Negated(poly2))
+            | (Expression::Negated(poly2), Expression::Scaled(poly1, a)) => {
+                Expression::Scaled(Box::new(Expression::Product(poly1, poly2)), -a)
+            }
+            // a * poly1 * b * poly2 == (a * b) * poly1 * poly2
+            (Expression::Scaled(poly1, a), Expression::Scaled(poly2, b)) => {
+                Expression::Scaled(Box::new(Expression::Product(poly1, poly2)), a * b)
+            }
+            (a, b) => Expression::Product(Box::new(a), Box::new(b)),
+        }
     }
 }
 
