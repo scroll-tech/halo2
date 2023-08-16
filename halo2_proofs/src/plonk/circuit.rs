@@ -1191,9 +1191,21 @@ impl<F: Field> Add for Expression<F> {
             {
                 poly
             }
-            // a * poly + b * poly == (a + b) * poly1
-            (Expression::Scaled(poly1, a), Expression::Scaled(poly2, b)) if poly1 == poly2 => {
-                Expression::Scaled(poly1, a + b)
+            // (poly + poly1) + poly = poly * 2 + poly1
+            (Expression::Sum(poly1, poly2), poly3) | (poly3, Expression::Sum(poly1, poly2)) => {
+                if *poly1 == poly3 {
+                    Expression::Sum(
+                        Box::new(Expression::Scaled(poly1, F::one() + F::one())),
+                        poly2,
+                    )
+                } else if *poly2 == poly3 {
+                    Expression::Sum(
+                        Box::new(Expression::Scaled(poly2, F::one() + F::one())),
+                        poly1,
+                    )
+                } else {
+                    Expression::Sum(Box::new(Expression::Sum(poly1, poly2)), Box::new(poly3))
+                }
             }
             // poly * poly1 + poly * poly2 = poly * (poly1 + poly2)
             (Expression::Product(poly_l1, poly_l2), Expression::Product(ploy_r1, ploy_r2)) => {
@@ -1213,6 +1225,10 @@ impl<F: Field> Add for Expression<F> {
                     )
                 }
             }
+            // a * poly + b * poly == (a + b) * poly1
+            (Expression::Scaled(poly1, a), Expression::Scaled(poly2, b)) if poly1 == poly2 => {
+                Expression::Scaled(poly1, a + b)
+            }
             // a * poly + poly = (a + 1) * poly
             (Expression::Scaled(poly1, a), poly2) | (poly2, Expression::Scaled(poly1, a))
                 if *poly1 == poly2 =>
@@ -1220,18 +1236,15 @@ impl<F: Field> Add for Expression<F> {
                 Expression::Scaled(poly1, a + F::one())
             }
             // poly + (-poly) == 0
-            (a, Expression::Negated(b)) | (Expression::Negated(b), a) => {
-                if a == *b {
-                    Expression::Constant(F::zero())
-                } else {
-                    Expression::Sum(Box::new(a), Box::new(Expression::Negated(b)))
-                }
+            (a, Expression::Negated(b)) | (Expression::Negated(b), a) if a == *b => {
+                Expression::Constant(F::zero())
             }
             (a, b) => {
-                // poly + poly == 2 * poly
                 if a == b {
+                    // poly + poly == 2 * poly
                     Expression::Scaled(Box::new(a), F::one() + F::one())
                 } else {
+                    // fallback to trivial sum
                     Expression::Sum(Box::new(a), Box::new(b))
                 }
             }
