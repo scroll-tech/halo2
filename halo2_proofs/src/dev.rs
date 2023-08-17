@@ -705,7 +705,8 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         if false {
             // Some circuits assign cells more than one times with different values
             // So this check sometimes can be false alarm
-            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != advice_cell {
+            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != advice_cell
+            {
                 panic!("not same new {advice_cell:?} old {:?}, column idx {} row {} cur phase {:?} col phase {:?} region {:?}",
                     self.advice_prev[column.index()][row],
                     column.index(),
