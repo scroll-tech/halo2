@@ -97,7 +97,7 @@ impl Region {
 }
 
 /// The value of a particular cell within the circuit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub enum CellValue<F: Group + Field> {
     /// An unassigned cell.
     Unassigned,
@@ -109,24 +109,32 @@ pub enum CellValue<F: Group + Field> {
     Poison(usize),
 }
 
+impl<F: Group + Field> PartialEq for CellValue<F> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Unassigned, Self::Unassigned) => true,
+            (Self::Assigned(a), Self::Assigned(b)) => a == b,
+            (Self::Rational(a, b), Self::Rational(c, d)) => *a * d == *b * c,
+            (Self::Poison(a), Self::Poison(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 impl<F: Group + Field> CellValue<F> {
     /// Returns the numerator.
-    pub fn numerator(&self) -> F {
+    pub fn numerator(&self) -> Option<F> {
         match self {
-            Self::Unassigned => F::zero(),
-            Self::Assigned(x) => *x,
-            Self::Rational(numerator, _) => *numerator, // {println!("numerator = {:?}", *numerator); *numerator},
-            Self::Poison(_) => panic!("CellValue::Poison has no value"),
+            Self::Rational(numerator, _) => Some(*numerator),
+            _ => None,
         }
     }
 
-    /// Returns the denominator, if non-trivial.
+    /// Returns the denominator
     pub fn denominator(&self) -> Option<F> {
         match self {
-            Self::Unassigned => None,
-            Self::Assigned(_) => None,
-            Self::Rational(_, denominator) => Some(*denominator), // {println!("denominator = {:?}", *denominator); Some(*denominator)},
-            Self::Poison(_) => panic!("CellValue::Poison has no value"),
+            Self::Rational(_, denominator) => Some(*denominator),
+            _ => None,
         }
     }
 }
@@ -134,7 +142,7 @@ impl<F: Group + Field> CellValue<F> {
 impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
     fn from(value: Assigned<F>) -> Self {
         match value {
-            Assigned::Zero => CellValue::Unassigned, // or CellValue::Assigned(F::zero()),
+            Assigned::Zero => CellValue::Unassigned,
             Assigned::Trivial(value) => CellValue::Assigned(value),
             Assigned::Rational(numerator, denominator) => {
                 CellValue::Rational(numerator, denominator)
@@ -144,22 +152,21 @@ impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
 }
 
 fn calculate_assigned_values<F: Group + Field>(
-    cell_values: &[CellValue<F>],
+    cell_values: &mut [CellValue<F>],
     inv_denoms: &[Option<F>],
-) -> Vec<CellValue<F>> {
-    let inv_denoms = inv_denoms.into_iter().map(|d| d.unwrap_or_else(F::one));
+) {
     assert_eq!(inv_denoms.len(), cell_values.len());
-    cell_values
-        .iter()
-        .zip(inv_denoms.into_iter())
-        .map(|(a, inv_den)| CellValue::Assigned(a.numerator() * inv_den))
-        .collect()
+    for (value, inv_den) in cell_values.iter_mut().zip(inv_denoms.iter()) {
+        // if numerator and denominator exist, calculate the assigned value
+        // otherwise, return the original CellValue
+        *value = match value {
+            CellValue::Rational(numerator, _) => CellValue::Assigned(*numerator * inv_den.unwrap()),
+            _ => *value,
+        };
+    }
 }
 
-fn batch_invert_cellvalues<F: Field + Group>(
-    cell_values: &[Vec<CellValue<F>>],
-) -> Vec<Vec<CellValue<F>>> {
-    println!("batch_invert_cellvalues");
+fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>>]) {
     let mut denominators: Vec<_> = cell_values
         .iter()
         .map(|f| {
@@ -179,11 +186,9 @@ fn batch_invert_cellvalues<F: Field + Group>(
         })
         .batch_invert();
 
-    cell_values
-        .iter()
-        .zip(denominators.into_iter())
-        .map(|(cell_values, inv_denoms)| calculate_assigned_values(cell_values, &inv_denoms))
-        .collect::<Vec<_>>()
+    for (cell_values, inv_denoms) in cell_values.iter_mut().zip(denominators.iter()) {
+        calculate_assigned_values(cell_values, &inv_denoms);
+    }
 }
 
 /// A value within an expression.
@@ -966,8 +971,12 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         prover.cs = cs;
 
         // batch invert
-        prover.advice_vec = Arc::new(batch_invert_cellvalues(prover.advice_vec.as_ref()));
-        prover.fixed_vec = Arc::new(batch_invert_cellvalues(prover.fixed_vec.as_ref()));
+        batch_invert_cellvalues(
+            Arc::get_mut(&mut prover.advice_vec).expect("get_mut prover.advice_vec"),
+        );
+        batch_invert_cellvalues(
+            Arc::get_mut(&mut prover.fixed_vec).expect("get_mut prover.fixed_vec"),
+        );
         // add selector polys
         Arc::get_mut(&mut prover.fixed_vec)
             .expect("get_mut prover.fixed_vec")
