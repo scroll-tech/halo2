@@ -700,6 +700,10 @@ impl<F: Field> Value<Assigned<F>> {
             inner: self.inner.map(|v| v.evaluate()),
         }
     }
+
+    pub fn unwrap_value(self) -> Assigned<F> {
+        self.inner.unwrap()
+    }
 }
 
 /// Utilities for tests and dev tools.

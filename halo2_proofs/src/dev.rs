@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use blake2b_simd::blake2b;
-use ff::Field;
+use ff::{BatchInvert, Field};
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::plonk::sealed::SealedPhase;
@@ -103,8 +103,87 @@ pub enum CellValue<F: Group + Field> {
     Unassigned,
     /// A cell that has been assigned a value.
     Assigned(F),
+    /// A value stored as a fraction to enable batch inversion.
+    Rational(F, F),
     /// A unique poisoned cell.
     Poison(usize),
+}
+
+impl<F: Group + Field> CellValue<F> {
+    /// Returns the numerator.
+    pub fn numerator(&self) -> F {
+        match self {
+            Self::Unassigned => F::zero(),
+            Self::Assigned(x) => *x,
+            Self::Rational(numerator, _) => *numerator, // {println!("numerator = {:?}", *numerator); *numerator},
+            Self::Poison(_) => panic!("CellValue::Poison has no value"),
+        }
+    }
+
+    /// Returns the denominator, if non-trivial.
+    pub fn denominator(&self) -> Option<F> {
+        match self {
+            Self::Unassigned => None,
+            Self::Assigned(_) => None,
+            Self::Rational(_, denominator) => Some(*denominator), // {println!("denominator = {:?}", *denominator); Some(*denominator)},
+            Self::Poison(_) => panic!("CellValue::Poison has no value"),
+        }
+    }
+}
+
+impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
+    fn from(value: Assigned<F>) -> Self {
+        match value {
+            Assigned::Zero => CellValue::Unassigned, // or CellValue::Assigned(F::zero()),
+            Assigned::Trivial(value) => CellValue::Assigned(value),
+            Assigned::Rational(numerator, denominator) => {
+                CellValue::Rational(numerator, denominator)
+            }
+        }
+    }
+}
+
+fn calculate_assigned_values<F: Group + Field>(
+    cell_values: &[CellValue<F>],
+    inv_denoms: &[Option<F>],
+) -> Vec<CellValue<F>> {
+    let inv_denoms = inv_denoms.into_iter().map(|d| d.unwrap_or_else(F::one));
+    assert_eq!(inv_denoms.len(), cell_values.len());
+    cell_values
+        .iter()
+        .zip(inv_denoms.into_iter())
+        .map(|(a, inv_den)| CellValue::Assigned(a.numerator() * inv_den))
+        .collect()
+}
+
+fn batch_invert_cellvalues<F: Field + Group>(
+    cell_values: &[Vec<CellValue<F>>],
+) -> Vec<Vec<CellValue<F>>> {
+    println!("batch_invert_cellvalues");
+    let mut denominators: Vec<_> = cell_values
+        .iter()
+        .map(|f| {
+            f.iter()
+                .map(|value| value.denominator())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    denominators
+        .iter_mut()
+        .flat_map(|f| {
+            f.iter_mut()
+                // If the denominator is trivial, we can skip it, reducing the
+                // size of the batch inversion.
+                .filter_map(|d| d.as_mut())
+        })
+        .batch_invert();
+
+    cell_values
+        .iter()
+        .zip(denominators.into_iter())
+        .map(|(cell_values, inv_denoms)| calculate_assigned_values(cell_values, &inv_denoms))
+        .collect::<Vec<_>>()
 }
 
 /// A value within an expression.
@@ -120,6 +199,7 @@ impl<F: Group + Field> From<CellValue<F>> for Value<F> {
             // Cells that haven't been explicitly assigned to, default to zero.
             CellValue::Unassigned => Value::Real(F::zero()),
             CellValue::Assigned(v) => Value::Real(v),
+            CellValue::Rational(n, d) => Value::Real(n * d.invert().unwrap()),
             CellValue::Poison(_) => Value::Poison,
         }
     }
@@ -578,12 +658,19 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 .or_default();
         }
 
-        let assigned = CellValue::Assigned(to().into_field().evaluate().assign()?);
-        *self
+        // let assigned = CellValue::Assigned(to().into_field().evaluate().assign()?);
+        // let cell_value = CellValue::from(to().into_field().unwrap_value());
+        // *self
+        //     .advice
+        //     .get_mut(column.index())
+        //     .and_then(|v| v.get_mut(row - self.rw_rows.start))
+        //     .ok_or(Error::BoundsFailure)? = cell_value;
+        let advice_cell = self
             .advice
             .get_mut(column.index())
             .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = assigned;
+            .ok_or(Error::BoundsFailure);
+        *advice_cell? = CellValue::from(to().into_field().unwrap_value());
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -649,7 +736,8 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         if fix_cell.is_err() {
             println!("fix cell is none: {}, row: {}", column.index(), row);
         }
-        *fix_cell? = CellValue::Assigned(to().into_field().evaluate().assign()?);
+        // *fix_cell? = CellValue::Assigned(to().into_field().evaluate().assign()?);
+        *fix_cell? = CellValue::from(to().into_field().unwrap_value());
 
         Ok(())
     }
@@ -876,6 +964,11 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             .cs
             .compress_selectors(prover.selectors_vec.as_ref().clone());
         prover.cs = cs;
+
+        // batch invert
+        prover.advice_vec = Arc::new(batch_invert_cellvalues(prover.advice_vec.as_ref()));
+        prover.fixed_vec = Arc::new(batch_invert_cellvalues(prover.fixed_vec.as_ref()));
+        // add selector polys
         Arc::get_mut(&mut prover.fixed_vec)
             .expect("get_mut prover.fixed_vec")
             .extend(selector_polys.into_iter().map(|poly| {
