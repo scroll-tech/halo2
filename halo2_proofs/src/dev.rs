@@ -643,7 +643,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
 
     fn assign_advice<V, VR, A, AR>(
         &mut self,
-        _: A,
+        anno: A,
         column: Column<Advice>,
         row: usize,
         to: V,
@@ -654,6 +654,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+        // column of 2nd phase does not need to be assigned when synthesis at 1st phase
         if self.current_phase.0 < column.column_type().phase.0 {
             return Ok(());
         }
@@ -681,7 +682,18 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 .or_default();
         }
 
-        let advice_cell = CellValue::from(to().into_field().unwrap()?);
+        let advice_anno = anno().into();
+        let val_res = to().into_field().unwrap();
+        if val_res.is_err() {
+            log::debug!(
+                "[{}] assign to advice {:?} at row {} failed at phase {:?}",
+                advice_anno,
+                column,
+                row,
+                self.current_phase
+            );
+        }
+        let advice_cell = CellValue::from(val_res?);
         *self
             .advice
             .get_mut(column.index())
@@ -933,12 +945,16 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
             for current_phase in prover.cs.phases() {
                 prover.current_phase = current_phase;
                 prover.advice_prev = last_advice;
-                ConcreteCircuit::FloorPlanner::synthesize(
+                let syn_res = ConcreteCircuit::FloorPlanner::synthesize(
                     &mut prover,
                     circuit,
                     config.clone(),
                     constants.clone(),
-                )?;
+                );
+                if syn_res.is_err() {
+                    log::error!("mock prover syn failed at phase {:?}", current_phase);
+                }
+                syn_res?;
 
                 for (index, phase) in prover.cs.challenge_phase.iter().enumerate() {
                     if current_phase == *phase {
@@ -963,6 +979,11 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
                     if err {
                         panic!("wrong phase assignment");
                     }
+                }
+                if current_phase.0 < prover.cs.max_phase() {
+                    // only keep the regions that we got during last phase's synthesis
+                    // as we do not need to verify these regions.
+                    prover.regions.clear();
                 }
                 last_advice = prover.advice_vec.as_ref().clone();
             }
@@ -1421,6 +1442,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
 
         // Check that within each region, all cells used in instantiated gates have been
         // assigned to.
+        log::debug!("regions.len() = {}", self.regions.len());
         let selector_errors = self.regions.iter().enumerate().flat_map(|(r_i, r)| {
             r.enabled_selectors.iter().flat_map(move |(selector, at)| {
                 // Find the gates enabled by this selector
