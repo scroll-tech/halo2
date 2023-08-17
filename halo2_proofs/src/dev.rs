@@ -168,7 +168,7 @@ fn calculate_assigned_values<F: Group + Field>(
 
 fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>>]) {
     let mut denominators: Vec<_> = cell_values
-        .iter()
+        .par_iter()
         .map(|f| {
             f.iter()
                 .map(|value| value.denominator())
@@ -176,7 +176,7 @@ fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>
         })
         .collect();
 
-    denominators
+    let mut mut_denominators = denominators
         .iter_mut()
         .flat_map(|f| {
             f.iter_mut()
@@ -184,7 +184,25 @@ fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>
                 // size of the batch inversion.
                 .filter_map(|d| d.as_mut())
         })
-        .batch_invert();
+        .collect::<Vec<_>>();
+
+    // copy from halo2-gpu/halo2_proofs/src/poly.rs: `fn batch_invert_assigned_par`
+    let num_threads = rayon::current_num_threads();
+    let chunk_size = (mut_denominators.len() + num_threads - 1) / num_threads;
+    let mut chunks = vec![];
+    while mut_denominators.len() > chunk_size {
+        let chunk = mut_denominators.split_off(mut_denominators.len() - chunk_size);
+        chunks.push(chunk);
+    }
+    chunks.push(mut_denominators);
+    rayon::scope(|scope| {
+        for chunk in chunks {
+            scope.spawn(|_| {
+                // it seems that &mut [&mut F] does not satisfy the trait bound to batch_invert()
+                chunk.batch_invert();
+            })
+        }
+    });
 
     for (cell_values, inv_denoms) in cell_values.iter_mut().zip(denominators.iter()) {
         calculate_assigned_values(cell_values, &inv_denoms);
