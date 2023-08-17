@@ -681,27 +681,20 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 .or_default();
         }
 
-        // let assigned = CellValue::Assigned(to().into_field().evaluate().assign()?);
-        // let cell_value = CellValue::from(to().into_field().unwrap_value());
-        // *self
-        //     .advice
-        //     .get_mut(column.index())
-        //     .and_then(|v| v.get_mut(row - self.rw_rows.start))
-        //     .ok_or(Error::BoundsFailure)? = cell_value;
-        let advice_cell = self
+        let advice_cell = CellValue::from(to().into_field().unwrap()?);
+        *self
             .advice
             .get_mut(column.index())
             .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure);
-        *advice_cell? = CellValue::from(to().into_field().unwrap_value());
+            .ok_or(Error::BoundsFailure)? = advice_cell;
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
         if false {
             // Some circuits assign cells more than one times with different values
             // So this check sometimes can be false alarm
-            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != assigned {
-                panic!("not same new {assigned:?} old {:?}, column idx {} row {} cur phase {:?} col phase {:?} region {:?}",
+            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != advice_cell {
+                panic!("not same new {advice_cell:?} old {:?}, column idx {} row {} cur phase {:?} col phase {:?} region {:?}",
                     self.advice_prev[column.index()][row],
                     column.index(),
                     row,
@@ -759,8 +752,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         if fix_cell.is_err() {
             println!("fix cell is none: {}, row: {}", column.index(), row);
         }
-        // *fix_cell? = CellValue::Assigned(to().into_field().evaluate().assign()?);
-        *fix_cell? = CellValue::from(to().into_field().unwrap_value());
+        *fix_cell? = CellValue::from(to().into_field().unwrap()?);
 
         Ok(())
     }

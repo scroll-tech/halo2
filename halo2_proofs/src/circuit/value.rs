@@ -701,8 +701,11 @@ impl<F: Field> Value<Assigned<F>> {
         }
     }
 
-    pub fn unwrap_value(self) -> Assigned<F> {
-        self.inner.unwrap()
+    pub fn unwrap(self) -> Result<Assigned<F>, Error> {
+        match self.inner {
+            Some(v) => Ok(v),
+            None => Err(Error::Synthesis),
+        }
     }
 }
 
