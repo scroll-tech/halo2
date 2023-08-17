@@ -584,7 +584,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         if val_res.is_err() {
             log::debug!(
                 "[{}] assign to advice {:?} at row {} failed at phase {:?}",
-                anno_str,
+                advice_anno,
                 column,
                 row,
                 self.current_phase
