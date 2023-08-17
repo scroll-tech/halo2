@@ -877,7 +877,7 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
                         panic!("wrong phase assignment");
                     }
                 }
-                if current_phase.0 < cs.max_phase() {
+                if current_phase.0 < prover.cs.max_phase() {
                     // only keep the regions that we got during last phase's synthesis
                     // as we do not need to verify these regions.
                     prover.regions.clear();
