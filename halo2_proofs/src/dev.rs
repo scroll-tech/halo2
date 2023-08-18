@@ -115,8 +115,8 @@ impl<F: Group + Field> PartialEq for CellValue<F> {
             (Self::Unassigned, Self::Unassigned) => true,
             (Self::Assigned(a), Self::Assigned(b)) => a == b,
             (Self::Rational(a, b), Self::Rational(c, d)) => *a * d == *b * c,
-            (Self::Assigned(a), Self::Rational(n, d)) => *a == *n * d.invert().unwrap(),
-            (Self::Rational(n, d), Self::Assigned(a)) => *n * d.invert().unwrap() == *a,
+            (Self::Assigned(a), Self::Rational(n, d)) => *a * *d == *n,
+            (Self::Rational(n, d), Self::Assigned(a)) => *a * *d == *n,
             (Self::Poison(a), Self::Poison(b)) => a == b,
             _ => false,
         }
@@ -177,8 +177,9 @@ fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>
                 .collect::<Vec<_>>()
         })
         .collect();
+    let denominators_len: usize = denominators.iter().map(|f| f.len()).sum();
 
-    let mut mut_denominators = denominators
+    let mut_denominators = denominators
         .iter_mut()
         .flat_map(|f| {
             f.iter_mut()
@@ -188,21 +189,35 @@ fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>
         })
         .collect::<Vec<_>>();
 
-    // copy from halo2-gpu/halo2_proofs/src/poly.rs: `fn batch_invert_assigned_par`
+    log::info!(
+        "num of denominators: {} / {}",
+        mut_denominators.len(),
+        denominators_len
+    );
+    if mut_denominators.is_empty() {
+        return;
+    }
+
     let num_threads = rayon::current_num_threads();
     let chunk_size = (mut_denominators.len() + num_threads - 1) / num_threads;
-    let mut chunks = vec![];
-    while mut_denominators.len() > chunk_size {
-        let chunk = mut_denominators.split_off(mut_denominators.len() - chunk_size);
-        chunks.push(chunk);
-    }
-    chunks.push(mut_denominators);
+    let mut_denominators =
+        mut_denominators
+            .into_iter()
+            .enumerate()
+            .fold(vec![vec![]], |mut acc, (i, denom)| {
+                let len = acc.len();
+                if i % chunk_size == 0 {
+                    acc.push(vec![denom])
+                } else {
+                    acc[len - 1].push(denom);
+                }
+                acc
+            });
     rayon::scope(|scope| {
-        for chunk in chunks {
+        for chunk in mut_denominators {
             scope.spawn(|_| {
-                // it seems that &mut [&mut F] does not satisfy the trait bound to batch_invert()
                 chunk.batch_invert();
-            })
+            });
         }
     });
 
