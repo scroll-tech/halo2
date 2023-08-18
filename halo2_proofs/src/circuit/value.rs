@@ -700,13 +700,6 @@ impl<F: Field> Value<Assigned<F>> {
             inner: self.inner.map(|v| v.evaluate()),
         }
     }
-
-    pub fn unwrap(self) -> Result<Assigned<F>, Error> {
-        match self.inner {
-            Some(v) => Ok(v),
-            None => Err(Error::Synthesis),
-        }
-    }
 }
 
 /// Utilities for tests and dev tools.

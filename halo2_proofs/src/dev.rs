@@ -115,6 +115,8 @@ impl<F: Group + Field> PartialEq for CellValue<F> {
             (Self::Unassigned, Self::Unassigned) => true,
             (Self::Assigned(a), Self::Assigned(b)) => a == b,
             (Self::Rational(a, b), Self::Rational(c, d)) => *a * d == *b * c,
+            (Self::Assigned(a), Self::Rational(n, d)) => *a == *n * d.invert().unwrap(),
+            (Self::Rational(n, d), Self::Assigned(a)) => *n * d.invert().unwrap() == *a,
             (Self::Poison(a), Self::Poison(b)) => a == b,
             _ => false,
         }
@@ -168,9 +170,9 @@ fn calculate_assigned_values<F: Group + Field>(
 
 fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>>]) {
     let mut denominators: Vec<_> = cell_values
-        .par_iter()
+        .iter()
         .map(|f| {
-            f.iter()
+            f.par_iter()
                 .map(|value| value.denominator())
                 .collect::<Vec<_>>()
         })
@@ -683,7 +685,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         }
 
         let advice_anno = anno().into();
-        let val_res = to().into_field().unwrap();
+        let val_res = to().into_field().assign();
         if val_res.is_err() {
             log::debug!(
                 "[{}] assign to advice {:?} at row {} failed at phase {:?}",
@@ -693,21 +695,20 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 self.current_phase
             );
         }
-        let advice_cell = CellValue::from(val_res?);
+        let assigned = CellValue::from(val_res?);
         *self
             .advice
             .get_mut(column.index())
             .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = advice_cell;
+            .ok_or(Error::BoundsFailure)? = assigned;
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
         if false {
             // Some circuits assign cells more than one times with different values
             // So this check sometimes can be false alarm
-            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != advice_cell
-            {
-                panic!("not same new {advice_cell:?} old {:?}, column idx {} row {} cur phase {:?} col phase {:?} region {:?}",
+            if !self.advice_prev.is_empty() && self.advice_prev[column.index()][row] != assigned {
+                panic!("not same new {assigned:?} old {:?}, column idx {} row {} cur phase {:?} col phase {:?} region {:?}",
                     self.advice_prev[column.index()][row],
                     column.index(),
                     row,
@@ -757,15 +758,15 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 .or_default();
         }
 
-        let fix_cell = self
+        let assigned = self
             .fixed
             .get_mut(column.index())
             .and_then(|v| v.get_mut(row - self.rw_rows.start))
             .ok_or(Error::BoundsFailure);
-        if fix_cell.is_err() {
+        if assigned.is_err() {
             println!("fix cell is none: {}, row: {}", column.index(), row);
         }
-        *fix_cell? = CellValue::from(to().into_field().unwrap()?);
+        *assigned? = CellValue::from(to().into_field().assign()?);
 
         Ok(())
     }
