@@ -205,7 +205,7 @@ fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>
     });
 
     for (cell_values, inv_denoms) in cell_values.iter_mut().zip(denominators.iter()) {
-        calculate_assigned_values(cell_values, &inv_denoms);
+        calculate_assigned_values(cell_values, inv_denoms);
     }
 }
 
