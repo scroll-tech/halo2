@@ -532,6 +532,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                 .map(|input_lookup_evaluator| input_lookup_evaluator.instance())
                                 .collect();
 
+                            let input_eval_time = start_timer!(|| format!("input_eval_time"));
                             let mut inputs_values_for_extended_domain: Vec<C::Scalar> =
                                 Vec::with_capacity(self.lookups[n].0.len() << domain.k());
                             for idx in 0..size {
@@ -561,8 +562,23 @@ impl<C: CurveAffine> Evaluator<C> {
 
                                 inputs_values_for_extended_domain.extend_from_slice(&inputs_values);
                             }
+                            end_timer!(input_eval_time);
 
-                            inputs_values_for_extended_domain.batch_invert();
+                            let batch_invert_time = start_timer!(|| format!("batch_invert_time"));
+                            let num_threads = rayon::current_num_threads();
+                            let chunk_size =
+                                (inputs_values_for_extended_domain.len() + num_threads - 1)
+                                    / num_threads;
+                            rayon::scope(|scope| {
+                                for chunk in
+                                    inputs_values_for_extended_domain.chunks_mut(chunk_size)
+                                {
+                                    scope.spawn(|_| {
+                                        chunk.batch_invert();
+                                    })
+                                }
+                            });
+                            end_timer!(batch_invert_time);
 
                             // The outer vector has capacity domain.extended_len()
                             // The inner vector has capacity self.lookups[n].0.len()
