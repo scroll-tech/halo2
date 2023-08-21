@@ -12,12 +12,10 @@ use halo2curves::pairing::Engine;
 use rand_core::OsRng;
 
 use halo2_proofs::{
-    poly::{
-        kzg::{
-            commitment::{KZGCommitmentScheme, ParamsKZG},
-            multiopen::ProverGWC,
-            strategy::SingleStrategy,
-        },
+    poly::kzg::{
+        commitment::{KZGCommitmentScheme, ParamsKZG},
+        multiopen::ProverGWC,
+        strategy::SingleStrategy,
     },
     transcript::{TranscriptReadBuffer, TranscriptWriterBuffer},
 };
@@ -60,7 +58,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
             meta.create_gate("degree 6 gate", |meta| {
                 let dummy_selector = meta.query_selector(dummy_selector);
-                let constraints = vec![dummy_selector.clone(); 4].iter().fold(dummy_selector.clone(), |acc, val| acc * val.clone());
+                let constraints = vec![dummy_selector.clone(); 4]
+                    .iter()
+                    .fold(dummy_selector.clone(), |acc, val| acc * val.clone());
                 Constraints::with_selector(dummy_selector, Some(constraints))
             });
 
@@ -92,8 +92,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             /*
                 - We need degree at least 6 because 6 - 1 = 5 and we need to go to extended domain of 8n
                 - Our goal is to get to max degree of 9 because now 9 - 1 = 8 and that will fit into domain
-            
-                - base degree = table_deg + 2 
+
+                - base degree = table_deg + 2
                 - if we put input_expression_degree = 1
                 => degree = base + 1 = 3 + 1 = 4
                 - we can batch one more with 5 more lookups

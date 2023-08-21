@@ -116,23 +116,24 @@ impl<F: FieldExt> Argument<F> {
             .collect();
 
         let m_values: Vec<F> = {
-            use std::sync::RwLock;
             use std::sync::atomic::{AtomicU64, Ordering};
+            use std::sync::RwLock;
             let m_values: Vec<AtomicU64> = (0..params.n()).map(|_| AtomicU64::new(0)).collect();
 
             for compressed_input_expression in compressed_inputs_expressions.iter() {
-                compressed_input_expression.par_iter().take(params.n() as usize - blinding_factors - 1).for_each(|fi| {
-                    let index = table_index_value_mapping
-                        .get(fi)
-                        .unwrap();
-                    m_values[*index].fetch_add(1, Ordering::Relaxed);
-                });
+                compressed_input_expression
+                    .par_iter()
+                    .take(params.n() as usize - blinding_factors - 1)
+                    .for_each(|fi| {
+                        let index = table_index_value_mapping.get(fi).unwrap();
+                        m_values[*index].fetch_add(1, Ordering::Relaxed);
+                    });
             }
 
             m_values
-            .par_iter()
-            .map(|mi| F::from(mi.load(Ordering::Relaxed) as u64))
-            .collect()
+                .par_iter()
+                .map(|mi| F::from(mi.load(Ordering::Relaxed) as u64))
+                .collect()
         };
         let m_values = pk.vk.domain.lagrange_from_vec(m_values);
 

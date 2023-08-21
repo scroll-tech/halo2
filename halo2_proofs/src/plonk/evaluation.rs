@@ -364,7 +364,7 @@ impl<C: CurveAffine> Evaluator<C> {
                     .iter()
                     .zip(instance.iter())
                     .zip(lookups.iter())
-                            .zip(permutations.iter())
+                    .zip(permutations.iter())
                 {
                     // Custom gates
                     multicore::scope(|scope| {
@@ -511,7 +511,7 @@ impl<C: CurveAffine> Evaluator<C> {
                     // For lookups, compute inputs_inv_sum = ∑ 1 / (f_i(X) + α)
                     // The outer vector has capacity self.lookups.len()
                     // The middle vector has capacity domain.extended_len()
-                    // The inner vector has capacity 
+                    // The inner vector has capacity
                     let inputs_inv_sum: Vec<Vec<Vec<_>>> = lookups
                         .iter()
                         .enumerate()
@@ -569,8 +569,14 @@ impl<C: CurveAffine> Evaluator<C> {
                         // Polynomials required for this lookup.
                         // Calculated here so these only have to be kept in memory for the short time
                         // they are actually needed.
-                        let phi_coset = pk.vk.domain.coeff_to_extended_part(lookup.phi_poly.clone(), current_extended_omega);
-                        let m_coset = pk.vk.domain.coeff_to_extended_part(lookup.m_poly.clone(), current_extended_omega);
+                        let phi_coset = pk.vk.domain.coeff_to_extended_part(
+                            lookup.phi_poly.clone(),
+                            current_extended_omega,
+                        );
+                        let m_coset = pk
+                            .vk
+                            .domain
+                            .coeff_to_extended_part(lookup.m_poly.clone(), current_extended_omega);
 
                         // Lookup constraints
                         /*
@@ -582,7 +588,8 @@ impl<C: CurveAffine> Evaluator<C> {
                                 = Π(φ_i(X)) * (τ(X) * ∑ 1/(φ_i(X)) - m(X))
                         */
                         parallelize(&mut values, |values, start| {
-                            let (inputs_lookup_evaluator, table_lookup_evaluator) = &self.lookups[n];
+                            let (inputs_lookup_evaluator, table_lookup_evaluator) =
+                                &self.lookups[n];
                             let mut inputs_eval_data: Vec<_> = inputs_lookup_evaluator
                                 .iter()
                                 .map(|input_lookup_evaluator| input_lookup_evaluator.instance())
