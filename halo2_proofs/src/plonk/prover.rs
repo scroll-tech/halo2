@@ -10,6 +10,8 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{collections::HashMap, iter, mem, sync::atomic::Ordering};
 
+use ark_std::{end_timer, start_timer};
+
 use super::{
     circuit::{
         sealed::{self, SealedPhase},
@@ -90,6 +92,8 @@ where
         pub instance_values: Vec<Polynomial<C::Scalar, LagrangeCoeff>>,
         pub instance_polys: Vec<Polynomial<C::Scalar, Coeff>>,
     }
+
+    let phase1_time = start_timer!(|| format!("phase1"));
 
     let instance: Vec<InstanceSingle<Scheme::Curve>> = instances
         .iter()
@@ -525,10 +529,12 @@ where
 
         (advice, challenges)
     };
+    end_timer!(phase1_time);
 
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
 
+    let phase2_time = start_timer!(|| format!("phase2"));
     let lookups: Vec<Vec<mv_lookup::prover::Prepared<Scheme::Curve>>> = instance
         .iter()
         .zip(advice.iter())
@@ -555,12 +561,15 @@ where
                 .collect()
         })
         .collect::<Result<Vec<_>, _>>()?;
+    end_timer!(phase2_time);
 
     // Sample beta challenge
     let beta: ChallengeBeta<_> = transcript.squeeze_challenge_scalar();
 
     // Sample gamma challenge
     let gamma: ChallengeGamma<_> = transcript.squeeze_challenge_scalar();
+
+    let phase3_time = start_timer!(|| format!("phase3"));
 
     // Commit to permutations.
     let permutations: Vec<permutation::prover::Committed<Scheme::Curve>> = instance
@@ -617,6 +626,9 @@ where
             },
         )
         .collect();
+    end_timer!(phase3_time);
+
+    let phase4_time = start_timer!(|| format!("phase4"));
 
     // Evaluate the h(X) polynomial
     let h_poly = pk.ev.evaluate_h(
@@ -638,6 +650,9 @@ where
         &permutations,
     );
 
+    end_timer!(phase4_time);
+
+    let phase5_time = start_timer!(|| format!("phase5"));
     // Construct the vanishing argument's h(X) commitments
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;
 
@@ -782,7 +797,10 @@ where
     }
 
     let prover = P::new(params);
-    prover
+    let m = prover
         .create_proof(rng, transcript, instances)
-        .map_err(|_| Error::ConstraintSystemFailure)
+        .map_err(|_| Error::ConstraintSystemFailure);
+
+    end_timer!(phase5_time);
+    m
 }

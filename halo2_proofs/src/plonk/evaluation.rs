@@ -13,6 +13,7 @@ use crate::{
     },
     transcript::{EncodedChallenge, TranscriptWrite},
 };
+use ark_std::{end_timer, start_timer};
 use group::prime::PrimeCurve;
 use group::{
     ff::{BatchInvert, Field},
@@ -320,6 +321,8 @@ impl<C: CurveAffine> Evaluator<C> {
         let mut current_extended_omega = one;
         let value_parts: Vec<Polynomial<C::ScalarExt, LagrangeCoeff>> = (0..num_parts)
             .map(|_| {
+                let coeff_to_extended_part_time =
+                    start_timer!(|| format!("coeff_to_extended_part"));
                 let fixed: Vec<Polynomial<C::ScalarExt, LagrangeCoeff>> = pk
                     .fixed_polys
                     .iter()
@@ -355,7 +358,7 @@ impl<C: CurveAffine> Evaluator<C> {
                             .collect()
                     })
                     .collect();
-
+                end_timer!(coeff_to_extended_part_time);
                 let mut values = domain.empty_lagrange();
 
                 // Core expression evaluations
@@ -367,6 +370,7 @@ impl<C: CurveAffine> Evaluator<C> {
                     .zip(permutations.iter())
                 {
                     // Custom gates
+                    let custom_gates_time = start_timer!(|| format!("custom_gates_time"));
                     multicore::scope(|scope| {
                         let chunk_size = (size + num_threads - 1) / num_threads;
                         for (thread_idx, values) in values.chunks_mut(chunk_size).enumerate() {
@@ -394,7 +398,9 @@ impl<C: CurveAffine> Evaluator<C> {
                             });
                         }
                     });
+                    end_timer!(custom_gates_time);
 
+                    let permutations_time = start_timer!(|| format!("permutations_time"));
                     // Permutations
                     let sets = &permutation.sets;
                     if !sets.is_empty() {
@@ -507,11 +513,15 @@ impl<C: CurveAffine> Evaluator<C> {
                             }
                         });
                     }
+                    end_timer!(permutations_time);
 
+                    let lookup_time = start_timer!(|| format!("lookup_time"));
                     // For lookups, compute inputs_inv_sum = ∑ 1 / (f_i(X) + α)
                     // The outer vector has capacity self.lookups.len()
                     // The middle vector has capacity domain.extended_len()
                     // The inner vector has capacity
+
+                    let inputs_inv_sum_time = start_timer!(|| format!("inputs_inv_sum_time"));
                     let inputs_inv_sum: Vec<Vec<Vec<_>>> = lookups
                         .iter()
                         .enumerate()
@@ -563,12 +573,15 @@ impl<C: CurveAffine> Evaluator<C> {
                             inputs_inv_sums
                         })
                         .collect();
+                    end_timer!(inputs_inv_sum_time);
 
                     // Lookups
+                    let lookups_iter_time = start_timer!(|| format!("lookups_iter_time"));
                     for (n, lookup) in lookups.iter().enumerate() {
                         // Polynomials required for this lookup.
                         // Calculated here so these only have to be kept in memory for the short time
                         // they are actually needed.
+                        let cosetfftpart_time = start_timer!(|| format!("cosetfftpart_time"));
                         let phi_coset = pk.vk.domain.coeff_to_extended_part(
                             lookup.phi_poly.clone(),
                             current_extended_omega,
@@ -577,7 +590,7 @@ impl<C: CurveAffine> Evaluator<C> {
                             .vk
                             .domain
                             .coeff_to_extended_part(lookup.m_poly.clone(), current_extended_omega);
-
+                        end_timer!(cosetfftpart_time);
                         // Lookup constraints
                         /*
                             φ_i(X) = f_i(X) + α
@@ -587,6 +600,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                 = (τ(X) * Π(φ_i(X)) * ∑ 1/(φ_i(X))) - Π(φ_i(X)) * m(X)
                                 = Π(φ_i(X)) * (τ(X) * ∑ 1/(φ_i(X)) - m(X))
                         */
+                        let constraints_time = start_timer!(|| format!("constraints_time"));
                         parallelize(&mut values, |values, start| {
                             let (inputs_lookup_evaluator, table_lookup_evaluator) =
                                 &self.lookups[n];
@@ -674,7 +688,10 @@ impl<C: CurveAffine> Evaluator<C> {
                                 *value = *value * y + (lhs - rhs) * l_active_row[idx];
                             }
                         });
+                        end_timer!(constraints_time);
                     }
+                    end_timer!(lookups_iter_time);
+                    end_timer!(lookup_time);
                 }
                 current_extended_omega *= extended_omega;
                 values
