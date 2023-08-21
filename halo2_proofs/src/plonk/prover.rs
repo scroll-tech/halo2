@@ -790,6 +790,8 @@ where
         use std::collections::BTreeMap;
         println!("MSM_COUNTER: {:?}", MSM_COUNTER.lock().unwrap());
         println!("FFT_COUNTER: {:?}", *FFT_COUNTER.lock().unwrap());
+        log::info!("MSM_COUNTER: {:?}", MSM_COUNTER.lock().unwrap());
+        log::info!("FFT_COUNTER: {:?}", *FFT_COUNTER.lock().unwrap());
 
         // reset counters at the end of the proving
         *MSM_COUNTER.lock().unwrap() = BTreeMap::new();
