@@ -701,7 +701,7 @@ pub trait Circuit<F: Field> {
 }
 
 /// Low-degree expression representing an identity that must hold over the committed columns.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression<F> {
     /// This is a constant polynomial
     Constant(F),
@@ -1106,61 +1106,61 @@ impl<F: Field> Expression<F> {
     }
 }
 
-impl<F: ff::Field> std::fmt::Debug for Expression<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::Constant(scalar) => f.debug_tuple("Constant").field(scalar).finish(),
-            Expression::Selector(selector) => f.debug_tuple("Selector").field(selector).finish(),
-            // Skip enum variant and print query struct directly to maintain backwards compatibility.
-            Expression::Fixed(FixedQuery {
-                index,
-                column_index,
-                rotation,
-            }) => f
-                .debug_struct("Fixed")
-                .field("query_index", index)
-                .field("column_index", column_index)
-                .field("rotation", rotation)
-                .finish(),
-            Expression::Advice(AdviceQuery {
-                index,
-                column_index,
-                rotation,
-                phase,
-            }) => {
-                let mut debug_struct = f.debug_struct("Advice");
-                debug_struct
-                    .field("query_index", index)
-                    .field("column_index", column_index)
-                    .field("rotation", rotation);
-                // Only show advice's phase if it's not in first phase.
-                if *phase != FirstPhase.to_sealed() {
-                    debug_struct.field("phase", phase);
-                }
-                debug_struct.finish()
-            }
-            Expression::Instance(InstanceQuery {
-                index,
-                column_index,
-                rotation,
-            }) => f
-                .debug_struct("Instance")
-                .field("query_index", index)
-                .field("column_index", column_index)
-                .field("rotation", rotation)
-                .finish(),
-            Expression::Challenge(challenge) => {
-                f.debug_tuple("Challenge").field(challenge).finish()
-            }
-            Expression::Negated(poly) => f.debug_tuple("Negated").field(poly).finish(),
-            Expression::Sum(a, b) => f.debug_tuple("Sum").field(a).field(b).finish(),
-            Expression::Product(a, b) => f.debug_tuple("Product").field(a).field(b).finish(),
-            Expression::Scaled(poly, scalar) => {
-                f.debug_tuple("Scaled").field(poly).field(scalar).finish()
-            }
-        }
-    }
-}
+// impl<F: ff::Field> std::fmt::Debug for Expression<F> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Expression::Constant(scalar) => f.debug_tuple("Constant").field(scalar).finish(),
+//             Expression::Selector(selector) => f.debug_tuple("Selector").field(selector).finish(),
+//             // Skip enum variant and print query struct directly to maintain backwards compatibility.
+//             Expression::Fixed(FixedQuery {
+//                 index,
+//                 column_index,
+//                 rotation,
+//             }) => f
+//                 .debug_struct("Fixed")
+//                 .field("query_index", index)
+//                 .field("column_index", column_index)
+//                 .field("rotation", rotation)
+//                 .finish(),
+//             Expression::Advice(AdviceQuery {
+//                 index,
+//                 column_index,
+//                 rotation,
+//                 phase,
+//             }) => {
+//                 let mut debug_struct = f.debug_struct("Advice");
+//                 debug_struct
+//                     .field("query_index", index)
+//                     .field("column_index", column_index)
+//                     .field("rotation", rotation);
+//                 // Only show advice's phase if it's not in first phase.
+//                 if *phase != FirstPhase.to_sealed() {
+//                     debug_struct.field("phase", phase);
+//                 }
+//                 debug_struct.finish()
+//             }
+//             Expression::Instance(InstanceQuery {
+//                 index,
+//                 column_index,
+//                 rotation,
+//             }) => f
+//                 .debug_struct("Instance")
+//                 .field("query_index", index)
+//                 .field("column_index", column_index)
+//                 .field("rotation", rotation)
+//                 .finish(),
+//             Expression::Challenge(challenge) => {
+//                 f.debug_tuple("Challenge").field(challenge).finish()
+//             }
+//             Expression::Negated(poly) => f.debug_tuple("Negated").field(poly).finish(),
+//             Expression::Sum(a, b) => f.debug_tuple("Sum").field(a).field(b).finish(),
+//             Expression::Product(a, b) => f.debug_tuple("Product").field(a).field(b).finish(),
+//             Expression::Scaled(poly, scalar) => {
+//                 f.debug_tuple("Scaled").field(poly).field(scalar).finish()
+//             }
+//         }
+//     }
+// }
 
 impl<F: Field> Neg for Expression<F> {
     type Output = Expression<F>;
