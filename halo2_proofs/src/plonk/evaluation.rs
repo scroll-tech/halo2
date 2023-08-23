@@ -19,6 +19,7 @@ use group::{
     ff::{BatchInvert, Field},
     Curve,
 };
+use rayon::prelude::*;
 use std::any::TypeId;
 use std::convert::TryInto;
 use std::num::ParseIntError;
@@ -188,6 +189,7 @@ pub struct Evaluator<C: CurveAffine> {
     ///  Custom gates evalution
     pub custom_gates: GraphEvaluator<C>,
     ///  Lookups evalution
+    ///  A vector of tuples (inputs, table)
     pub lookups: Vec<(Vec<GraphEvaluator<C>>, GraphEvaluator<C>)>,
 }
 
@@ -518,32 +520,34 @@ impl<C: CurveAffine> Evaluator<C> {
                     let lookup_time = start_timer!(|| format!("lookup_time"));
                     // For lookups, compute inputs_inv_sum = ∑ 1 / (f_i(X) + α)
                     // The outer vector has capacity self.lookups.len()
-                    // The middle vector has capacity domain.extended_len()
-                    // The inner vector has capacity
 
                     let inputs_inv_sum_time = start_timer!(|| format!("inputs_inv_sum_time"));
-                    let inputs_inv_sum: Vec<Vec<Vec<_>>> = lookups
+                    // The inner vector has capacity `inputs`, the no. of input columns in the current lookup
+                    let inputs_inv_sum: Vec<Vec<_>> = lookups
                         .iter()
                         .enumerate()
                         .map(|(n, _)| {
                             let (inputs_lookup_evaluator, _) = &self.lookups[n];
-                            let mut inputs_eval_data: Vec<_> = inputs_lookup_evaluator
-                                .iter()
-                                .map(|input_lookup_evaluator| input_lookup_evaluator.instance())
-                                .collect();
+                            let num_input_cols = self.lookups[n].0.len();
+                            println!("num_input_cols: {}", num_input_cols);
 
-                            let input_eval_time = start_timer!(|| format!("input_eval_time"));
-                            let mut inputs_values_for_extended_domain: Vec<C::Scalar> =
-                                Vec::with_capacity(self.lookups[n].0.len() << domain.k());
-                            for idx in 0..size {
-                                // For each compressed input column, evaluate at ω^i and add beta
-                                // This is a vector of length self.lookups[n].0.len()
-                                let inputs_values: Vec<C::ScalarExt> = inputs_lookup_evaluator
-                                    .iter()
-                                    .zip(inputs_eval_data.iter_mut())
-                                    .map(|(input_lookup_evaluator, input_eval_data)| {
-                                        input_lookup_evaluator.evaluate(
-                                            input_eval_data,
+                            // Inverted values for all input columns
+                            // For each input column
+                            let (inputs_inv, inputs_eval_data): (Vec<_>, Vec<_>) = (0
+                                ..num_input_cols)
+                                .collect::<Vec<_>>()
+                                .par_iter_mut()
+                                .map(|input_column| {
+                                    let mut input_eval_data =
+                                        inputs_lookup_evaluator[*input_column].instance();
+                                    // Evaluate on extended domain
+                                    let mut input_values: Vec<_> = (0..domain.extended_len())
+                                        .map(|idx|
+                                        // For each compressed input column, evaluate at ω^i and add beta
+                                        // This is a vector of length self.lookups[n].0.len(),
+                                        // i.e. the number of input columns in lookups[n]
+                                        inputs_lookup_evaluator[*input_column].evaluate(
+                                            &mut input_eval_data,
                                             fixed,
                                             advice,
                                             instance,
@@ -556,36 +560,29 @@ impl<C: CurveAffine> Evaluator<C> {
                                             idx,
                                             rot_scale,
                                             isize,
-                                        )
+                                        ))
+                                        .collect();
+
+                                    // Batch-invert evaluations for this input column
+                                    input_values.batch_invert();
+                                    (input_values, input_eval_data)
+                                })
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .unzip();
+
+                            let inputs_inv_sums: Vec<_> = (0..domain.extended_len())
+                                .into_par_iter()
+                                .map(|idx| {
+                                    (0..num_input_cols).fold(C::Scalar::zero(), |acc, input_col| {
+                                        acc + inputs_inv[input_col][idx]
                                     })
-                                    .collect();
-
-                                inputs_values_for_extended_domain.extend_from_slice(&inputs_values);
-                            }
-                            end_timer!(input_eval_time);
-
-                            let batch_invert_time = start_timer!(|| format!("batch_invert_time"));
-                            let num_threads = rayon::current_num_threads();
-                            let chunk_size =
-                                (inputs_values_for_extended_domain.len() + num_threads - 1)
-                                    / num_threads;
-                            rayon::scope(|scope| {
-                                for chunk in
-                                    inputs_values_for_extended_domain.chunks_mut(chunk_size)
-                                {
-                                    scope.spawn(|_| {
-                                        chunk.batch_invert();
-                                    })
-                                }
-                            });
-                            end_timer!(batch_invert_time);
-
-                            // The outer vector has capacity domain.extended_len()
-                            // The inner vector has capacity self.lookups[n].0.len()
-                            let inputs_inv_sums: Vec<Vec<_>> = inputs_values_for_extended_domain
-                                .chunks_exact(self.lookups[n].0.len())
-                                .map(|c| c.to_vec())
+                                })
                                 .collect();
+
+                            inputs_inv_sums
+                                .iter()
+                                .fold(C::Scalar::one(), |acc, input| acc * input);
                             inputs_inv_sums
                         })
                         .collect();
@@ -657,12 +654,6 @@ impl<C: CurveAffine> Evaluator<C> {
                                     .iter()
                                     .fold(C::Scalar::one(), |acc, input| acc * input);
 
-                                // f_i(X) + α at ω^idx
-                                let fi_inverses = &inputs_inv_sum[n][idx];
-                                let inputs_inv_sum = fi_inverses
-                                    .iter()
-                                    .fold(C::Scalar::zero(), |acc, input| acc + input);
-
                                 // t(X) + α
                                 let table_value = table_lookup_evaluator.evaluate(
                                     &mut table_eval_data,
@@ -691,7 +682,8 @@ impl<C: CurveAffine> Evaluator<C> {
                                     //   τ(X) * Π(φ_i(X)) * (∑ 1/(φ_i(X)) - m(X) / τ(X))))
                                     // = (τ(X) * Π(φ_i(X)) * ∑ 1/(φ_i(X))) - Π(φ_i(X)) * m(X)
                                     // = Π(φ_i(X)) * (τ(X) * ∑ 1/(φ_i(X)) - m(X))
-                                    inputs_prod * (table_value * inputs_inv_sum - m_coset[idx])
+                                    inputs_prod
+                                        * (table_value * inputs_inv_sum[n][idx] - m_coset[idx])
                                 };
 
                                 // phi[0] = 0
