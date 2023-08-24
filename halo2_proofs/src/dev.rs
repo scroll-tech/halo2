@@ -104,6 +104,7 @@ pub enum CellValue<F: Group + Field> {
     /// A cell that has been assigned a value.
     Assigned(F),
     /// A value stored as a fraction to enable batch inversion.
+    #[cfg(feature = "mock-batch-inv")]
     Rational(F, F),
     /// A unique poisoned cell.
     Poison(usize),
@@ -114,8 +115,11 @@ impl<F: Group + Field> PartialEq for CellValue<F> {
         match (self, other) {
             (Self::Unassigned, Self::Unassigned) => true,
             (Self::Assigned(a), Self::Assigned(b)) => a == b,
+            #[cfg(feature = "mock-batch-inv")]
             (Self::Rational(a, b), Self::Rational(c, d)) => *a * d == *b * c,
+            #[cfg(feature = "mock-batch-inv")]
             (Self::Assigned(a), Self::Rational(n, d)) => *a * *d == *n,
+            #[cfg(feature = "mock-batch-inv")]
             (Self::Rational(n, d), Self::Assigned(a)) => *a * *d == *n,
             (Self::Poison(a), Self::Poison(b)) => a == b,
             _ => false,
@@ -123,6 +127,7 @@ impl<F: Group + Field> PartialEq for CellValue<F> {
     }
 }
 
+#[cfg(feature = "mock-batch-inv")]
 impl<F: Group + Field> CellValue<F> {
     /// Returns the numerator.
     pub fn numerator(&self) -> Option<F> {
@@ -141,6 +146,7 @@ impl<F: Group + Field> CellValue<F> {
     }
 }
 
+#[cfg(feature = "mock-batch-inv")]
 impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
     fn from(value: Assigned<F>) -> Self {
         match value {
@@ -153,6 +159,7 @@ impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
     }
 }
 
+#[cfg(feature = "mock-batch-inv")]
 fn calculate_assigned_values<F: Group + Field>(
     cell_values: &mut [CellValue<F>],
     inv_denoms: &[Option<F>],
@@ -168,6 +175,7 @@ fn calculate_assigned_values<F: Group + Field>(
     }
 }
 
+#[cfg(feature = "mock-batch-inv")]
 fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>>]) {
     let mut denominators: Vec<_> = cell_values
         .iter()
@@ -239,6 +247,7 @@ impl<F: Group + Field> From<CellValue<F>> for Value<F> {
             // Cells that haven't been explicitly assigned to, default to zero.
             CellValue::Unassigned => Value::Real(F::zero()),
             CellValue::Assigned(v) => Value::Real(v),
+            #[cfg(feature = "mock-batch-inv")]
             CellValue::Rational(n, d) => Value::Real(n * d.invert().unwrap()),
             CellValue::Poison(_) => Value::Poison,
         }
@@ -700,6 +709,9 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         }
 
         let advice_anno = anno().into();
+        #[cfg(not(feature = "mock-batch-inv"))]
+        let val_res = to().into_field().evaluate().assign();
+        #[cfg(feature = "mock-batch-inv")]
         let val_res = to().into_field().assign();
         if val_res.is_err() {
             log::debug!(
@@ -710,7 +722,11 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
                 self.current_phase
             );
         }
+        #[cfg(not(feature = "mock-batch-inv"))]
+        let assigned = CellValue::Assigned(val_res?);
+        #[cfg(feature = "mock-batch-inv")]
         let assigned = CellValue::from(val_res?);
+
         *self
             .advice
             .get_mut(column.index())
@@ -781,7 +797,15 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         if assigned.is_err() {
             println!("fix cell is none: {}, row: {}", column.index(), row);
         }
-        *assigned? = CellValue::from(to().into_field().assign()?);
+
+        #[cfg(not(feature = "mock-batch-inv"))]
+        {
+            *assigned? = CellValue::Assigned(to().into_field().evaluate().assign()?);
+        }
+        #[cfg(feature = "mock-batch-inv")]
+        {
+            *assigned? = CellValue::from(to().into_field().assign()?);
+        }
 
         Ok(())
     }
@@ -1019,12 +1043,15 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         prover.cs = cs;
 
         // batch invert
-        batch_invert_cellvalues(
-            Arc::get_mut(&mut prover.advice_vec).expect("get_mut prover.advice_vec"),
-        );
-        batch_invert_cellvalues(
-            Arc::get_mut(&mut prover.fixed_vec).expect("get_mut prover.fixed_vec"),
-        );
+        #[cfg(feature = "mock-batch-inv")]
+        {
+            batch_invert_cellvalues(
+                Arc::get_mut(&mut prover.advice_vec).expect("get_mut prover.advice_vec"),
+            );
+            batch_invert_cellvalues(
+                Arc::get_mut(&mut prover.fixed_vec).expect("get_mut prover.fixed_vec"),
+            );
+        }
         // add selector polys
         Arc::get_mut(&mut prover.fixed_vec)
             .expect("get_mut prover.fixed_vec")
