@@ -667,7 +667,7 @@ where
     let vanishing = vanishing.construct(params, domain, h_poly, &mut rng, transcript)?;
 
     let x: ChallengeX<_> = transcript.squeeze_challenge_scalar();
-    let xn = x.pow(&[params.n() as u64, 0, 0, 0]);
+    let xn = x.pow([params.n(), 0, 0, 0]);
 
     if P::QUERY_INSTANCE {
         // Compute and hash instance evals for each circuit instance
@@ -790,8 +790,8 @@ where
                         }),
                 )
                 .chain(permutation.open(pk, x))
-                .chain(lookups.iter().flat_map(move |p| p.open(pk, x)).into_iter())
-                .chain(shuffles.iter().flat_map(move |p| p.open(pk, x)).into_iter())
+                .chain(lookups.iter().flat_map(move |p| p.open(pk, x)))
+                .chain(shuffles.iter().flat_map(move |p| p.open(pk, x)))
         })
         .chain(
             pk.vk
