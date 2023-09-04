@@ -161,10 +161,7 @@ where
     }
 }
 
-impl<C: CurveAffine> VerifyingKey<C>
-where
-    C::ScalarExt: FromUniformBytes<64>,
-{
+impl<C: CurveAffine> VerifyingKey<C> {
     fn bytes_length(&self) -> usize {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()
@@ -182,8 +179,11 @@ where
         fixed_commitments: Vec<C>,
         permutation: permutation::VerifyingKey<C>,
         cs: ConstraintSystem<C::Scalar>,
-        //selectors: Vec<Vec<bool>>,
-    ) -> Self {
+        // selectors: Vec<Vec<bool>>,
+    ) -> Self
+    where
+        C::ScalarExt: FromUniformBytes<64>,
+    {
         // Compute cached values.
         let cs_degree = cs.degree();
 
@@ -250,6 +250,11 @@ where
     /// Returns `ConstraintSystem`
     pub fn cs(&self) -> &ConstraintSystem<C::Scalar> {
         &self.cs
+    }
+
+    /// Returns representative of this `VerifyingKey` in transcripts
+    pub fn transcript_repr(&self) -> C::Scalar {
+        self.transcript_repr
     }
 }
 
