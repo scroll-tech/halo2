@@ -7,7 +7,6 @@ use crate::helpers::SerdePrimeField;
 use crate::plonk::Assigned;
 use crate::SerdeFormat;
 
-use ff::PrimeField;
 use group::ff::{BatchInvert, Field};
 use std::fmt::Debug;
 use std::io;

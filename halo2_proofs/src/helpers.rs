@@ -1,7 +1,7 @@
 use crate::plonk::{Any, Column};
 use crate::poly::Polynomial;
 use ff::{Field, FromUniformBytes, PrimeField};
-use halo2curves::{pairing::Engine, serde::SerdeObject, CurveAffine};
+use halo2curves::{serde::SerdeObject, CurveAffine};
 use num_bigint::BigUint;
 use std::io;
 

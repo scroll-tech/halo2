@@ -1,4 +1,4 @@
-use std::iter;
+use std::{collections::HashMap, iter};
 
 use ff::Field;
 use group::Curve;
@@ -7,9 +7,8 @@ use rand_core::RngCore;
 use super::Argument;
 use crate::{
     arithmetic::{eval_polynomial, CurveAffine},
-    plonk::{ChallengeX, ChallengeY, Error},
+    plonk::{ChallengeX, Error},
     poly::{
-        self,
         commitment::{Blind, ParamsProver},
         Coeff, EvaluationDomain, ExtendedLagrangeCoeff, Polynomial, ProverQuery,
     },

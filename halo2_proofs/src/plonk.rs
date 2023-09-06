@@ -7,17 +7,13 @@
 
 use blake2b_simd::Params as Blake2bParams;
 use group::ff::{Field, FromUniformBytes, PrimeField};
-use halo2curves::pairing::Engine;
 
 use crate::arithmetic::CurveAffine;
 use crate::helpers::{
     polynomial_slice_byte_length, read_polynomial_vec, write_polynomial_slice, SerdeCurveAffine,
     SerdePrimeField,
 };
-use crate::poly::{
-    commitment::Params, Coeff, EvaluationDomain, ExtendedLagrangeCoeff, LagrangeCoeff,
-    PinnedEvaluationDomain, Polynomial,
-};
+use crate::poly::{Coeff, EvaluationDomain, LagrangeCoeff, PinnedEvaluationDomain, Polynomial};
 use crate::transcript::{ChallengeScalar, EncodedChallenge, Transcript};
 use crate::SerdeFormat;
 

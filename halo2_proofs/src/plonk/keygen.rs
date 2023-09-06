@@ -12,16 +12,15 @@ use super::{
         Selector,
     },
     evaluation::Evaluator,
-    permutation, Assigned, Challenge, Error, Expression, LagrangeCoeff, Polynomial, ProvingKey,
-    VerifyingKey,
+    permutation, Assigned, Challenge, Error, LagrangeCoeff, Polynomial, ProvingKey, VerifyingKey,
 };
 use crate::helpers::CopyCell;
 use crate::{
     arithmetic::{parallelize, CurveAffine},
-    circuit::{layouter::SyncDeps, Value},
+    circuit::Value,
     poly::{
         batch_invert_assigned,
-        commitment::{Blind, Params, MSM},
+        commitment::{Blind, Params},
         EvaluationDomain,
     },
     two_dim_vec_to_vec_of_slice,
@@ -67,8 +66,6 @@ struct Assembly<'a, F: Field> {
     usable_rows: Range<usize>,
     _marker: std::marker::PhantomData<F>,
 }
-
-impl<'a, F: Field> SyncDeps for Assembly<'a, F> {}
 
 impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
     fn enter_region<NR, N>(&mut self, _: N)

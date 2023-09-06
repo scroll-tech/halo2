@@ -7,10 +7,9 @@ use crate::{
         polynomial_slice_byte_length, read_polynomial_vec, write_polynomial_slice,
         SerdeCurveAffine, SerdePrimeField,
     },
-    poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial},
+    poly::{Coeff, LagrangeCoeff, Polynomial},
     SerdeFormat,
 };
-use ff::PrimeField;
 
 pub(crate) mod keygen;
 pub(crate) mod prover;
