@@ -367,6 +367,10 @@ impl<'r, F: Field> Region<'r, F> {
     pub fn constrain_equal(&mut self, left: Cell, right: Cell) -> Result<(), Error> {
         self.region.constrain_equal(left, right)
     }
+
+    pub fn global_offset(&self, row_offset: usize) -> usize {
+        self.region.global_offset(row_offset)
+    }
 }
 
 /// A lookup table in the circuit.

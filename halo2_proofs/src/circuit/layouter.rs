@@ -112,6 +112,9 @@ pub trait RegionLayouter<F: Field>: fmt::Debug {
     ///
     /// Returns an error if either of the cells is not within the given permutation.
     fn constrain_equal(&mut self, left: Cell, right: Cell) -> Result<(), Error>;
+
+    /// Return the offset of a row within the overall circuit.
+    fn global_offset(&self, row_offset: usize) -> usize;
 }
 
 /// Helper trait for implementing a custom [`Layouter`].
@@ -301,5 +304,9 @@ impl<F: Field> RegionLayouter<F> for RegionShape {
     fn constrain_equal(&mut self, _left: Cell, _right: Cell) -> Result<(), Error> {
         // Equality constraints don't affect the region shape.
         Ok(())
+    }
+
+    fn global_offset(&self, _row_offset: usize) -> usize {
+        0
     }
 }

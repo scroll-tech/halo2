@@ -582,6 +582,10 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F>
 
         Ok(())
     }
+
+    fn global_offset(&self, row_offset: usize) -> usize {
+        *self.layouter.regions[*self.region_index] + row_offset
+    }
 }
 
 /// The default value to fill a table column with.

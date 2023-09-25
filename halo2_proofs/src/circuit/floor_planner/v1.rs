@@ -528,6 +528,10 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F> for V1Region<'r
 
         Ok(())
     }
+
+    fn global_offset(&self, row_offset: usize) -> usize {
+        *self.plan.regions[*self.region_index] + row_offset
+    }
 }
 
 #[cfg(test)]
