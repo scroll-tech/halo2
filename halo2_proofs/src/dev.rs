@@ -710,21 +710,6 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
             return Err(Error::not_enough_rows_available(self.k));
         }
 
-        if self.in_phase(FirstPhase) {
-            if !self.usable_rows.contains(&row) {
-                return Err(Error::not_enough_rows_available(self.k));
-            }
-
-            if let Some(region) = self.current_region.as_mut() {
-                region.update_extent(column.into(), row);
-                region
-                    .cells
-                    .entry((column.into(), row))
-                    .and_modify(|count| *count += 1)
-                    .or_default();
-            }
-        }
-
         if !self.rw_rows.contains(&row) {
             return Err(Error::InvalidRange(
                 row,
@@ -763,13 +748,11 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         #[cfg(feature = "mock-batch-inv")]
         let assigned = CellValue::from(val_res?);
 
-        if self.in_phase(column.column_type().phase) {
-            *self
-                .advice
-                .get_mut(column.index())
-                .and_then(|v| v.get_mut(row))
-                .ok_or(Error::BoundsFailure)? = assigned;
-        }
+        *self
+            .advice
+            .get_mut(column.index())
+            .and_then(|v| v.get_mut(row))
+            .ok_or(Error::BoundsFailure)? = assigned;
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -1083,7 +1066,15 @@ impl<'a, F: FieldExt> MockProver<'a, F> {
         #[cfg(not(feature = "phase-check"))]
         {
             let syn_time = Instant::now();
-            ConcreteCircuit::FloorPlanner::synthesize(&mut prover, circuit, config, constants)?;
+            for current_phase in prover.cs.phases() {
+                prover.current_phase = current_phase;
+                ConcreteCircuit::FloorPlanner::synthesize(
+                    &mut prover,
+                    circuit,
+                    config.clone(),
+                    constants.clone(),
+                )?;
+            }
             log::info!("MockProver synthesize took {:?}", syn_time.elapsed());
         }
 
