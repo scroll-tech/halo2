@@ -2312,7 +2312,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns general column annotations
-    pub fn general_column_annotations(&self) -> &HashMap<metadata::Column, String> {
+    pub fn general_column_annotations(&self) -> &BTreeMap<metadata::Column, String> {
         &self.general_column_annotations
     }
 

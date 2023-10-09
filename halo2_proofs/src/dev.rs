@@ -2551,4 +2551,4 @@ mod tests {
     }
 }
 
-impl<F: Field> SyncDeps for MockProver<F> {}
+impl<'a, F: Field> SyncDeps for MockProver<'a, F> {}
