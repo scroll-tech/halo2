@@ -666,9 +666,9 @@ dependencies = [
 
 [[package]]
 name = "ff"
-version = "0.12.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df689201f395c6b90dfe87127685f8dbfc083a5e779e613575d8bd7314300c3e"
+checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
  "bitvec",
  "rand_core",
@@ -807,11 +807,10 @@ checksum = "78cc372d058dcf6d5ecd98510e7fbc9e5aec4d21de70f65fea8fecebcd881bd4"
 
 [[package]]
 name = "group"
-version = "0.12.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7391856def869c1c81063a03457c676fbcd419709c3dfb33d8d319de484b154d"
+checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
- "byteorder",
  "ff",
  "rand_core",
  "subtle",
@@ -860,7 +859,7 @@ dependencies = [
  "ff",
  "group",
  "halo2_proofs",
- "halo2curves 0.2.1",
+ "halo2curves",
  "lazy_static",
  "plotters",
  "pprof",
@@ -886,7 +885,7 @@ dependencies = [
  "getrandom",
  "group",
  "gumdrop",
- "halo2curves 0.3.1 (git+https://github.com/scroll-tech/halo2curves.git?branch=0.3.1-derive-serde)",
+ "halo2curves",
  "log",
  "num-bigint",
  "num-integer",
@@ -903,42 +902,8 @@ dependencies = [
 
 [[package]]
 name = "halo2curves"
-version = "0.2.1"
-source = "git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.0#83c72d49762343ffc9576ca11a2aa615efe1029b"
-dependencies = [
- "ff",
- "group",
- "lazy_static",
- "num-bigint",
- "num-traits",
- "pasta_curves",
- "rand",
- "rand_core",
- "static_assertions",
- "subtle",
-]
-
-[[package]]
-name = "halo2curves"
-version = "0.3.1"
-source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git?tag=0.3.1#9b67e19bca30a35208b0c1b41c1723771e2c9f49"
-dependencies = [
- "ff",
- "group",
- "lazy_static",
- "num-bigint",
- "num-traits",
- "pasta_curves",
- "rand",
- "rand_core",
- "static_assertions",
- "subtle",
-]
-
-[[package]]
-name = "halo2curves"
-version = "0.3.1"
-source = "git+https://github.com/scroll-tech/halo2curves.git?branch=0.3.1-derive-serde#c0ac1935e5da2a620204b5b011be2c924b1e0155"
+version = "0.3.2"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.2#9f5c50810bbefe779ee5cf1d852b2fe85dc35d5e"
 dependencies = [
  "ff",
  "group",
@@ -949,7 +914,6 @@ dependencies = [
  "paste",
  "rand",
  "rand_core",
- "serde",
  "static_assertions",
  "subtle",
 ]
@@ -1090,6 +1054,9 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+dependencies = [
+ "spin",
+]
 
 [[package]]
 name = "libc"
@@ -1303,9 +1270,9 @@ dependencies = [
 
 [[package]]
 name = "pasta_curves"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "369d7785168ad7ff0cbe467d968ca3e19a927d8536b11ef9c21b4e454b15ba42"
+checksum = "d3e57598f73cc7e1b2ac63c79c517b31a0877cd7c402cdcaa311b5208de7a095"
 dependencies = [
  "blake2b_simd",
  "ff",
@@ -1423,10 +1390,9 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.2.0"
-source = "git+https://github.com/scroll-tech/poseidon.git?branch=scroll-dev-0220#2fb4a2385bada39b50dce12fe50cb80d2fd33476"
+source = "git+https://github.com/privacy-scaling-explorations/poseidon.git?tag=v2023_04_20#807f8f555313f726ca03bdf941f798098f488ba4"
 dependencies = [
- "group",
- "halo2curves 0.3.1 (git+https://github.com/privacy-scaling-explorations/halo2curves.git?tag=0.3.1)",
+ "halo2curves",
  "subtle",
 ]
 
@@ -1733,9 +1699,6 @@ name = "serde"
 version = "1.0.136"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce31e24b01e1e524df96f1c2fdd054405f8d7376249a5110886fb4b658484789"
-dependencies = [
- "serde_derive",
-]
 
 [[package]]
 name = "serde_cbor"
@@ -1807,6 +1770,12 @@ name = "smallvec"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
+
+[[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "stable_deref_trait"

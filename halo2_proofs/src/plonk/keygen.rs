@@ -424,6 +424,7 @@ where
     C: CurveAffine,
     P: Params<'params, C>,
     ConcreteCircuit: Circuit<C::Scalar>,
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     keygen_pk_impl(params, None, circuit)
 }
@@ -438,6 +439,7 @@ where
     C: CurveAffine,
     P: Params<'params, C>,
     ConcreteCircuit: Circuit<C::Scalar>,
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     keygen_pk_impl(params, Some(vk), circuit)
 }
@@ -452,6 +454,7 @@ where
     C: CurveAffine,
     P: Params<'params, C>,
     ConcreteCircuit: Circuit<C::Scalar>,
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     let (domain, cs, config) = create_domain::<C, ConcreteCircuit>(params.k());
 

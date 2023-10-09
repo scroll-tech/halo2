@@ -86,7 +86,7 @@ pub(super) fn load<'a, F: Field, T: ColumnType, Q: Into<AnyQuery> + Copy>(
 }
 */
 
-pub(super) fn load_slice<'a, F: FieldExt, T: ColumnType, Q: Into<AnyQuery> + Copy>(
+pub(super) fn load_slice<'a, F: Field, T: ColumnType, Q: Into<AnyQuery> + Copy>(
     n: i32,
     row: i32,
     queries: &'a [(Column<T>, Rotation)],

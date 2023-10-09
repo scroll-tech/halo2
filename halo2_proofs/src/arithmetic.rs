@@ -263,7 +263,7 @@ fn serial_split_fft<Scalar: Field, G: FftGroup<Scalar>>(
 
         let mut k = 0;
         while k < n {
-            let mut w = G::Scalar::ONE;
+            let mut w = Scalar::ONE;
             for j in 0..m {
                 let mut t = a[(k + j + m) as usize];
                 t *= &w;
@@ -293,10 +293,15 @@ fn split_radix_fft<Scalar: Field, G: FftGroup<Scalar>>(
 
     // we use out-place bitreverse here, split_m <= num_threads, so the buffer spase is small
     // and it's is good for data locality
-    let mut t1 = vec![G::Scalar::ZERO; split_m];
+    // COPY `a` to init temp buffer,
+    // it's a workaround for G: FftGroup,
+    // used to be: vec![G::identity; split_m];
+    // let mut t1 = a.clone();
     // if unsafe code is allowed, a 10% performance improvement can be achieved
-    // let mut t1: Vec<G> = Vec::with_capacity(split_m as usize);
-    // unsafe{ t1.set_len(split_m as usize); }
+    let mut t1: Vec<G> = Vec::with_capacity(split_m as usize);
+    unsafe {
+        t1.set_len(split_m as usize);
+    }
     for i in 0..split_m {
         t1[bitreverse(i, log_split)] = a[(i * sub_n + sub_fft_offset)];
     }
@@ -310,7 +315,7 @@ fn split_radix_fft<Scalar: Field, G: FftGroup<Scalar>>(
     if high_idx > 0 {
         omega = omega * twiddle_lut[(1 << sparse_degree) + high_idx];
     }
-    let mut w_m = G::Scalar::ONE;
+    let mut w_m = Scalar::ONE;
     for i in 0..split_m {
         t1[i] *= &w_m;
         tmp[i] = t1[i];
@@ -329,7 +334,7 @@ pub fn generate_twiddle_lookup_table<F: Field>(
 
     // dense
     if is_lut_len_large {
-        let mut twiddle_lut = vec![F::zero(); (1 << log_n) as usize];
+        let mut twiddle_lut = vec![F::ZERO; (1 << log_n) as usize];
         parallelize(&mut twiddle_lut, |twiddle_lut, start| {
             let mut w_n = omega.pow_vartime([start as u64, 0, 0, 0]);
             for twiddle_lut in twiddle_lut.iter_mut() {
@@ -343,7 +348,7 @@ pub fn generate_twiddle_lookup_table<F: Field>(
     // sparse
     let low_degree_lut_len = 1 << sparse_degree;
     let high_degree_lut_len = 1 << (log_n - sparse_degree - without_last_level as u32);
-    let mut twiddle_lut = vec![F::zero(); (low_degree_lut_len + high_degree_lut_len) as usize];
+    let mut twiddle_lut = vec![F::ZERO; (low_degree_lut_len + high_degree_lut_len) as usize];
     parallelize(
         &mut twiddle_lut[..low_degree_lut_len],
         |twiddle_lut, start| {
@@ -378,10 +383,15 @@ pub fn parallel_fft<Scalar: Field, G: FftGroup<Scalar>>(a: &mut [G], omega: Scal
     let twiddle_lut = generate_twiddle_lookup_table(omega, log_n, SPARSE_TWIDDLE_DEGREE, true);
 
     // split fft
-    let mut tmp = vec![G::Scalar::ZERO; n];
+    // COPY `a` to init temp buffer,
+    // it's a workaround for G: FftGroup,
+    // used to be: vec![G::identity; n];
+    // let mut tmp = a.clone();
     // if unsafe code is allowed, a 10% performance improvement can be achieved
-    // let mut tmp: Vec<G> = Vec::with_capacity(n);
-    // unsafe{ tmp.set_len(n); }
+    let mut tmp: Vec<G> = Vec::with_capacity(n);
+    unsafe {
+        tmp.set_len(n);
+    }
     multicore::scope(|scope| {
         let a = &*a;
         let twiddle_lut = &*twiddle_lut;

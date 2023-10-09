@@ -466,7 +466,7 @@ where
                     //*cell = C::Scalar::one();
                     //}
                     let idx = advice_values.len() - 1;
-                    advice_values[idx] = Scheme::Scalar::one();
+                    advice_values[idx] = Scheme::Scalar::ONE;
                 }
 
                 // Compute commitments to advice column polynomials

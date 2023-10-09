@@ -1,8 +1,7 @@
 use super::{Challenge255, EncodedChallenge, Transcript, TranscriptRead, TranscriptWrite};
 use crate::helpers::base_to_scalar;
-use ff::Field;
-use group::ff::PrimeField;
-use halo2curves::{Coordinates, CurveAffine, FieldExt};
+use group::ff::{FromUniformBytes, PrimeField};
+use halo2curves::{Coordinates, CurveAffine};
 use num_bigint::BigUint;
 use poseidon::Poseidon;
 use std::convert::TryInto;
@@ -15,13 +14,16 @@ const POSEIDON_T: usize = POSEIDON_RATE + 1usize;
 /// TODO
 #[derive(Debug, Clone)]
 pub struct PoseidonRead<R: Read, C: CurveAffine, E: EncodedChallenge<C>> {
-    state: Poseidon<C::ScalarExt, POSEIDON_T, POSEIDON_RATE>,
+    state: Poseidon<C::Scalar, POSEIDON_T, POSEIDON_RATE>,
     reader: R,
     _marker: PhantomData<(C, E)>,
 }
 
 /// TODO
-impl<R: Read, C: CurveAffine, E: EncodedChallenge<C>> PoseidonRead<R, C, E> {
+impl<R: Read, C: CurveAffine, E: EncodedChallenge<C>> PoseidonRead<R, C, E>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
+{
     /// Initialize a transcript given an input buffer.
     pub fn init(reader: R) -> Self {
         PoseidonRead {
@@ -34,6 +36,8 @@ impl<R: Read, C: CurveAffine, E: EncodedChallenge<C>> PoseidonRead<R, C, E> {
 
 impl<R: Read, C: CurveAffine> TranscriptRead<C, Challenge255<C>>
     for PoseidonRead<R, C, Challenge255<C>>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     fn read_point(&mut self) -> io::Result<C> {
         let mut compressed = C::Repr::default();
@@ -64,8 +68,9 @@ impl<R: Read, C: CurveAffine> TranscriptRead<C, Challenge255<C>>
     }
 }
 
-impl<R: Read, C: CurveAffine> Transcript<C, Challenge255<C>>
-    for PoseidonRead<R, C, Challenge255<C>>
+impl<R: Read, C: CurveAffine> Transcript<C, Challenge255<C>> for PoseidonRead<R, C, Challenge255<C>>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     fn squeeze_challenge(&mut self) -> Challenge255<C> {
         //self.state.update(&[PREFIX_SQUEEZE]);
@@ -101,12 +106,15 @@ impl<R: Read, C: CurveAffine> Transcript<C, Challenge255<C>>
 /// TODO
 #[derive(Debug, Clone)]
 pub struct PoseidonWrite<W: Write, C: CurveAffine, E: EncodedChallenge<C>> {
-    state: Poseidon<C::ScalarExt, POSEIDON_T, POSEIDON_RATE>,
+    state: Poseidon<C::Scalar, POSEIDON_T, POSEIDON_RATE>,
     writer: W,
     _marker: PhantomData<(C, E)>,
 }
 
-impl<W: Write, C: CurveAffine, E: EncodedChallenge<C>> PoseidonWrite<W, C, E> {
+impl<W: Write, C: CurveAffine, E: EncodedChallenge<C>> PoseidonWrite<W, C, E>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
+{
     /// Initialize a transcript given an output buffer.
     pub fn init(writer: W) -> Self {
         PoseidonWrite {
@@ -125,6 +133,8 @@ impl<W: Write, C: CurveAffine, E: EncodedChallenge<C>> PoseidonWrite<W, C, E> {
 
 impl<W: Write, C: CurveAffine> TranscriptWrite<C, Challenge255<C>>
     for PoseidonWrite<W, C, Challenge255<C>>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     fn write_point(&mut self, point: C) -> io::Result<()> {
         self.common_point(point)?;
@@ -140,6 +150,8 @@ impl<W: Write, C: CurveAffine> TranscriptWrite<C, Challenge255<C>>
 
 impl<W: Write, C: CurveAffine> Transcript<C, Challenge255<C>>
     for PoseidonWrite<W, C, Challenge255<C>>
+where
+    <C as CurveAffine>::ScalarExt: FromUniformBytes<64>,
 {
     fn squeeze_challenge(&mut self) -> Challenge255<C> {
         //self.state.update(&[PREFIX_SQUEEZE]);

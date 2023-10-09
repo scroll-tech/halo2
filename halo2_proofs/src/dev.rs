@@ -97,7 +97,7 @@ impl Region {
 }
 
 /// The value of a particular cell within the circuit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq)]
 pub enum CellValue<F: Field> {
     /// An unassigned cell.
     Unassigned,
@@ -110,7 +110,7 @@ pub enum CellValue<F: Field> {
     Poison(usize),
 }
 
-impl<F: Group + Field> PartialEq for CellValue<F> {
+impl<F: Field> PartialEq for CellValue<F> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Unassigned, Self::Unassigned) => true,

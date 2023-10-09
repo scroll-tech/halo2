@@ -50,10 +50,10 @@ impl<C: CurveAffine> Argument<C> {
         transcript: &mut T,
     ) -> Result<Committed<C>, Error> {
         // Sample a random polynomial of degree n - 1
-        let random_poly = domain.constant_lagrange(C::Scalar::one());
+        let random_poly = domain.constant_lagrange(C::Scalar::ONE);
         let random_poly = domain.lagrange_to_coeff(random_poly);
         // Sample a random blinding factor
-        let random_blind = Blind(C::Scalar::zero());
+        let random_blind = Blind(C::Scalar::ZERO);
         let c = params.commit(&random_poly, random_blind).to_affine();
         // We write the identity point to the transcript which
         // is the commitment of the zero polynomial.

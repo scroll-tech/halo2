@@ -458,7 +458,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         parallelize(a, |a, index| {
             let mut c_power = c.pow_vartime(&[index as u64, 0, 0, 0]);
             for a in a {
-                a = a * (&c_power);
+                *a = *a * (&c_power);
                 c_power = c_power * c;
             }
         });
@@ -654,7 +654,7 @@ fn test_l_i() {
         points.push(domain.omega.pow(&[i, 0, 0, 0]));
     }
     for i in 0..8 {
-        let mut l_i = vec![Scalar::zero(); 8];
+        let mut l_i = vec![Scalar::ZERO; 8];
         l_i[i] = Scalar::ONE;
         let l_i = lagrange_interpolate(&points[..], &l_i[..]);
         l.push(l_i);
