@@ -180,6 +180,22 @@ impl<F: Field, L: Layouter<F>> Layouter<F> for TracingLayouter<F, L> {
         })
     }
 
+    #[cfg(feature = "parallel_syn")]
+    fn assign_regions<A, AR, N, NR>(
+        &mut self,
+        _name: N,
+        _assignments: Vec<A>,
+    ) -> Result<Vec<AR>, Error>
+    where
+        A: FnMut(Region<'_, F>) -> Result<AR, Error> + Send,
+        AR: Send,
+        N: Fn() -> NR,
+        NR: Into<String>,
+    {
+        // todo
+        unimplemented!()
+    }
+
     fn assign_table<A, N, NR>(&mut self, name: N, assignment: A) -> Result<(), Error>
     where
         A: FnMut(Table<'_, F>) -> Result<(), Error>,

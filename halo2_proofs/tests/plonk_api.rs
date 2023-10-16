@@ -407,25 +407,25 @@ fn plonk_api() {
                                     || "a",
                                     cs.config.sa,
                                     i,
-                                    || Value::known(F::one()),
+                                    || Value::known(F::ONE),
                                 )?;
                                 region.assign_fixed(
                                     || "b",
                                     cs.config.sb,
                                     i,
-                                    || Value::known(F::one()),
+                                    || Value::known(F::ONE),
                                 )?;
                                 region.assign_fixed(
                                     || "c",
                                     cs.config.sc,
                                     i,
-                                    || Value::known(F::one()),
+                                    || Value::known(F::ONE),
                                 )?;
                                 region.assign_fixed(
                                     || "a * b",
                                     cs.config.sm,
                                     i,
-                                    || Value::known(F::zero()),
+                                    || Value::known(F::ZERO),
                                 )?;
 
                                 region.constrain_equal(a0.cell(), a1.cell())?;
