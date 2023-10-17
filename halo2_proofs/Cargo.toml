@@ -90,6 +90,7 @@ gwc = []
 parallel_syn = []
 phase-check = []
 profile = ["ark-std/print-trace"]
+mock-batch-inv = []
 
 [lib]
 bench = false

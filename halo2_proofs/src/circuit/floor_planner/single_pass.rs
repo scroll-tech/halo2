@@ -252,7 +252,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         // Do actual synthesis of sub-regions in parallel
         let cs_fork_time = Instant::now();
         let mut sub_cs = self.cs.fork(&ranges)?;
-        log::info!(
+        log::debug!(
             "CS forked into {} subCS took {:?}",
             sub_cs.len(),
             cs_fork_time.elapsed()
@@ -274,7 +274,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
                 let result = assignment(region_ref.into());
                 let constant = region.constants.clone();
                 sub_layouter.cs.exit_region();
-                log::info!(
+                log::debug!(
                     "region {} 2nd pass synthesis took {:?}",
                     region_name,
                     sub_region_2nd_pass.elapsed()
@@ -285,12 +285,12 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         let cs_merge_time = Instant::now();
         let num_sub_cs = sub_cs.len();
         self.cs.merge(sub_cs)?;
-        log::info!(
+        log::debug!(
             "Merge {} subCS back took {:?}",
             num_sub_cs,
             cs_merge_time.elapsed()
         );
-        log::info!(
+        log::debug!(
             "{} sub_regions of {} 2nd pass synthesis took {:?}",
             ranges.len(),
             region_name,
