@@ -6,6 +6,8 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+
 use ff::Field;
 
 use ark_std::{end_timer, start_timer};
@@ -215,7 +217,6 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> Layouter<F> for SingleChipLayouter<'a
         N: Fn() -> NR,
         NR: Into<String>,
     {
-        use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
         let region_index = self.regions.len();
         let region_name: String = name().into();
         // Get region shapes sequentially

@@ -3,6 +3,8 @@
 
 // use assert_matches::assert_matches;
 use halo2_proofs::arithmetic::{Field, FieldExt};
+#[cfg(feature = "parallel_syn")]
+use halo2_proofs::circuit::Region;
 use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::plonk::{
@@ -692,7 +694,7 @@ fn plonk_api_with_many_subregions() {
             #[cfg(feature = "parallel_syn")]
             layouter.assign_regions(
                 || "regions",
-                (0..(1 << 15))
+                (0..(1 << 14))
                     .into_iter()
                     .map(|_| {
                         let mut is_first_pass = true;
@@ -701,6 +703,7 @@ fn plonk_api_with_many_subregions() {
                             for i in 0..n {
                                 // skip the assign of rows except the last row in the first pass
                                 if is_first_pass && i < n - 1 {
+                                    is_first_pass = false;
                                     continue;
                                 }
                                 let a0 =
@@ -830,6 +833,7 @@ fn plonk_api_with_many_subregions() {
     type Scheme = KZGCommitmentScheme<Bn256>;
     // bad_keys!(Scheme);
 
+    env_logger::try_init().unwrap();
     let (a, instance, lookup_table) = common!(Scheme);
 
     let circuit: MyCircuit<<Scheme as CommitmentScheme>::Scalar> = MyCircuit {
