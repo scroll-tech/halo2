@@ -5,7 +5,7 @@ use std::fmt::{self, Debug};
 pub(crate) mod prover;
 pub(crate) mod verifier;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Argument<F: Field> {
     pub name: &'static str,
     pub input_expressions: Vec<Expression<F>>,
