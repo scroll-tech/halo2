@@ -781,11 +781,13 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         #[cfg(feature = "mock-batch-inv")]
         let assigned = CellValue::from(val_res?);
 
-        *self
-            .advice
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row))
-            .ok_or(Error::BoundsFailure)? = assigned;
+        if self.in_phase(column.column_type().phase) {
+            *self
+                .advice
+                .get_mut(column.index())
+                .and_then(|v| v.get_mut(row - self.rw_rows.start))
+                .expect("bounds failure") = assigned;
+        }
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
