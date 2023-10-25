@@ -75,6 +75,16 @@ impl Assembly {
         if left_row >= self.mapping[left_column].len()
             || right_row >= self.mapping[right_column].len()
         {
+            log::error!(
+                "BoundsFailure: left_row: {}, right_row: {}",
+                left_row,
+                right_row
+            );
+            log::error!(
+                "BoundsFailure: left_max: {}, right_max: {}",
+                self.mapping[left_column].len(),
+                self.mapping[right_column].len()
+            );
             return Err(Error::BoundsFailure);
         }
 

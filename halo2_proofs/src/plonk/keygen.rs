@@ -241,7 +241,7 @@ impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
             .fixed
             .get_mut(column.index())
             .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = to().into_field().assign()?;
+            .expect("bounds failure") = to().into_field().assign()?;
 
         Ok(())
     }
@@ -285,10 +285,7 @@ impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
             return Err(Error::not_enough_rows_available(self.k));
         }
 
-        let col = self
-            .fixed
-            .get_mut(column.index())
-            .ok_or(Error::BoundsFailure)?;
+        let col = self.fixed.get_mut(column.index()).expect("bounds failure");
 
         let filler = to.assign()?;
         for row in self.usable_rows.clone().skip(from_row) {

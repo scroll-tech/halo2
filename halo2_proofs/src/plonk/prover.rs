@@ -261,11 +261,13 @@ where
                 return Err(Error::not_enough_rows_available(self.k));
             }
 
-            self.instances
+            Ok(self
+                .instances
                 .get(column.index())
                 .and_then(|column| column.get(row))
                 .map(|v| Value::known(*v))
                 .ok_or(Error::BoundsFailure)
+                .expect("bound failure"))
         }
 
         fn assign_advice<V, VR, A, AR>(
@@ -299,7 +301,7 @@ where
                 .advice
                 .get_mut(column.index())
                 .and_then(|v| v.get_mut(row - self.rw_rows.start))
-                .ok_or(Error::BoundsFailure)? = to().into_field().assign()?;
+                .expect("bounds failure") = to().into_field().assign()?;
 
             Ok(())
         }
