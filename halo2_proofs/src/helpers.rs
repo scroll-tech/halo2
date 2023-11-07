@@ -1,6 +1,6 @@
 use crate::plonk::{Any, Column};
 use crate::poly::Polynomial;
-use ff::{Field, FromUniformBytes, PrimeField};
+use ff::{FromUniformBytes, PrimeField};
 use halo2curves::{serde::SerdeObject, CurveAffine};
 use num_bigint::BigUint;
 use std::io;
@@ -88,6 +88,7 @@ macro_rules! two_dim_vec_to_vec_of_slice {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ff::Field;
     use halo2curves::bn256::{Fq, G1Affine};
     use rand_core::OsRng;
     #[test]

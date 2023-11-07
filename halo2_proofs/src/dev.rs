@@ -5,12 +5,11 @@ use std::collections::HashSet;
 use std::iter;
 use std::ops::{Add, Mul, Neg, Range};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use blake2b_simd::blake2b;
+use ff::Field;
 use ff::FromUniformBytes;
-use ff::{BatchInvert, Field};
-use group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::{
@@ -48,7 +47,7 @@ pub use tfp::TracingFloorPlanner;
 
 #[cfg(feature = "dev-graph")]
 mod graph;
-
+#[cfg(feature = "dev-graph")]
 use crate::circuit::Cell;
 use crate::helpers::CopyCell;
 #[cfg(feature = "dev-graph")]

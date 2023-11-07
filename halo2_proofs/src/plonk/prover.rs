@@ -394,7 +394,7 @@ where
                 })
                 .collect::<BTreeSet<_>>();
 
-            for (circuit_idx, ((circuit, advice), instances)) in circuits
+            for (_circuit_idx, ((circuit, advice), instances)) in circuits
                 .iter()
                 .zip(advice.iter_mut())
                 .zip(instances)
@@ -433,7 +433,7 @@ where
                 {
                     for (idx, advice_col) in witness.advice_vec.iter().enumerate() {
                         if pk.vk.cs.advice_column_phase[idx].0 < current_phase.0
-                            && advice_assignments[circuit_idx][idx].values != advice_col.values
+                            && advice_assignments[_circuit_idx][idx].values != advice_col.values
                         {
                             log::error!(
                                 "advice column {}(at {:?}) changed when {:?}",
@@ -454,7 +454,7 @@ where
                             if column_indices.contains(&column_index) {
                                 #[cfg(feature = "phase-check")]
                                 {
-                                    advice_assignments[circuit_idx][column_index] = advice.clone();
+                                    advice_assignments[_circuit_idx][column_index] = advice.clone();
                                 }
                                 Some(advice)
                             } else {

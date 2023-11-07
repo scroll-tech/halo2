@@ -1,10 +1,9 @@
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::op_ref)]
 
-// use assert_matches::assert_matches;
 use ff::{FromUniformBytes, WithSmallOrderMulGroup};
 use halo2_proofs::arithmetic::Field;
-use halo2_proofs::circuit::{Cell, Layouter, Region, SimpleFloorPlanner, Value};
+use halo2_proofs::circuit::{Cell, Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::plonk::{
     create_proof as create_plonk_proof, keygen_pk, keygen_vk, verify_proof as verify_plonk_proof,
@@ -21,6 +20,10 @@ use halo2_proofs::transcript::{
 use rand_core::{OsRng, RngCore};
 use std::marker::PhantomData;
 use std::time::Instant;
+
+
+#[cfg(feature = "parallel_syn")]
+use halo2_proofs::circuit::Region;
 
 #[test]
 fn plonk_api() {
@@ -372,10 +375,13 @@ fn plonk_api() {
             mut layouter: impl Layouter<F>,
         ) -> Result<(), Error> {
             let cs = StandardPlonk::new(config);
+
+            #[cfg(feature = "parallel_syn")]
             let mut is_first_pass_vec = vec![true; 8];
 
             let _ = cs.public_input(&mut layouter, || Value::known(F::ONE + F::ONE))?;
 
+            #[cfg(feature = "parallel_syn")]
             let a: Value<Assigned<_>> = self.a.into();
             let parallel_regions_time = Instant::now();
             #[cfg(feature = "parallel_syn")]
