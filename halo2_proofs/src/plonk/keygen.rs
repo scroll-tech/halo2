@@ -186,6 +186,26 @@ impl<'a, F: Field> Assignment<F> for Assembly<'a, F> {
         Ok(())
     }
 
+    fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
+        // We only care about fixed columns here
+        Ok(F::zero())
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+        if !self.rw_rows.contains(&row) {
+            log::error!("query_fixed: {:?}, row: {}", column, row);
+            return Err(Error::Synthesis);
+        }
+        self.fixed
+            .get(column.index())
+            .and_then(|v| v.get(row - self.rw_rows.start))
+            .map(|v| v.evaluate())
+            .ok_or(Error::BoundsFailure)
+    }
+
     fn query_instance(&self, _: Column<Instance>, row: usize) -> Result<Value<F>, Error> {
         if !self.usable_rows.contains(&row) {
             return Err(Error::not_enough_rows_available(self.k));

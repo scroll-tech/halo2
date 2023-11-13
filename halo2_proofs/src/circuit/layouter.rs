@@ -58,6 +58,12 @@ pub trait RegionLayouter<F: Field>: fmt::Debug {
         column: Column<Any>,
     );
 
+    /// Get the last assigned value of an advice cell.
+    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error>;
+
+    /// Get the last assigned value of a fixed cell.
+    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error>;
+
     /// Assign an advice column value (witness)
     fn assign_advice<'v>(
         &'v mut self,
@@ -220,6 +226,14 @@ impl<F: Field> RegionLayouter<F> for RegionShape {
         self.columns.insert((*selector).into());
         self.row_count = cmp::max(self.row_count, offset + 1);
         Ok(())
+    }
+
+    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+        Ok(F::zero())
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+        Ok(F::zero())
     }
 
     fn assign_advice<'v>(

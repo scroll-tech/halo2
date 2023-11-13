@@ -427,6 +427,18 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a> RegionLayouter<F> for V1Region<'r
         )
     }
 
+    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+        self.plan
+            .cs
+            .query_advice(column, *self.plan.regions[*self.region_index] + offset)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+        self.plan
+            .cs
+            .query_fixed(column, *self.plan.regions[*self.region_index] + offset)
+    }
+
     fn assign_advice<'v>(
         &'v mut self,
         annotation: &'v (dyn Fn() -> String + 'v),

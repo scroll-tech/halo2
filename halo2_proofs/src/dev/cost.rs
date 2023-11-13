@@ -78,6 +78,14 @@ impl<F: Field> Assignment<F> for Assembly {
         todo!()
     }
 
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+        Ok(F::zero())
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+        Ok(F::zero())
+    }
+
     fn query_instance(&self, _: Column<Instance>, _: usize) -> Result<Value<F>, Error> {
         Ok(Value::unknown())
     }

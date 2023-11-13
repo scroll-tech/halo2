@@ -32,7 +32,6 @@ pub struct Column<C: ColumnType> {
 }
 
 impl<C: ColumnType> Column<C> {
-    #[cfg(test)]
     pub(crate) fn new(index: usize, column_type: C) -> Self {
         Column { index, column_type }
     }
@@ -409,6 +408,10 @@ impl FixedQuery {
     pub fn column_index(&self) -> usize {
         self.column_index
     }
+    /// Column
+    pub fn column(&self) -> Column<Fixed> {
+        Column::new(self.column_index, Fixed)
+    }
 
     /// Rotation of this query
     pub fn rotation(&self) -> Rotation {
@@ -437,6 +440,10 @@ impl AdviceQuery {
     /// Column index
     pub fn column_index(&self) -> usize {
         self.column_index
+    }
+    /// Column
+    pub fn column(&self) -> Column<Advice> {
+        Column::new(self.column_index, Advice { phase: self.phase })
     }
 
     /// Rotation of this query
@@ -576,6 +583,12 @@ pub trait Assignment<F: Field>: Sized + Send {
     fn merge(&mut self, _sub_cs: Vec<Self>) -> Result<(), Error> {
         unimplemented!("merge is not implemented by default")
     }
+
+    /// Get the last assigned value of an advice cell.
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error>;
+
+    /// Get the last assigned value of a fixed cell.
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error>;
 
     /// Queries the cell of an instance column at a particular absolute row.
     ///

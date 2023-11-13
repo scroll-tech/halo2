@@ -651,6 +651,56 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
         Ok(())
     }
 
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+        if !self.rw_rows.contains(&row) {
+            return Err(Error::InvalidRange(
+                row,
+                self.current_region
+                    .as_ref()
+                    .map(|region| region.name.clone())
+                    .unwrap(),
+            ));
+        }
+        self.advice
+            .get(column.index())
+            .and_then(|v| v.get(row - self.rw_rows.start))
+            .map(|v| match v {
+                CellValue::Assigned(f) => *f,
+                #[cfg(feature = "mock-batch-inv")]
+                CellValue::Rational(n, d) => n * d.invert().unwrap_or_default(),
+                _ => F::zero(),
+            })
+            .ok_or(Error::BoundsFailure)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+        if !self.rw_rows.contains(&row) {
+            return Err(Error::InvalidRange(
+                row,
+                self.current_region
+                    .as_ref()
+                    .map(|region| region.name.clone())
+                    .unwrap(),
+            ));
+        }
+        self.fixed
+            .get(column.index())
+            .and_then(|v| v.get(row - self.rw_rows.start))
+            .map(|v| match v {
+                CellValue::Assigned(f) => *f,
+                #[cfg(feature = "mock-batch-inv")]
+                CellValue::Rational(n, d) => n * d.invert().unwrap_or_default(),
+                _ => F::zero(),
+            })
+            .ok_or(Error::BoundsFailure)
+    }
+
     fn query_instance(
         &self,
         column: Column<Instance>,
