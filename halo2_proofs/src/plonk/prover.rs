@@ -268,11 +268,7 @@ pub fn create_proof<
                 .ok_or(Error::BoundsFailure)
         }
 
-        fn query_fixed(
-            &self,
-            column: Column<Fixed>,
-            row: usize,
-        ) -> Result<F, Error> {
+        fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
             self.fixed_values
                 .get(column.index())
                 .and_then(|v| v.get(row))

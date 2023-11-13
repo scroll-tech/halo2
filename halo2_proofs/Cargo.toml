@@ -67,11 +67,11 @@ log = "0.4.17"
 
 # timer
 ark-std = { version = "0.3.0" }
-env_logger = "0.8.0"
 
 [dev-dependencies]
 assert_matches = "1.5"
 criterion = "0.3"
+env_logger = "0.8.0"
 gumdrop = "0.8"
 proptest = "1"
 rand_core = { version = "0.6", default-features = false, features = ["getrandom"] }
