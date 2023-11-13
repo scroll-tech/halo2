@@ -96,6 +96,9 @@ test-dev-graph = [
 gadget-traces = ["backtrace"]
 thread-safe-region = []
 sanity-checks = []
+# with this flag, the mock prover will perform checks for every phase
+# this is a very strict check and may cause existing circuit panic
+mock-prover-phase-check = []
 batch = ["rand_core/getrandom"]
 shplonk = []
 gwc = []

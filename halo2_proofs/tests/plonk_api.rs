@@ -21,7 +21,6 @@ use rand_core::{OsRng, RngCore};
 use std::marker::PhantomData;
 use std::time::Instant;
 
-
 #[cfg(feature = "parallel_syn")]
 use halo2_proofs::circuit::Region;
 

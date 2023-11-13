@@ -6,8 +6,6 @@ use std::marker::PhantomData;
 use ark_std::{end_timer, start_timer};
 use ff::Field;
 
-
-
 use crate::{
     circuit::{
         layouter::{RegionColumn, RegionLayouter, RegionShape, SyncDeps, TableLayouter},
