@@ -78,11 +78,11 @@ impl<F: Field> Assignment<F> for Assembly {
         todo!()
     }
 
-    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+    fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
         Ok(F::zero())
     }
 
-    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+    fn query_fixed(&self, _column: Column<Fixed>, _row: usize) -> Result<F, Error> {
         Ok(F::zero())
     }
 

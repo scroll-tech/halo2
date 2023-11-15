@@ -440,6 +440,14 @@ impl<F: Field> Assignment<F> for Layout {
         todo!()
     }
 
+    fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
+        Ok(F::zero())
+    }
+
+    fn query_fixed(&self, _column: Column<Fixed>, _row: usize) -> Result<F, Error> {
+        Ok(F::zero())
+    }
+
     fn query_instance(&self, _: Column<Instance>, _: usize) -> Result<Value<F>, Error> {
         Ok(Value::unknown())
     }

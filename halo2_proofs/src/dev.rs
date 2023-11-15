@@ -670,7 +670,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
             .map(|v| match v {
                 CellValue::Assigned(f) => *f,
                 #[cfg(feature = "mock-batch-inv")]
-                CellValue::Rational(n, d) => n * d.invert().unwrap_or_default(),
+                CellValue::Rational(n, d) => *n * d.invert().unwrap_or(F::zero()),
                 _ => F::zero(),
             })
             .ok_or(Error::BoundsFailure)
@@ -695,7 +695,7 @@ impl<'a, F: Field + Group> Assignment<F> for MockProver<'a, F> {
             .map(|v| match v {
                 CellValue::Assigned(f) => *f,
                 #[cfg(feature = "mock-batch-inv")]
-                CellValue::Rational(n, d) => n * d.invert().unwrap_or_default(),
+                CellValue::Rational(n, d) => *n * d.invert().unwrap_or(F::zero()),
                 _ => F::zero(),
             })
             .ok_or(Error::BoundsFailure)

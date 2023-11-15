@@ -230,7 +230,7 @@ pub fn create_proof<
                     advice,
                     challenges: self.challenges,
                     instances: self.instances,
-                    fixed_values: self.fixed_values.clone(),
+                    fixed_values: self.fixed_values,
                     rw_rows: sub_range.clone(),
                     usable_rows: self.usable_rows,
                     _marker: Default::default(),
@@ -272,7 +272,7 @@ pub fn create_proof<
             self.fixed_values
                 .get(column.index())
                 .and_then(|v| v.get(row))
-                .map(|v| *v)
+                .copied()
                 .ok_or(Error::BoundsFailure)
         }
 

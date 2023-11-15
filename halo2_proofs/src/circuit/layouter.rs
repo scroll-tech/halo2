@@ -228,11 +228,11 @@ impl<F: Field> RegionLayouter<F> for RegionShape {
         Ok(())
     }
 
-    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+    fn query_advice(&self, _column: Column<Advice>, _offset: usize) -> Result<F, Error> {
         Ok(F::zero())
     }
 
-    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+    fn query_fixed(&self, _column: Column<Fixed>, _offset: usize) -> Result<F, Error> {
         Ok(F::zero())
     }
 
