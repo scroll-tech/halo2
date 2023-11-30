@@ -156,6 +156,7 @@ impl<F: Field> Subregion2Word<F> {
 
 impl MessageScheduleConfig {
     // W_[14..49]
+    #[allow(clippy::type_complexity)]
     pub fn assign_subregion2<F: Field>(
         &self,
         region: &mut Region<'_, F>,

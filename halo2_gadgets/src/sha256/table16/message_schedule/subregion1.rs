@@ -78,6 +78,7 @@ impl<F: Field> Subregion1Word<F> {
 }
 
 impl MessageScheduleConfig {
+    #[allow(clippy::type_complexity)]
     pub fn assign_subregion1<F: Field>(
         &self,
         region: &mut Region<'_, F>,
@@ -104,6 +105,7 @@ impl MessageScheduleConfig {
     }
 
     /// Pieces of length [3, 4, 11, 14]
+    #[allow(clippy::type_complexity)]
     fn decompose_subregion1_word<F: Field>(
         &self,
         region: &mut Region<'_, F>,

@@ -146,6 +146,7 @@ pub const MSG_SCHEDULE_TEST_OUTPUT: [u32; ROUNDS] = [
 
 impl MessageScheduleConfig {
     // Assign a word and its hi and lo halves
+    #[allow(clippy::type_complexity)]
     pub fn assign_word_and_halves<F: Field>(
         &self,
         region: &mut Region<'_, F>,

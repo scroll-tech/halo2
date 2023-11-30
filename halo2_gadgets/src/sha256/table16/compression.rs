@@ -427,6 +427,7 @@ impl<F: Field> State<F> {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn decompose(
         self,
     ) -> (

@@ -52,7 +52,7 @@ fn bench(name: &str, k: u32, c: &mut Criterion) {
             mut layouter: impl Layouter<pallas::Base>,
         ) -> Result<(), Error> {
             Table16Chip::load(config.clone(), &mut layouter)?;
-            let table16_chip = Table16Chip::construct(config);
+            let table16_chip = Table16Chip::construct::<pallas::Base>(config);
 
             // Test vector: "abc"
             let test_input = [

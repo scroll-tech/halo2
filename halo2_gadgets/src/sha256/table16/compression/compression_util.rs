@@ -941,6 +941,7 @@ impl CompressionConfig {
 }
 
 #[allow(clippy::many_single_char_names)]
+#[allow(clippy::type_complexity)]
 pub fn match_state<F: Field>(
     state: State<F>,
 ) -> (
