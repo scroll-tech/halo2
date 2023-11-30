@@ -15,7 +15,10 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use halo2_gadgets::sha256::{BlockWord, Sha256, Table16Chip, Table16Config, BLOCK_SIZE};
+use halo2_gadgets::sha256::{
+    table16::{BlockWord, Table16Chip, Table16Config},
+    Sha256, BLOCK_SIZE,
+};
 
 use halo2_proofs::{
     poly::{

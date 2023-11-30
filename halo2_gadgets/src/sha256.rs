@@ -12,9 +12,8 @@ use halo2_proofs::{
     plonk::Error,
 };
 
-mod table16;
-
-pub use table16::{BlockWord, Table16Chip, Table16Config};
+/// The core circuit for SHA256
+pub mod table16;
 
 /// The size of a SHA-256 block, in 32-bit words.
 pub const BLOCK_SIZE: usize = 16;

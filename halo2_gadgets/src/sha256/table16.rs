@@ -234,7 +234,8 @@ pub struct Table16Config {
 }
 
 impl Table16Config {
-    pub(crate) fn initialize<F: Field>(
+    /// export initialize of compression module
+    pub fn initialize<F: Field>(
         &self,
         layouter: &mut impl Layouter<F>,
         init_state_assigned: [RoundWordDense<F>; STATE],
@@ -242,7 +243,8 @@ impl Table16Config {
         self.compression.initialize(layouter, init_state_assigned)
     }
 
-    pub(crate) fn compress<F: Field>(
+    /// export compress of compression module
+    pub fn compress<F: Field>(
         &self,
         layouter: &mut impl Layouter<F>,
         initialized_state: State<F>,
@@ -252,7 +254,8 @@ impl Table16Config {
             .compress(layouter, initialized_state, w_halves)
     }
 
-    pub(crate) fn digest<F: Field>(
+    /// export digest of compression module
+    pub fn digest<F: Field>(
         &self,
         layouter: &mut impl Layouter<F>,
         final_state: State<F>,
@@ -262,8 +265,9 @@ impl Table16Config {
             .digest(layouter, final_state, initialized_state)
     }
 
+    /// export message_process module
     #[allow(clippy::type_complexity)]
-    pub(crate) fn message_process<F: Field>(
+    pub fn message_process<F: Field>(
         &self,
         layouter: &mut impl Layouter<F>,
         input: [BlockWord; super::BLOCK_SIZE],
