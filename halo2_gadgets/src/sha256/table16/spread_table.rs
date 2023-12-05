@@ -1,4 +1,4 @@
-use super::{util::*, AssignedBits, Field};
+use super::{util::*, AssignedBits};
 use ff::PrimeField;
 use halo2_proofs::{
     arithmetic::Field,
@@ -65,13 +65,13 @@ impl<const DENSE: usize, const SPREAD: usize> SpreadWord<DENSE, SPREAD> {
 
 /// A variable stored in advice columns corresponding to a row of [`SpreadTableConfig`].
 #[derive(Clone, Debug)]
-pub(super) struct SpreadVar<F: Field, const DENSE: usize, const SPREAD: usize> {
+pub(super) struct SpreadVar<F: PrimeField, const DENSE: usize, const SPREAD: usize> {
     pub tag: Value<u8>,
     pub dense: AssignedBits<F, DENSE>,
     pub spread: AssignedBits<F, SPREAD>,
 }
 
-impl<F: Field, const DENSE: usize, const SPREAD: usize> SpreadVar<F, DENSE, SPREAD> {
+impl<F: PrimeField, const DENSE: usize, const SPREAD: usize> SpreadVar<F, DENSE, SPREAD> {
     pub(super) fn with_lookup(
         region: &mut Region<'_, F>,
         cols: &SpreadInputs,

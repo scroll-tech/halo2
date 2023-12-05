@@ -1,4 +1,4 @@
-use halo2_proofs::arithmetic::FieldExt as Field;
+use halo2_proofs::halo2curves::group::ff::PrimeField as Field;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, Value},
     plonk::{Advice, Any, Assigned, Column, ConstraintSystem, Error},
