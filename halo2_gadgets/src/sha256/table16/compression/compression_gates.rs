@@ -1,6 +1,6 @@
 use super::super::{util::*, Gate};
-use ff::PrimeField;
 use crate::utilities::range_check;
+use ff::PrimeField;
 use halo2_proofs::plonk::{Constraint, Constraints, Expression};
 use std::marker::PhantomData;
 
