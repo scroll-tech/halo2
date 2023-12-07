@@ -1,4 +1,4 @@
-use super::{util::*, AssignedBits, Field};
+use super::{util::*, AssignedBits};
 use ff::PrimeField;
 use halo2_proofs::{
     arithmetic::Field,
