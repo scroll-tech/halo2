@@ -1,7 +1,6 @@
-use super::{util::*, AssignedBits};
+use super::{util::*, AssignedBits, Field};
 use ff::PrimeField;
 use halo2_proofs::{
-    arithmetic::Field,
     circuit::{Chip, Layouter, Region, Value},
     plonk::{Advice, Column, ConstraintSystem, Error, TableColumn},
 };
