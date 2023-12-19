@@ -5,23 +5,27 @@ use std::collections::HashSet;
 use std::iter;
 use std::ops::{Add, Mul, Neg, Range};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use blake2b_simd::blake2b;
+use ff::Field;
 use ff::FromUniformBytes;
-use ff::{BatchInvert, Field};
-use group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::{
     circuit,
     plonk::{
-        permutation,
-        sealed::{self, SealedPhase},
-        Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, ConstraintSystem, Error,
-        Expression, FirstPhase, Fixed, FloorPlanner, Instance, Phase, Selector,
+        permutation, sealed, Advice, Any, Assigned, Assignment, Challenge, Circuit, Column,
+        ConstraintSystem, Error, Expression, Fixed, FloorPlanner, Instance, Selector,
     },
 };
+
+#[cfg(feature = "multiphase-mock-prover")]
+use crate::{plonk::sealed::SealedPhase, plonk::FirstPhase, plonk::Phase};
+#[cfg(feature = "multiphase-mock-prover")]
+use ff::BatchInvert;
+#[cfg(feature = "multiphase-mock-prover")]
+use group::Group;
 
 #[cfg(feature = "multicore")]
 use crate::multicore::{
@@ -49,7 +53,6 @@ pub use tfp::TracingFloorPlanner;
 #[cfg(feature = "dev-graph")]
 mod graph;
 
-use crate::circuit::Cell;
 use crate::helpers::CopyCell;
 #[cfg(feature = "dev-graph")]
 #[cfg_attr(docsrs, doc(cfg(feature = "dev-graph")))]
@@ -478,6 +481,7 @@ impl<F: Field> InstanceValue<F> {
     }
 }
 
+#[cfg(feature = "multiphase-mock-prover")]
 impl<'a, F: Field> MockProver<'a, F> {
     fn in_phase<P: Phase>(&self, phase: P) -> bool {
         self.current_phase == phase.to_sealed()
@@ -490,6 +494,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
+        #[cfg(feature = "multiphase-mock-prover")]
         if !self.in_phase(FirstPhase) {
             return;
         }
@@ -507,6 +512,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
     }
 
     fn exit_region(&mut self) {
+        #[cfg(feature = "multiphase-mock-prover")]
         if !self.in_phase(FirstPhase) {
             return;
         }
@@ -519,6 +525,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+        #[cfg(feature = "multiphase-mock-prover")]
         if !self.in_phase(FirstPhase) {
             return;
         }
@@ -535,17 +542,24 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        if !self.in_phase(FirstPhase) {
-            return Ok(());
+        #[cfg(feature = "multiphase-mock-prover")]
+        {
+            if !self.in_phase(FirstPhase) {
+                return Ok(());
+            }
+            assert!(
+                self.usable_rows.contains(&row),
+                "row={} not in usable_rows={:?}, k={}",
+                row,
+                self.usable_rows,
+                self.k,
+            );
         }
 
-        assert!(
-            self.usable_rows.contains(&row),
-            "row={} not in usable_rows={:?}, k={}",
-            row,
-            self.usable_rows,
-            self.k,
-        );
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
 
         if !self.rw_rows.contains(&row) {
             return Err(Error::InvalidRange(
@@ -700,6 +714,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         column: Column<Instance>,
         row: usize,
     ) -> Result<circuit::Value<F>, Error> {
+        #[cfg(feature = "multiphase-mock-prover")]
         assert!(
             self.usable_rows.contains(&row),
             "row={}, usable_rows={:?}, k={}",
@@ -707,6 +722,11 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
             self.usable_rows,
             self.k,
         );
+
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
 
         Ok(self
             .instance
@@ -734,6 +754,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
             return Ok(());
         }
 
+        #[cfg(feature = "multiphase-mock-prover")]
         if self.in_phase(FirstPhase) {
             assert!(
                 self.usable_rows.contains(&row),
@@ -752,6 +773,11 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
             }
         }
 
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+
         if !self.rw_rows.contains(&row) {
             return Err(Error::InvalidRange(
                 row,
@@ -760,6 +786,16 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
                     .map(|region| region.name.clone())
                     .unwrap(),
             ));
+        }
+
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if let Some(region) = self.current_region.as_mut() {
+            region.update_extent(column.into(), row);
+            region
+                .cells
+                .entry((column.into(), row))
+                .and_modify(|count| *count += 1)
+                .or_default();
         }
 
         let advice_anno = anno().into();
@@ -781,6 +817,7 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         #[cfg(feature = "mock-batch-inv")]
         let assigned = CellValue::from(val_res?);
 
+        #[cfg(feature = "multiphase-mock-prover")]
         if self.in_phase(column.column_type().phase) {
             *self
                 .advice
@@ -788,6 +825,13 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
                 .and_then(|v| v.get_mut(row - self.rw_rows.start))
                 .expect("bounds failure") = assigned;
         }
+
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        *self
+            .advice
+            .get_mut(column.index())
+            .and_then(|v| v.get_mut(row - self.rw_rows.start))
+            .ok_or(Error::BoundsFailure)? = assigned;
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -822,18 +866,25 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        if !self.in_phase(FirstPhase) {
-            return Ok(());
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
         }
 
-        assert!(
-            self.usable_rows.contains(&row),
-            "row={}, usable_rows={:?}, k={}",
-            row,
-            self.usable_rows,
-            self.k,
-        );
+        #[cfg(feature = "multiphase-mock-prover")]
+        {
+            if !self.in_phase(FirstPhase) {
+                return Ok(());
+            }
 
+            assert!(
+                self.usable_rows.contains(&row),
+                "row={}, usable_rows={:?}, k={}",
+                row,
+                self.usable_rows,
+                self.k,
+            );
+        }
         if !self.rw_rows.contains(&row) {
             return Err(Error::InvalidRange(
                 row,
@@ -881,18 +932,26 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         right_column: Column<Any>,
         right_row: usize,
     ) -> Result<(), crate::plonk::Error> {
-        if !self.in_phase(FirstPhase) {
-            return Ok(());
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&left_row) || !self.usable_rows.contains(&right_row) {
+            return Err(Error::not_enough_rows_available(self.k));
         }
 
-        assert!(
-            self.usable_rows.contains(&left_row) && self.usable_rows.contains(&right_row),
-            "left_row={}, right_row={}, usable_rows={:?}, k={}",
-            left_row,
-            right_row,
-            self.usable_rows,
-            self.k,
-        );
+        #[cfg(feature = "multiphase-mock-prover")]
+        {
+            if !self.in_phase(FirstPhase) {
+                return Ok(());
+            }
+
+            assert!(
+                self.usable_rows.contains(&left_row) && self.usable_rows.contains(&right_row),
+                "left_row={}, right_row={}, usable_rows={:?}, k={}",
+                left_row,
+                right_row,
+                self.usable_rows,
+                self.k,
+            );
+        }
 
         match self.permutation.as_mut() {
             Some(permutation) => permutation.copy(left_column, left_row, right_column, right_row),
@@ -921,17 +980,24 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         from_row: usize,
         to: circuit::Value<Assigned<F>>,
     ) -> Result<(), Error> {
-        if !self.in_phase(FirstPhase) {
-            return Ok(());
+        #[cfg(not(feature = "multiphase-mock-prover"))]
+        if !self.usable_rows.contains(&from_row) {
+            return Err(Error::not_enough_rows_available(self.k));
         }
+        #[cfg(feature = "multiphase-mock-prover")]
+        {
+            if !self.in_phase(FirstPhase) {
+                return Ok(());
+            }
 
-        assert!(
-            self.usable_rows.contains(&from_row),
-            "row={}, usable_rows={:?}, k={}",
-            from_row,
-            self.usable_rows,
-            self.k,
-        );
+            assert!(
+                self.usable_rows.contains(&from_row),
+                "row={}, usable_rows={:?}, k={}",
+                from_row,
+                self.usable_rows,
+                self.k,
+            );
+        }
 
         for row in self.usable_rows.clone().skip(from_row) {
             self.assign_fixed(|| "", col, row, || to)?;
@@ -1045,10 +1111,10 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             .collect()
         };
 
-        // #[cfg(feature = "phase-check")]
-        // let current_phase = FirstPhase.to_sealed();
-        // #[cfg(not(feature = "phase-check"))]
-        // let current_phase = crate::plonk::sealed::Phase(cs.max_phase());
+        #[cfg(feature = "phase-check")]
+        let current_phase = FirstPhase.to_sealed();
+        #[cfg(not(feature = "phase-check"))]
+        let current_phase = crate::plonk::sealed::Phase(cs.max_phase());
 
         let mut prover = MockProver {
             k,
@@ -1068,7 +1134,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             permutation: Some(permutation),
             rw_rows: 0..usable_rows,
             usable_rows: 0..usable_rows,
-            current_phase: FirstPhase.to_sealed(),
+            current_phase,
         };
 
         #[cfg(feature = "phase-check")]
@@ -1127,6 +1193,8 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         #[cfg(not(feature = "phase-check"))]
         {
             let syn_time = Instant::now();
+
+            #[cfg(feature = "multiphase-mock-prover")]
             for current_phase in prover.cs.phases() {
                 prover.current_phase = current_phase;
                 ConcreteCircuit::FloorPlanner::synthesize(
@@ -1136,6 +1204,9 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                     constants.clone(),
                 )?;
             }
+
+            #[cfg(not(feature = "multiphase-mock-prover"))]
+            ConcreteCircuit::FloorPlanner::synthesize(&mut prover, circuit, config, constants)?;
             log::info!("MockProver synthesize took {:?}", syn_time.elapsed());
         }
 

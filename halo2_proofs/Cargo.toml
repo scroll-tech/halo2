@@ -84,7 +84,7 @@ rand_core = { version = "0.6", default-features = false, features = ["getrandom"
 getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-default = ["batch", "gwc", "multicore", "parallel_syn"]
+default = ["batch", "gwc", "multicore", "parallel_syn" ]
 multicore = ["maybe-rayon/threads"]
 dev-graph = ["plotters", "tabbycat"]
 test-dev-graph = [
@@ -100,10 +100,13 @@ batch = ["rand_core/getrandom"]
 shplonk = []
 gwc = []
 parallel_syn = []
-phase-check = []
 profile = ["ark-std/print-trace"]
 mock-batch-inv = []
 circuit-params = []
+
+# todo: we have both mutliphase prover and phase check. consider merge them
+phase-check = []
+multiphase-mock-prover = []
 
 [lib]
 bench = false
