@@ -13,7 +13,7 @@ use super::{
         Instance, Selector,
     },
     mv_lookup, permutation, vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX,
-    ChallengeX, ChallengeY, Error, ProvingKey,
+    ChallengeY, Error, ProvingKey,
 };
 
 use crate::{

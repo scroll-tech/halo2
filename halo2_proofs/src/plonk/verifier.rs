@@ -324,20 +324,20 @@ where
                         ))
                         .chain(lookups.iter().zip(vk.cs.lookups.iter()).flat_map(
                             move |(p, argument)| {
-                            p.expressions(
-                                l_0,
-                                l_last,
-                                l_blind,
-                                argument,
-                                theta,
-                                beta,
-                                advice_evals,
-                                fixed_evals,
-                                instance_evals,
-                                challenges,
-                            )
-                        },
-                    ))
+                                p.expressions(
+                                    l_0,
+                                    l_last,
+                                    l_blind,
+                                    argument,
+                                    theta,
+                                    beta,
+                                    advice_evals,
+                                    fixed_evals,
+                                    instance_evals,
+                                    challenges,
+                                )
+                            },
+                        ))
                         .chain(shuffles.iter().zip(vk.cs.shuffles.iter()).flat_map(
                             move |(p, argument)| {
                                 p.expressions(

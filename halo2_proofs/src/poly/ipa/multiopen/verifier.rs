@@ -4,7 +4,6 @@ use ff::Field;
 
 use super::{construct_intermediate_sets, ChallengeX1, ChallengeX2, ChallengeX3, ChallengeX4};
 use crate::arithmetic::{eval_polynomial, lagrange_interpolate, CurveAffine};
-use crate::arithmetic::{eval_polynomial, lagrange_interpolate, CurveAffine};
 use crate::poly::commitment::{Params, Verifier, MSM};
 use crate::poly::ipa::commitment::{IPACommitmentScheme, ParamsIPA, ParamsVerifierIPA};
 use crate::poly::ipa::msm::MSMIPA;

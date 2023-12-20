@@ -1,4 +1,3 @@
-use super::{lookup, permutation, shuffle, Assigned, Error};
 use crate::circuit::layouter::SyncDeps;
 use crate::dev::metadata;
 use crate::{
@@ -6,14 +5,15 @@ use crate::{
     poly::Rotation,
 };
 use core::cmp::max;
+use crate::plonk::shuffle;
 use core::ops::{Add, Mul};
 use ff::Field;
 use sealed::SealedPhase;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 //use std::fmt::Debug;
-use std::iter::{Product, Sum};
 use std::hash::Hasher;
+use std::iter::{Product, Sum};
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::{
@@ -1890,7 +1890,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn lookup_any<S: AsRef<str>>(
         &mut self,
         // FIXME use name in debug messages
-        _name: &'static str,
+        name: &'static str,
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, Expression<F>)>,
     ) {
         let mut cells = VirtualCells::new(self);
@@ -1903,9 +1903,7 @@ impl<F: Field> ConstraintSystem<F> {
             })
             .collect();
         self.lookups
-            .push(lookup::Argument::new(name.as_ref(), table_map));
-
-        index
+            .push(mv_lookup::Argument::new(name.as_ref(), table_map));
     }
 
     /// Add a shuffle argument for some input expressions and table expressions.

@@ -10,7 +10,6 @@ use std::time::Instant;
 use blake2b_simd::blake2b;
 use ff::Field;
 use ff::FromUniformBytes;
-use ff::FromUniformBytes;
 use group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
@@ -1616,7 +1615,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                         assert!(table.binary_search(input).is_err());
 
                                         Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
+                                            name: lookup.name.clone(),
                                             lookup_index,
                                             location: FailureLocation::find_expressions(
                                                 &self.cs,
@@ -2084,7 +2083,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                 .filter_map(move |(input, input_row)| {
                                     if table.binary_search(input).is_err() {
                                         Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
+                                            name: lookup.name.clone(),
                                             lookup_index,
                                             location: FailureLocation::find_expressions(
                                                 &self.cs,

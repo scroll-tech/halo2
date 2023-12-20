@@ -1,4 +1,3 @@
-
 use super::{
     commitment::{KZGCommitmentScheme, ParamsKZG},
     msm::DualMSM,
@@ -10,7 +9,6 @@ use crate::{
         commitment::Verifier,
         strategy::{Guard, VerificationStrategy},
     },
-use ff::{Field, PrimeField};
 };
 use ff::{Field, PrimeField};
 use halo2curves::pairing::{Engine, MultiMillerLoop};

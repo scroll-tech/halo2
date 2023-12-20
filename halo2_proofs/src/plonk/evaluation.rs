@@ -1,5 +1,4 @@
 use crate::multicore;
-use crate::plonk::{lookup, permutation, Any, ProvingKey};
 use crate::plonk::{
     mv_lookup, permutation, AdviceQuery, Any, FixedQuery, InstanceQuery, ProvingKey,
 };
@@ -7,14 +6,12 @@ use crate::poly::Basis;
 use crate::{
     arithmetic::{eval_polynomial, parallelize, CurveAffine},
     poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation},
-    ff::{BatchInvert, Field, PrimeField, WithSmallOrderMulGroup},
-    }
+};
+use group::ff::{BatchInvert, Field, PrimeField, WithSmallOrderMulGroup};
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
 use std::process::exit;
 use std::sync::atomic::fence;
-};
-use group::ff::{Field, PrimeField, WithSmallOrderMulGroup};
 
 use super::{shuffle, ConstraintSystem, Expression};
 
@@ -655,7 +652,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                             &gamma,
                                             &theta,
                                             &y,
-                                    &C::ScalarExt::ZERO,
+                                            &C::ScalarExt::ZERO,
                                             idx,
                                             rot_scale,
                                             isize,

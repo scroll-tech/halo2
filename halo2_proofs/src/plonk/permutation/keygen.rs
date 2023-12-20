@@ -374,7 +374,7 @@ pub(crate) fn build_pk<'params, C: CurveAffine, P: Params<'params, C>>(
                 for v in omega_powers {
                     *v *= &cur;
                 }
-                    cur *= &<C::Scalar as PrimeField>::DELTA;
+                cur *= &<C::Scalar as PrimeField>::DELTA;
             }
         });
     }
@@ -429,7 +429,7 @@ pub(crate) fn build_vk<'params, C: CurveAffine, P: Params<'params, C>>(
     mapping: impl Fn(usize, usize) -> (usize, usize) + Sync,
 ) -> VerifyingKey<C> {
     // Compute [omega^0, omega^1, ..., omega^{params.n - 1}]
-        let mut omega_powers = vec![C::Scalar::ZERO; params.n() as usize];
+    let mut omega_powers = vec![C::Scalar::ZERO; params.n() as usize];
     {
         let omega = domain.get_omega();
         parallelize(&mut omega_powers, |o, start| {

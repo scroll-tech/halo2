@@ -696,8 +696,6 @@ fn plonk_api() {
         transcript.finalize()
     }
 
-        Scheme::Scalar: Ord + WithSmallOrderMulGroup<3> + FromUniformBytes<64>,
-    {
     fn test_plonk_api_gwc() {
         use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
         use halo2_proofs::poly::kzg::multiopen::{ProverGWC, VerifierGWC};

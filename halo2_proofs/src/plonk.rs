@@ -24,8 +24,8 @@ mod evaluation;
 mod keygen;
 #[allow(dead_code)]
 mod lookup;
-pub mod permutation;
 mod mv_lookup;
+pub mod permutation;
 mod shuffle;
 mod vanishing;
 

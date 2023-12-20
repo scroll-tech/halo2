@@ -1,8 +1,8 @@
 use crate::plonk::{Any, Column};
 use crate::poly::Polynomial;
+use ff::Field;
 use ff::{FromUniformBytes, PrimeField};
 use halo2curves::{serde::SerdeObject, CurveAffine};
-use ff::{Field};
 use num_bigint::BigUint;
 use std::io;
 

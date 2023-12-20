@@ -321,11 +321,10 @@ impl CircuitLayout {
         Ok(())
     }
 }
-    fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
-        Ok(F::ZERO)
-    }
+fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
+    Ok(F::ZERO)
+}
 
-    fn query_fixed(&self, _column: Column<Fixed>, _row: usize) -> Result<F, Error> {
-        Ok(F::ZERO)
-    }
-
+fn query_fixed(&self, _column: Column<Fixed>, _row: usize) -> Result<F, Error> {
+    Ok(F::ZERO)
+}
