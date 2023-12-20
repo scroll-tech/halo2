@@ -221,6 +221,16 @@ impl<'r, F: Field> Region<'r, F> {
             .name_column(&|| annotation().into(), column.into());
     }
 
+    /// Get the last assigned value of an advice cell.
+    pub fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+        self.region.query_advice(column, offset)
+    }
+
+    /// Get the last assigned value of a fixed cell.
+    pub fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+        self.region.query_fixed(column, offset)
+    }
+
     /// Assign an advice column value (witness).
     ///
     /// Even though `to` has `FnMut` bounds, it is guaranteed to be called at most once.
@@ -379,6 +389,11 @@ impl<'r, F: Field> Region<'r, F> {
     /// has not been enabled.
     pub fn constrain_equal(&mut self, left: Cell, right: Cell) -> Result<(), Error> {
         self.region.constrain_equal(left, right)
+    }
+
+    /// Return the offset of a row within the overall circuit.
+    pub fn global_offset(&self, row_offset: usize) -> usize {
+        self.region.global_offset(row_offset)
     }
 }
 

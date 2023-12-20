@@ -1,12 +1,13 @@
 use std::convert::TryInto;
 
-use super::{super::BLOCK_SIZE, AssignedBits, BlockWord, SpreadInputs, Table16Assignment, ROUNDS};
+use super::{
+    super::BLOCK_SIZE, AssignedBits, BlockWord, Field, SpreadInputs, Table16Assignment, ROUNDS,
+};
 use halo2_proofs::{
     circuit::Layouter,
     plonk::{Advice, Column, ConstraintSystem, Error, Selector},
     poly::Rotation,
 };
-use halo2curves::pasta::pallas;
 
 mod schedule_gates;
 mod schedule_util;
@@ -21,10 +22,10 @@ use schedule_util::*;
 pub use schedule_util::msg_schedule_test_input;
 
 #[derive(Clone, Debug)]
-pub(super) struct MessageWord(AssignedBits<32>);
+pub(super) struct MessageWord<F: Field>(AssignedBits<F, 32>);
 
-impl std::ops::Deref for MessageWord {
-    type Target = AssignedBits<32>;
+impl<F: Field> std::ops::Deref for MessageWord<F> {
+    type Target = AssignedBits<F, 32>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -57,7 +58,7 @@ pub(super) struct MessageScheduleConfig {
     s_lower_sigma_1_v2: Selector,
 }
 
-impl Table16Assignment for MessageScheduleConfig {}
+impl<F: Field> Table16Assignment<F> for MessageScheduleConfig {}
 
 impl MessageScheduleConfig {
     /// Configures the message schedule.
@@ -70,8 +71,8 @@ impl MessageScheduleConfig {
     /// gates, and will not place any constraints on (such as lookup constraints) outside
     /// itself.
     #[allow(clippy::many_single_char_names)]
-    pub(super) fn configure(
-        meta: &mut ConstraintSystem<pallas::Base>,
+    pub(super) fn configure<F: Field>(
+        meta: &mut ConstraintSystem<F>,
         lookup: SpreadInputs,
         message_schedule: Column<Advice>,
         extras: [Column<Advice>; 6],
@@ -302,25 +303,25 @@ impl MessageScheduleConfig {
     }
 
     #[allow(clippy::type_complexity)]
-    pub(super) fn process(
+    pub(super) fn process<F: Field>(
         &self,
-        layouter: &mut impl Layouter<pallas::Base>,
+        layouter: &mut impl Layouter<F>,
         input: [BlockWord; BLOCK_SIZE],
     ) -> Result<
         (
-            [MessageWord; ROUNDS],
-            [(AssignedBits<16>, AssignedBits<16>); ROUNDS],
+            [MessageWord<F>; ROUNDS],
+            [(AssignedBits<F, 16>, AssignedBits<F, 16>); ROUNDS],
         ),
         Error,
     > {
-        let mut w = Vec::<MessageWord>::with_capacity(ROUNDS);
-        let mut w_halves = Vec::<(AssignedBits<16>, AssignedBits<16>)>::with_capacity(ROUNDS);
+        let mut w = Vec::<MessageWord<_>>::with_capacity(ROUNDS);
+        let mut w_halves = Vec::<(AssignedBits<_, 16>, AssignedBits<_, 16>)>::with_capacity(ROUNDS);
 
         layouter.assign_region(
             || "process message block",
             |mut region| {
-                w = Vec::<MessageWord>::with_capacity(ROUNDS);
-                w_halves = Vec::<(AssignedBits<16>, AssignedBits<16>)>::with_capacity(ROUNDS);
+                w = Vec::<MessageWord<_>>::with_capacity(ROUNDS);
+                w_halves = Vec::<(AssignedBits<_, 16>, AssignedBits<_, 16>)>::with_capacity(ROUNDS);
 
                 // Assign all fixed columns
                 for index in 1..14 {
@@ -393,10 +394,13 @@ impl MessageScheduleConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        super::BLOCK_SIZE, util::lebs2ip, BlockWord, SpreadTableChip, Table16Chip, Table16Config,
+    use super::{
+        super::{
+            super::BLOCK_SIZE, util::lebs2ip, BlockWord, SpreadTableChip, Table16Chip,
+            Table16Config,
+        },
+        schedule_util::*,
     };
-    use super::schedule_util::*;
     use halo2_proofs::{
         circuit::{Layouter, SimpleFloorPlanner},
         dev::MockProver,
@@ -450,7 +454,7 @@ mod tests {
 
         let prover = match MockProver::<pallas::Base>::run(17, &circuit, vec![]) {
             Ok(prover) => prover,
-            Err(e) => panic!("{:?}", e),
+            Err(e) => panic!("{e:?}"),
         };
         assert_eq!(prover.verify(), Ok(()));
     }

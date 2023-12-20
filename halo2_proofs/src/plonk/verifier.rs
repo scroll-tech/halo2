@@ -6,7 +6,7 @@ use super::{
     vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX, ChallengeY, Error,
     VerifyingKey,
 };
-use crate::arithmetic::compute_inner_product;
+use crate::arithmetic::{compute_inner_product, CurveAffine};
 use crate::poly::commitment::{CommitmentScheme, Verifier};
 use crate::poly::VerificationStrategy;
 use crate::poly::{
@@ -128,7 +128,7 @@ where
             vk.cs
                 .lookups
                 .iter()
-                .map(|argument| argument.read_permuted_commitments(transcript))
+                .map(|argument| argument.read_prepared_commitments(transcript))
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -149,10 +149,10 @@ where
     let lookups_committed = lookups_permuted
         .into_iter()
         .map(|lookups| {
-            // Hash each lookup product commitment
+            // Hash each lookup sum commitment
             lookups
                 .into_iter()
-                .map(|lookup| lookup.read_product_commitment(transcript))
+                .map(|lookup| lookup.read_grand_sum_commitment(transcript))
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -324,21 +324,20 @@ where
                         ))
                         .chain(lookups.iter().zip(vk.cs.lookups.iter()).flat_map(
                             move |(p, argument)| {
-                                p.expressions(
-                                    l_0,
-                                    l_last,
-                                    l_blind,
-                                    argument,
-                                    theta,
-                                    beta,
-                                    gamma,
-                                    advice_evals,
-                                    fixed_evals,
-                                    instance_evals,
-                                    challenges,
-                                )
-                            },
-                        ))
+                            p.expressions(
+                                l_0,
+                                l_last,
+                                l_blind,
+                                argument,
+                                theta,
+                                beta,
+                                advice_evals,
+                                fixed_evals,
+                                instance_evals,
+                                challenges,
+                            )
+                        },
+                    ))
                         .chain(shuffles.iter().zip(vk.cs.shuffles.iter()).flat_map(
                             move |(p, argument)| {
                                 p.expressions(

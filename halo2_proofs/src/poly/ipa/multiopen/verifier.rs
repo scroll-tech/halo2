@@ -4,6 +4,7 @@ use ff::Field;
 
 use super::{construct_intermediate_sets, ChallengeX1, ChallengeX2, ChallengeX3, ChallengeX4};
 use crate::arithmetic::{eval_polynomial, lagrange_interpolate, CurveAffine};
+use crate::arithmetic::{eval_polynomial, lagrange_interpolate, CurveAffine};
 use crate::poly::commitment::{Params, Verifier, MSM};
 use crate::poly::ipa::commitment::{IPACommitmentScheme, ParamsIPA, ParamsVerifierIPA};
 use crate::poly::ipa::msm::MSMIPA;
@@ -69,7 +70,7 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
                 let (q_commitment, x_1_power) = &mut q_commitments[set_idx];
                 match new_commitment {
                     CommitmentReference::Commitment(c) => {
-                        q_commitment.append_term(*x_1_power, (*c).into());
+                        q_commitments[set_idx].append_term(C::Scalar::ONE, (*c).into());
                     }
                     CommitmentReference::MSM(msm) => {
                         let mut msm = msm.clone();

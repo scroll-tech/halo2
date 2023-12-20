@@ -8,7 +8,10 @@ use crate::{
 
 use super::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation};
 use ff::WithSmallOrderMulGroup;
-use group::ff::{BatchInvert, Field};
+use group::{
+    ff::{BatchInvert, Field, PrimeField},
+    Group,
+};
 
 use std::marker::PhantomData;
 
@@ -88,8 +91,8 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         {
             // Compute the evaluations of t(X) = X^n - 1 in the coset evaluation domain.
             // We don't have to compute all of them, because it will repeat.
-            let orig = F::ZETA.pow_vartime([n, 0, 0, 0]);
-            let step = extended_omega.pow_vartime([n, 0, 0, 0]);
+            let orig = F::ZETA.pow_vartime(&[n as u64, 0, 0, 0]);
+            let step = extended_omega.pow_vartime(&[n as u64, 0, 0, 0]);
             let mut cur = orig;
             loop {
                 t_evaluations.push(cur);

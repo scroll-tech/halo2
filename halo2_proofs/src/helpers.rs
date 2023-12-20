@@ -2,6 +2,7 @@ use crate::plonk::{Any, Column};
 use crate::poly::Polynomial;
 use ff::{FromUniformBytes, PrimeField};
 use halo2curves::{serde::SerdeObject, CurveAffine};
+use ff::{Field};
 use num_bigint::BigUint;
 use std::io;
 
@@ -46,6 +47,10 @@ pub fn field_to_bn<F: PrimeField>(f: &F) -> BigUint {
 
 /// Input a big integer `bn`, compute a field element `f`
 /// such that `f == bn % F::MODULUS`.
+/// Require:
+/// - bn is less than 512 bits.
+/// Return:
+/// - bn mod F::MODULUS when bn > F::MODULUS
 pub fn bn_to_field<F: PrimeField>(bn: &BigUint) -> F
 where
     F: FromUniformBytes<64>,

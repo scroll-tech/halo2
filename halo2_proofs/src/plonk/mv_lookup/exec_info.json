@@ -1,0 +1,46 @@
+{
+    "unit": "ms",
+    "non_batched": {
+        "k": 14,
+        "halo2": {
+            "protocol": "halo2",
+            "methods": {
+                "commit_permuted": {
+                    "compress_expressions": 1,
+                    "permute_expressions": 4.5, 
+                    "commit_permuted_input": 5,
+                    "commit_permuted_table": 5
+                },
+                "grand_product": {
+                    "lookup_product_denom": 2, 
+                    "lookup_product": 0.2, 
+                    "grand_prod_evals": 0.5,
+                    "grand_prod_commit": 7.5
+                }, 
+                "h_evaluation": {
+        
+                }
+            }
+        },
+        "mv": {
+            "protocol": "mv",
+            "methods": {
+                "compute_multiplicity": {
+                    "compress_expressions": 1,
+                    "compute_multiplicities": 2,
+                    "commit_m": 1
+                },
+                "grand_sum": {
+                    "inputs_log_derivatives": 2, 
+                    "table_log_derivatives": 1.8,
+                    "log_derivatives_diff": 0.2,
+                    "grand_sum_evals": 0.2, 
+                    "grand_sum_commit": 33
+                }, 
+                "h_evaluation": {
+        
+                }
+            }
+        }
+    }
+}

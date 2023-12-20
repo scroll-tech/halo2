@@ -9,15 +9,19 @@ use core::cmp::max;
 use core::ops::{Add, Mul};
 use ff::Field;
 use sealed::SealedPhase;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
+//use std::fmt::Debug;
 use std::iter::{Product, Sum};
+use std::hash::Hasher;
+use std::marker::PhantomData;
 use std::ops::Range;
 use std::{
     convert::TryFrom,
     ops::{Neg, Sub},
 };
 
+use super::{mv_lookup, permutation, Assigned, Error};
 mod compress_selectors;
 
 /// A column type
@@ -36,7 +40,6 @@ pub struct Column<C: ColumnType> {
 }
 
 impl<C: ColumnType> Column<C> {
-    #[cfg(test)]
     pub(crate) fn new(index: usize, column_type: C) -> Self {
         Column { index, column_type }
     }
@@ -480,7 +483,7 @@ impl Selector {
 }
 
 /// Query of fixed column at a certain relative location
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FixedQuery {
     /// Query index
     pub(crate) index: Option<usize>,
@@ -499,6 +502,10 @@ impl FixedQuery {
     pub fn column_index(&self) -> usize {
         self.column_index
     }
+    /// Column
+    pub fn column(&self) -> Column<Fixed> {
+        Column::new(self.column_index, Fixed)
+    }
 
     /// Rotation of this query
     pub fn rotation(&self) -> Rotation {
@@ -507,7 +514,7 @@ impl FixedQuery {
 }
 
 /// Query of advice column at a certain relative location
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AdviceQuery {
     /// Query index
     pub(crate) index: Option<usize>,
@@ -528,6 +535,10 @@ impl AdviceQuery {
     pub fn column_index(&self) -> usize {
         self.column_index
     }
+    /// Column
+    pub fn column(&self) -> Column<Advice> {
+        Column::new(self.column_index, Advice { phase: self.phase })
+    }
 
     /// Rotation of this query
     pub fn rotation(&self) -> Rotation {
@@ -541,7 +552,7 @@ impl AdviceQuery {
 }
 
 /// Query of instance column at a certain relative location
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InstanceQuery {
     /// Query index
     pub(crate) index: Option<usize>,
@@ -672,6 +683,12 @@ pub trait Assignment<F: Field>: Sized + Send {
     fn merge(&mut self, _sub_cs: Vec<Self>) -> Result<(), Error> {
         unimplemented!("merge is not implemented by default")
     }
+
+    /// Get the last assigned value of an advice cell.
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error>;
+
+    /// Get the last assigned value of a fixed cell.
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error>;
 
     /// Queries the cell of an instance column at a particular absolute row.
     ///
@@ -1568,9 +1585,16 @@ impl<F: Field> Gate<F> {
     }
 }
 
+/// TODO doc
+#[derive(Debug, Clone)]
+pub struct LookupTracker<F: Field> {
+    pub(crate) table: Vec<Expression<F>>,
+    pub(crate) inputs: Vec<Vec<Expression<F>>>,
+}
+
 /// This is a description of the circuit environment, such as the gate, column and
 /// permutation arrangements.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
     pub num_fixed_columns: usize,
     pub num_advice_columns: usize,
@@ -1600,9 +1624,12 @@ pub struct ConstraintSystem<F: Field> {
     // Permutation argument for performing equality constraints
     pub permutation: permutation::Argument,
 
+    /// Map from table expression to vec of vec of input expressions
+    pub lookups_map: BTreeMap<String, LookupTracker<F>>,
+
     // Vector of lookup arguments, where each corresponds to a sequence of
     // input expressions and a sequence of table expressions involved in the lookup.
-    pub lookups: Vec<lookup::Argument<F>>,
+    pub lookups: Vec<mv_lookup::Argument<F>>,
 
     // Vector of shuffle arguments, where each corresponds to a sequence of
     // input expressions and a sequence of shuffle expressions involved in the shuffle.
@@ -1633,7 +1660,7 @@ pub struct PinnedConstraintSystem<'a, F: Field> {
     instance_queries: &'a Vec<(Column<Instance>, Rotation)>,
     fixed_queries: &'a Vec<(Column<Fixed>, Rotation)>,
     permutation: &'a permutation::Argument,
-    lookups: &'a Vec<lookup::Argument<F>>,
+    lookups_map: &'a BTreeMap<String, LookupTracker<F>>,
     shuffles: &'a Vec<shuffle::Argument<F>>,
     constants: &'a Vec<Column<Fixed>>,
     minimum_degree: &'a Option<usize>,
@@ -1660,7 +1687,7 @@ impl<'a, F: Field> std::fmt::Debug for PinnedConstraintSystem<'a, F> {
             .field("instance_queries", self.instance_queries)
             .field("fixed_queries", self.fixed_queries)
             .field("permutation", self.permutation)
-            .field("lookups", self.lookups)
+            .field("lookups_map", self.lookups_map)
             .field("constants", self.constants)
             .field("minimum_degree", self.minimum_degree);
         debug_struct.finish()
@@ -1695,6 +1722,7 @@ impl<F: Field> Default for ConstraintSystem<F> {
             num_advice_queries: Vec::new(),
             instance_queries: Vec::new(),
             permutation: permutation::Argument::new(),
+            lookups_map: BTreeMap::default(),
             lookups: Vec::new(),
             shuffles: Vec::new(),
             general_column_annotations: BTreeMap::new(),
@@ -1722,7 +1750,7 @@ impl<F: Field> ConstraintSystem<F> {
             advice_queries: &self.advice_queries,
             instance_queries: &self.instance_queries,
             permutation: &self.permutation,
-            lookups: &self.lookups,
+            lookups_map: &self.lookups_map,
             shuffles: &self.shuffles,
             constants: &self.constants,
             minimum_degree: &self.minimum_degree,
@@ -1754,11 +1782,12 @@ impl<F: Field> ConstraintSystem<F> {
     /// they need to match.
     pub fn lookup<S: AsRef<str>>(
         &mut self,
-        name: S,
+        // FIXME use name in debug messages
+        _name: &'static str,
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, TableColumn)>,
-    ) -> usize {
+    ) {
         let mut cells = VirtualCells::new(self);
-        let table_map = table_map(&mut cells)
+        let (input_expressions, table_expressions): (Vec<_>, Vec<_>) = table_map(&mut cells)
             .into_iter()
             .map(|(mut input, table)| {
                 if input.contains_simple_selector() {
@@ -1769,13 +1798,89 @@ impl<F: Field> ConstraintSystem<F> {
                 table.query_cells(&mut cells);
                 (input, table)
             })
-            .collect();
-        let index = self.lookups.len();
+            .unzip();
+        let table_expressions_identifier = table_expressions
+            .iter()
+            .fold(String::new(), |string, expr| string + &expr.identifier());
 
-        self.lookups
-            .push(lookup::Argument::new(name.as_ref(), table_map));
+        self.lookups_map
+            .entry(table_expressions_identifier)
+            .and_modify(|table_tracker| table_tracker.inputs.push(input_expressions.clone()))
+            .or_insert(LookupTracker {
+                table: table_expressions,
+                inputs: vec![input_expressions],
+            });
+    }
 
-        index
+    /// Chunk lookup arguments into pieces below a given degree bound
+    pub fn chunk_lookups(mut self) -> Self {
+        if self.lookups_map.is_empty() {
+            return self;
+        }
+
+        let max_gate_degree = self.max_gate_degree();
+        let max_single_lookup_degree: usize = self
+            .lookups_map
+            .values()
+            .map(|v| {
+                let table_degree = v.table.iter().map(|expr| expr.degree()).max().unwrap();
+                let base_lookup_degree = super::mv_lookup::base_degree(table_degree);
+
+                let max_inputs_degree: usize = v
+                    .inputs
+                    .iter()
+                    .map(|input| input.iter().map(|expr| expr.degree()).max().unwrap())
+                    .max()
+                    .unwrap();
+
+                mv_lookup::degree_with_input(base_lookup_degree, max_inputs_degree)
+            })
+            .max()
+            .unwrap();
+
+        let required_degree = std::cmp::max(max_gate_degree, max_single_lookup_degree);
+        let required_degree = (required_degree as u64 - 1).next_power_of_two() as usize;
+
+        self.set_minimum_degree(required_degree + 1);
+
+        // safe to unwrap here
+        let minimum_degree = self.minimum_degree.unwrap();
+
+        let mut lookups: Vec<_> = vec![];
+        for v in self.lookups_map.values() {
+            let LookupTracker { table, inputs } = v;
+            let mut args = vec![super::mv_lookup::Argument::new(
+                "lookup",
+                table,
+                &[inputs[0].clone()],
+            )];
+
+            for input in inputs.iter().skip(1) {
+                let cur_input_degree = input.iter().map(|expr| expr.degree()).max().unwrap();
+                let mut indicator = false;
+                for arg in args.iter_mut() {
+                    // try to fit input in one of the args
+                    let cur_argument_degree = arg.required_degree();
+                    let new_potential_degree = cur_argument_degree + cur_input_degree;
+                    if new_potential_degree <= minimum_degree {
+                        arg.inputs_expressions.push(input.clone());
+                        indicator = true;
+                        break;
+                    }
+                }
+
+                if !indicator {
+                    args.push(super::mv_lookup::Argument::new(
+                        "dummy",
+                        table,
+                        &[input.clone()],
+                    ))
+                }
+            }
+            lookups.append(&mut args);
+        }
+        self.lookups = lookups;
+        self
     }
 
     /// Add a lookup argument for some input expressions and table expressions.
@@ -1784,9 +1889,10 @@ impl<F: Field> ConstraintSystem<F> {
     /// they need to match.
     pub fn lookup_any<S: AsRef<str>>(
         &mut self,
-        name: S,
+        // FIXME use name in debug messages
+        _name: &'static str,
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, Expression<F>)>,
-    ) -> usize {
+    ) {
         let mut cells = VirtualCells::new(self);
         let table_map = table_map(&mut cells)
             .into_iter()
@@ -1796,8 +1902,6 @@ impl<F: Field> ConstraintSystem<F> {
                 (input, table)
             })
             .collect();
-        let index = self.lookups.len();
-
         self.lookups
             .push(lookup::Argument::new(name.as_ref(), table_map));
 
@@ -1824,7 +1928,13 @@ impl<F: Field> ConstraintSystem<F> {
         self.shuffles
             .push(shuffle::Argument::new(name.as_ref(), shuffle_map));
 
-        index
+        self.lookups_map
+            .entry(table_expressions_identifier)
+            .and_modify(|table_tracker| table_tracker.inputs.push(input_expressions.clone()))
+            .or_insert(LookupTracker {
+                table: table_expressions,
+                inputs: vec![input_expressions],
+            });
     }
 
     fn query_fixed_index(&mut self, column: Column<Fixed>, at: Rotation) -> usize {
@@ -1933,7 +2043,9 @@ impl<F: Field> ConstraintSystem<F> {
     /// larger amount than actually needed. This can be used, for example, to
     /// force the permutation argument to involve more columns in the same set.
     pub fn set_minimum_degree(&mut self, degree: usize) {
-        self.minimum_degree = Some(degree);
+        self.minimum_degree = self
+            .minimum_degree
+            .map_or(Some(degree), |min_degree| Some(max(min_degree, degree)));
     }
 
     /// Creates a new gate.
@@ -2081,8 +2193,9 @@ impl<F: Field> ConstraintSystem<F> {
         // lookup expressions
         for expr in self.lookups.iter_mut().flat_map(|lookup| {
             lookup
-                .input_expressions
+                .inputs_expressions
                 .iter_mut()
+                .flatten()
                 .chain(lookup.table_expressions.iter_mut())
         }) {
             replace_selectors(expr, &selector_replacements, true);
@@ -2250,6 +2363,15 @@ impl<F: Field> ConstraintSystem<F> {
         (0..=max_phase).map(sealed::Phase)
     }
 
+    /// Compute the maximum degree of gates in the constraint system
+    pub fn max_gate_degree(&self) -> usize {
+        self.gates
+            .iter()
+            .flat_map(|gate| gate.polynomials().iter().map(|poly| poly.degree()))
+            .max()
+            .unwrap_or(0)
+    }
+
     /// Compute the degree of the constraint system (the maximum degree of all
     /// constraints).
     pub fn degree(&self) -> usize {
@@ -2281,13 +2403,16 @@ impl<F: Field> ConstraintSystem<F> {
 
         // Account for each gate to ensure our quotient polynomial is the
         // correct degree and that our extended domain is the right size.
+        degree = std::cmp::max(degree, self.max_gate_degree());
+
+        // Lookup degree
         degree = std::cmp::max(
             degree,
-            self.gates
+            self.lookups
                 .iter()
-                .flat_map(|gate| gate.polynomials().iter().map(|poly| poly.degree()))
+                .map(|hl| hl.required_degree())
                 .max()
-                .unwrap_or(0),
+                .unwrap_or(1),
         );
 
         std::cmp::max(degree, self.minimum_degree.unwrap_or(1))
@@ -2403,7 +2528,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns lookup arguments
-    pub fn lookups(&self) -> &Vec<lookup::Argument<F>> {
+    pub fn lookups(&self) -> &Vec<mv_lookup::Argument<F>> {
         &self.lookups
     }
 

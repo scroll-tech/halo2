@@ -4,12 +4,12 @@ mod verifier;
 use crate::multicore::IntoParallelIterator;
 use crate::{poly::query::Query, transcript::ChallengeScalar};
 use ff::Field;
-pub use prover::ProverSHPLONK;
 use std::collections::BTreeSet;
-pub use verifier::VerifierSHPLONK;
-
 #[cfg(feature = "multicore")]
 use crate::multicore::ParallelIterator;
+use ff::Field;
+pub use prover::ProverSHPLONK;
+pub use verifier::VerifierSHPLONK;
 
 #[derive(Clone, Copy, Debug)]
 struct U {}

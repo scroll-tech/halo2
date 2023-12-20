@@ -106,7 +106,7 @@ where
         }
         let n_inv = Option::<E::Scalar>::from(E::Scalar::from(n).invert())
             .expect("inversion should be ok for n = 1<<k");
-        let multiplier = (s.pow_vartime([n]) - E::Scalar::ONE) * n_inv;
+        let multiplier = (s.pow_vartime(&[n as u64]) - E::Scalar::ONE) * n_inv;
         parallelize(&mut g_lagrange_projective, |g, start| {
             for (idx, g) in g.iter_mut().enumerate() {
                 let offset = start + idx;
@@ -380,10 +380,12 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::arithmetic::{best_fft, best_multiexp, parallelize, CurveAffine, CurveExt};
     use crate::poly::commitment::ParamsProver;
     use crate::poly::commitment::{Blind, Params};
     use crate::poly::kzg::commitment::ParamsKZG;
     use ff::Field;
+    use group::{prime::PrimeCurveAffine, Curve, Group};
 
     #[test]
     fn test_commit_lagrange() {
@@ -416,6 +418,7 @@ mod test {
 
         use super::super::commitment::Params;
         use crate::halo2curves::bn256::Bn256;
+        use crate::arithmetic::eval_polynomial;
 
         let params0 = ParamsKZG::<Bn256>::new(K);
         let mut data = vec![];

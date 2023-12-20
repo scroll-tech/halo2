@@ -536,8 +536,17 @@ where
 }
 
 /// This utility function will parallelize an operation that is to be
+pub fn par_invert<F: Field>(values: &mut [F]) {
+    parallelize(values, |values, _start| {
+        values.batch_invert();
+    });
+}
+
 /// performed over a mutable slice.
-pub fn parallelize<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(v: &mut [T], f: F) {
+pub(crate) fn parallelize_internal<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(
+    v: &mut [T],
+    f: F,
+) -> Vec<usize> {
     // Algorithm rationale:
     //
     // Using the stdlib `chunks_mut` will lead to severe load imbalance.
@@ -571,6 +580,7 @@ pub fn parallelize<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(v: &mu
 
     multicore::scope(|scope| {
         // Skip special-case: number of iterations is cleanly divided by number of threads.
+        let mut chunk_starts = vec![];
         if cutoff_chunk_id != 0 {
             for (chunk_id, chunk) in v_hi.chunks_exact_mut(base_chunk_size + 1).enumerate() {
                 let offset = chunk_id * (base_chunk_size + 1);
@@ -584,7 +594,13 @@ pub fn parallelize<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(v: &mu
                 scope.spawn(move |_| f(chunk, offset));
             }
         }
-    });
+
+        chunk_starts
+    })
+}
+
+pub fn parallelize<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(v: &mut [T], f: F) {
+    parallelize_internal(v, f);
 }
 
 fn log2_floor(num: usize) -> u32 {

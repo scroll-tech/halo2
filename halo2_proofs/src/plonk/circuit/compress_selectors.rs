@@ -20,7 +20,7 @@ pub struct SelectorDescription {
 /// This describes the assigned combination of a particular selector as well as
 /// the expression it should be substituted with.
 #[derive(Debug, Clone)]
-pub struct SelectorAssignment<F> {
+pub struct SelectorAssignment<F: Field> {
     /// The selector that this structure references, by index.
     pub selector: usize,
 

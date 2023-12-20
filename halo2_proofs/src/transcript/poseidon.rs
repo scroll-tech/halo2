@@ -2,7 +2,6 @@ use super::{Challenge255, EncodedChallenge, Transcript, TranscriptRead, Transcri
 use crate::helpers::base_to_scalar;
 use group::ff::{FromUniformBytes, PrimeField};
 use halo2curves::{Coordinates, CurveAffine};
-use num_bigint::BigUint;
 use poseidon::Poseidon;
 use std::convert::TryInto;
 use std::io::{self, Read, Write};

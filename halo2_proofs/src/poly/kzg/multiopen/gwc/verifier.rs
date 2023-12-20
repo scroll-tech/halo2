@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{construct_intermediate_sets, ChallengeU, ChallengeV};
-use crate::arithmetic::powers;
+use crate::arithmetic::{eval_polynomial, lagrange_interpolate, powers, CurveAffine};
 use crate::helpers::SerdeCurveAffine;
 use crate::poly::commitment::Verifier;
 use crate::poly::commitment::MSM;
