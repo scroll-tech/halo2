@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use std::ops::{Range, RangeTo};
 use std::sync::Arc;
 use std::{collections::HashMap, iter};
+use crate::plonk::shuffle;
 
 use super::{
     circuit::{

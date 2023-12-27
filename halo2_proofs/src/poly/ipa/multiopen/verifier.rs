@@ -69,7 +69,7 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
                 let (q_commitment, x_1_power) = &mut q_commitments[set_idx];
                 match new_commitment {
                     CommitmentReference::Commitment(c) => {
-                        q_commitments[set_idx].append_term(C::Scalar::ONE, (*c).into());
+                        q_commitment.append_term(C::Scalar::ONE, (*c).into());
                     }
                     CommitmentReference::MSM(msm) => {
                         let mut msm = msm.clone();

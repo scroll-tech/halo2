@@ -269,6 +269,14 @@ impl<'r, F: Field> RegionLayouter<F> for TracingRegion<'r, F> {
     ) {
     }
 
+    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+        self.0.query_advice(column, offset)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+        self.0.query_fixed(column, offset)
+    }
+
     fn assign_advice<'v>(
         &'v mut self,
         annotation: &'v (dyn Fn() -> String + 'v),
@@ -365,6 +373,10 @@ impl<'r, F: Field> RegionLayouter<F> for TracingRegion<'r, F> {
         debug!(target: "constrain_equal", left = ?left, right = ?right);
         self.0.constrain_equal(left, right)
     }
+
+    fn global_offset(&self, row_offset: usize) -> usize {
+        self.0.global_offset(row_offset)
+    }
 }
 
 /// A helper type that augments an [`Assignment`] with [`tracing`] spans and events.
@@ -423,6 +435,14 @@ impl<'cs, F: Field, CS: Assignment<F>> Assignment<F> for TracingAssignment<'cs, 
             debug!(target: "enable_selector", name = annotation, row = row);
         }
         self.cs.enable_selector(|| annotation, selector, row)
+    }
+
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+        self.cs.query_advice(column, row)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+        self.cs.query_fixed(column, row)
     }
 
     fn query_instance(&self, column: Column<Instance>, row: usize) -> Result<Value<F>, Error> {

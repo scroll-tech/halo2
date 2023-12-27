@@ -297,7 +297,7 @@ impl<C: CurveAffine> Evaluator<C> {
             let compressed_input_coset = evaluate_lc(&shuffle.input_expressions, &mut graph_input);
             let _ = graph_input.add_calculation(Calculation::Add(
                 compressed_input_coset,
-                ValueSource::Gamma(),
+                ValueSource::Beta(),
             ));
 
             let mut graph_shuffle = GraphEvaluator::default();
@@ -305,7 +305,7 @@ impl<C: CurveAffine> Evaluator<C> {
                 evaluate_lc(&shuffle.shuffle_expressions, &mut graph_shuffle);
             let _ = graph_shuffle.add_calculation(Calculation::Add(
                 compressed_shuffle_coset,
-                ValueSource::Gamma(),
+                ValueSource::Beta(),
             ));
 
             ev.shuffles.push(graph_input);

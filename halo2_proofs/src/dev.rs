@@ -1615,7 +1615,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                         assert!(table.binary_search(input).is_err());
 
                                         Some(VerifyFailure::Lookup {
-                                            name: lookup.name.clone(),
+                                            name: lookup.name.to_string(),
                                             lookup_index,
                                             location: FailureLocation::find_expressions(
                                                 &self.cs,
@@ -2083,7 +2083,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                                 .filter_map(move |(input, input_row)| {
                                     if table.binary_search(input).is_err() {
                                         Some(VerifyFailure::Lookup {
-                                            name: lookup.name.clone(),
+                                            name: lookup.name.to_string(),
                                             lookup_index,
                                             location: FailureLocation::find_expressions(
                                                 &self.cs,

@@ -1783,7 +1783,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn lookup<S: AsRef<str>>(
         &mut self,
         // FIXME use name in debug messages
-        _name: &'static str,
+        _name: S,
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, TableColumn)>,
     ) {
         let mut cells = VirtualCells::new(self);
@@ -1894,16 +1894,21 @@ impl<F: Field> ConstraintSystem<F> {
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, Expression<F>)>,
     ) {
         let mut cells = VirtualCells::new(self);
-        let table_map = table_map(&mut cells)
-            .into_iter()
-            .map(|(mut input, mut table)| {
-                input.query_cells(&mut cells);
-                table.query_cells(&mut cells);
-                (input, table)
-            })
-            .collect();
-        self.lookups
-            .push(mv_lookup::Argument::new(name.as_ref(), table_map));
+        let table_map = table_map(&mut cells);
+
+        let (input_expressions, table_expressions): (Vec<_>, Vec<_>) =
+            table_map.into_iter().unzip();
+        let table_expressions_identifier = table_expressions
+            .iter()
+            .fold(String::new(), |string, expr| string + &expr.identifier());
+
+        self.lookups_map
+            .entry(table_expressions_identifier)
+            .and_modify(|table_tracker| table_tracker.inputs.push(input_expressions.clone()))
+            .or_insert(LookupTracker {
+                table: table_expressions,
+                inputs: vec![input_expressions],
+            });
     }
 
     /// Add a shuffle argument for some input expressions and table expressions.
@@ -1926,13 +1931,7 @@ impl<F: Field> ConstraintSystem<F> {
         self.shuffles
             .push(shuffle::Argument::new(name.as_ref(), shuffle_map));
 
-        self.lookups_map
-            .entry(table_expressions_identifier)
-            .and_modify(|table_tracker| table_tracker.inputs.push(input_expressions.clone()))
-            .or_insert(LookupTracker {
-                table: table_expressions,
-                inputs: vec![input_expressions],
-            });
+        index
     }
 
     fn query_fixed_index(&mut self, column: Column<Fixed>, at: Rotation) -> usize {

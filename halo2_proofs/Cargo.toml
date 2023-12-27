@@ -91,7 +91,7 @@ rand_core = { version = "0.6", default-features = false, features = ["getrandom"
 getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-default = ["batch", "gwc", "logup_skip_inv"]
+default = ["batch", "gwc", "multicore", "parallel_syn", "logup_skip_inv"]
 multicore = ["maybe-rayon/threads"]
 dev-graph = ["plotters", "tabbycat"]
 test-dev-graph = [
