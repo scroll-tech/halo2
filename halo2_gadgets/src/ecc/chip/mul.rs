@@ -277,9 +277,9 @@ impl Config {
                 let zs = {
                     let mut zs = std::iter::empty()
                         .chain(Some(z_init))
-                        .chain(zs_incomplete_hi.into_iter())
-                        .chain(zs_incomplete_lo.into_iter())
-                        .chain(zs_complete.into_iter())
+                        .chain(zs_incomplete_hi)
+                        .chain(zs_incomplete_lo)
+                        .chain(zs_complete)
                         .chain(Some(z_0))
                         .collect::<Vec<_>>();
                     assert_eq!(zs.len(), pallas::Scalar::NUM_BITS as usize + 1);

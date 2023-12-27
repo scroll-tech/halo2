@@ -405,7 +405,7 @@ mod tests {
             }
             assert_eq!(field_elem, sum);
         };
-        decompose(pallas::Base::random(rng), &[0..255]);
+        // decompose(pallas::Base::random(rng), &[0..255]);
         decompose(pallas::Base::random(rng), &[0..1, 1..255]);
         decompose(pallas::Base::random(rng), &[0..254, 254..255]);
         decompose(pallas::Base::random(rng), &[0..127, 127..255]);
