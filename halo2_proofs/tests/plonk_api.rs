@@ -716,7 +716,10 @@ fn plonk_api() {
             Ok(prover) => prover,
             Err(e) => panic!("{:?}", e),
         };
+        #[cfg(feature = "multicore")]
         assert_eq!(prover.verify_par(), Ok(()));
+        #[cfg(not(feature = "multicore"))]
+        assert_eq!(prover.verify(), Ok(()));
         log::info!("mock proving succeed!");
 
         let params = ParamsKZG::<Bn256>::new(K);
@@ -1221,6 +1224,7 @@ fn plonk_api_with_many_subregions() {
     impl<F: Field> Circuit<F> for MyCircuit<F> {
         type Config = PlonkConfig;
         type FloorPlanner = SimpleFloorPlanner;
+        #[cfg(feature = "circuit-params")]
         type Params = ();
 
         fn without_witnesses(&self) -> Self {
@@ -1404,7 +1408,10 @@ fn plonk_api_with_many_subregions() {
         Ok(prover) => prover,
         Err(e) => panic!("{:?}", e),
     };
+    #[cfg(feature = "multicore")]
     assert_eq!(prover.verify_par(), Ok(()));
+    #[cfg(not(feature = "multicore"))]
+    assert_eq!(prover.verify(), Ok(()));
     log::info!("mock proving succeed!");
 
     let params = ParamsKZG::<Bn256>::new(K);
