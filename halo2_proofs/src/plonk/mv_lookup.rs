@@ -57,11 +57,8 @@ impl<F: Field> Argument<F> {
             input_degree
         };
 
-        let inputs_expressions_degree: usize = self
-            .inputs_expressions
-            .iter()
-            .map(|input_expressions| expr_degree(input_expressions))
-            .sum();
+        let inputs_expressions_degree: usize =
+            self.inputs_expressions.iter().map(expr_degree).sum();
 
         let table_degree = expr_degree(&self.table_expressions);
 

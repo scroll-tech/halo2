@@ -1,8 +1,6 @@
 use std::iter;
 
-use super::super::{
-    circuit::Expression, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX,
-};
+use super::super::{circuit::Expression, ChallengeBeta, ChallengeTheta, ChallengeX};
 use super::Argument;
 use crate::{
     arithmetic::CurveAffine,

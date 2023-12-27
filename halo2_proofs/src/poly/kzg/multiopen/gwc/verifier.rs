@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use super::{construct_intermediate_sets, ChallengeU, ChallengeV};
-use crate::arithmetic::{eval_polynomial, lagrange_interpolate, powers, CurveAffine};
+use crate::arithmetic::powers;
 use crate::helpers::SerdeCurveAffine;
 use crate::poly::commitment::Verifier;
 use crate::poly::commitment::MSM;
@@ -69,7 +69,7 @@ where
         let mut witness_with_aux = MSMKZG::<E>::new();
 
         for ((commitment_at_a_point, wi), power_of_u) in
-            commitment_data.iter().zip(w.into_iter()).zip(powers(*u))
+            commitment_data.iter().zip(w).zip(powers(*u))
         {
             assert!(!commitment_at_a_point.queries.is_empty());
             let z = commitment_at_a_point.point;

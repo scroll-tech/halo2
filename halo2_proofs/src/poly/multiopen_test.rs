@@ -14,7 +14,7 @@ mod test {
         Blake2bRead, Blake2bWrite, Challenge255, EncodedChallenge, Keccak256Read, Keccak256Write,
         TranscriptReadBuffer, TranscriptWriterBuffer,
     };
-    use ff::{Field, PrimeField, WithSmallOrderMulGroup};
+    use ff::WithSmallOrderMulGroup;
     use group::Curve;
     use rand_core::OsRng;
 

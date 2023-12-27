@@ -1,6 +1,5 @@
 use crate::plonk::{Any, Column};
 use crate::poly::Polynomial;
-use ff::Field;
 use ff::{FromUniformBytes, PrimeField};
 use halo2curves::{serde::SerdeObject, CurveAffine};
 use num_bigint::BigUint;

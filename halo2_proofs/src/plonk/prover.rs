@@ -1,5 +1,5 @@
 use crate::plonk::shuffle;
-use ff::{Field, FromUniformBytes, PrimeField, WithSmallOrderMulGroup};
+use ff::{Field, FromUniformBytes, WithSmallOrderMulGroup};
 use group::Curve;
 use rand_core::RngCore;
 use std::collections::BTreeSet;

@@ -229,15 +229,13 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
 
 #[cfg(test)]
 mod test {
-    use crate::arithmetic::{best_fft, best_multiexp, parallelize, CurveAffine, CurveExt};
     use crate::poly::commitment::ParamsProver;
     use crate::poly::commitment::{Blind, Params, MSM};
     use crate::poly::ipa::commitment::{create_proof, verify_proof, ParamsIPA};
     use crate::poly::ipa::msm::MSMIPA;
-    use group::{prime::PrimeCurveAffine, Curve, Group};
+    use group::Curve;
 
     use ff::Field;
-    use group::Curve;
 
     #[test]
     fn test_commit_lagrange_epaffine() {

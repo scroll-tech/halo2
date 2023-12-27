@@ -514,7 +514,7 @@ fn plonk_api() {
             let cs = StandardPlonk::new(config);
 
             #[cfg(feature = "parallel_syn")]
-            let mut is_first_pass_vec = vec![true; 8];
+            let mut is_first_pass_vec = [true; 8];
 
             let _ = cs.public_input(&mut layouter, || Value::known(F::ONE + F::ONE))?;
 
@@ -525,8 +525,7 @@ fn plonk_api() {
             layouter.assign_regions(
                 || "regions",
                 (0..8)
-                    .into_iter()
-                    .zip(is_first_pass_vec.chunks_mut(1).into_iter())
+                    .zip(is_first_pass_vec.chunks_mut(1))
                     .map(|(_, is_first_pass)| {
                         |mut region: Region<'_, F>| -> Result<(), Error> {
                             let n = 1 << 13;
@@ -1222,6 +1221,7 @@ fn plonk_api_with_many_subregions() {
     impl<F: Field> Circuit<F> for MyCircuit<F> {
         type Config = PlonkConfig;
         type FloorPlanner = SimpleFloorPlanner;
+        type Params = ();
 
         fn without_witnesses(&self) -> Self {
             Self {
@@ -1249,7 +1249,6 @@ fn plonk_api_with_many_subregions() {
             layouter.assign_regions(
                 || "regions",
                 (0..(1 << 14))
-                    .into_iter()
                     .map(|_| {
                         let mut is_first_pass = true;
                         move |mut region: Region<'_, F>| -> Result<(), Error> {

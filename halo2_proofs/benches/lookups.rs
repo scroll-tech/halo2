@@ -41,6 +41,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     impl<F: Field> Circuit<F> for MyCircuit<F> {
         type Config = MyConfig;
         type FloorPlanner = SimpleFloorPlanner;
+        type Params = ();
 
         fn without_witnesses(&self) -> Self {
             Self::default()
@@ -58,8 +59,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 
             meta.create_gate("degree 6 gate", |meta| {
                 let dummy_selector = meta.query_selector(dummy_selector);
-                let constraints = vec![dummy_selector.clone(); 4]
-                    .iter()
+                let constraints = std::iter::repeat(dummy_selector.clone())
+                    .take(4)
                     .fold(dummy_selector.clone(), |acc, val| acc * val.clone());
                 Constraints::with_selector(dummy_selector, Some(constraints))
             });

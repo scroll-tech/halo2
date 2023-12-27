@@ -6,8 +6,7 @@ use super::{
 use crate::poly::Error;
 use crate::transcript::{EncodedChallenge, TranscriptRead, TranscriptWrite};
 use ff::Field;
-use group::{Curve, Group};
-use halo2curves::{CurveAffine, CurveExt};
+use halo2curves::CurveAffine;
 use rand_core::RngCore;
 use std::{
     fmt::Debug,

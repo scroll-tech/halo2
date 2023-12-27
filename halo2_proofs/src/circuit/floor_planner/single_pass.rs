@@ -2,8 +2,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
-use std::ops::Range;
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
@@ -18,7 +16,6 @@ use crate::{
         table_layouter::{compute_table_lengths, SimpleTableLayouter},
         Cell, Layouter, Region, RegionIndex, RegionStart, Table, Value,
     },
-    multicore,
     plonk::{
         Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, Error, Fixed, FloorPlanner,
         Instance, Selector, TableColumn,

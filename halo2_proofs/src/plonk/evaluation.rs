@@ -1,17 +1,11 @@
 use crate::multicore;
-use crate::plonk::{
-    mv_lookup, permutation, AdviceQuery, Any, FixedQuery, InstanceQuery, ProvingKey,
-};
+use crate::plonk::{mv_lookup, permutation, Any, ProvingKey};
 use crate::poly::Basis;
 use crate::{
-    arithmetic::{eval_polynomial, parallelize, CurveAffine},
+    arithmetic::{parallelize, CurveAffine},
     poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation},
 };
-use group::ff::{BatchInvert, Field, PrimeField, WithSmallOrderMulGroup};
-use rayon::prelude::IntoParallelIterator;
-use rayon::prelude::ParallelIterator;
-use std::process::exit;
-use std::sync::atomic::fence;
+use group::ff::{Field, PrimeField, WithSmallOrderMulGroup};
 
 use super::{shuffle, ConstraintSystem, Expression};
 

@@ -8,9 +8,10 @@
 #![feature(stmt_expr_attributes)]
 // #![deny(missing_docs)]
 // #![deny(unsafe_code)]
+#![allow(clippy::uninit_vec)]
+#![allow(clippy::too_many_arguments)]
 
 #[cfg(feature = "counter")]
-#[macro_use]
 extern crate lazy_static;
 
 #[cfg(feature = "counter")]

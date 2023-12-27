@@ -9,12 +9,10 @@ use core::cmp::max;
 use core::ops::{Add, Mul};
 use ff::Field;
 use sealed::SealedPhase;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 //use std::fmt::Debug;
-use std::hash::Hasher;
 use std::iter::{Product, Sum};
-use std::marker::PhantomData;
 use std::ops::Range;
 use std::{
     convert::TryFrom,
@@ -1890,7 +1888,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn lookup_any<S: AsRef<str>>(
         &mut self,
         // FIXME use name in debug messages
-        name: &'static str,
+        _name: S,
         table_map: impl FnOnce(&mut VirtualCells<'_, F>) -> Vec<(Expression<F>, Expression<F>)>,
     ) {
         let mut cells = VirtualCells::new(self);

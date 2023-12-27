@@ -5,12 +5,10 @@ use std::collections::HashSet;
 use std::iter;
 use std::ops::{Add, Mul, Neg, Range};
 use std::sync::Arc;
-use std::time::Instant;
 
 use blake2b_simd::blake2b;
 use ff::Field;
 use ff::FromUniformBytes;
-use group::Group;
 
 use crate::plonk::permutation::keygen::Assembly;
 use crate::{
@@ -25,8 +23,6 @@ use crate::{
 use crate::{plonk::sealed::SealedPhase, plonk::FirstPhase, plonk::Phase};
 #[cfg(feature = "multiphase-mock-prover")]
 use ff::BatchInvert;
-#[cfg(feature = "multiphase-mock-prover")]
-use group::Group;
 
 #[cfg(feature = "multicore")]
 use crate::multicore::{
@@ -875,11 +871,13 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         }
 
         #[cfg(not(feature = "multiphase-mock-prover"))]
-        *self
-            .advice
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = assigned;
+        {
+            *self
+                .advice
+                .get_mut(column.index())
+                .and_then(|v| v.get_mut(row - self.rw_rows.start))
+                .ok_or(Error::BoundsFailure)? = assigned;
+        }
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -1091,7 +1089,6 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         #[cfg(not(feature = "circuit-params"))]
         let config = ConcreteCircuit::configure(&mut cs);
         let cs = cs.chunk_lookups();
-        let cs = cs;
 
         assert!(
             n >= cs.minimum_rows(),
@@ -1300,7 +1297,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         debug_assert_eq!(Arc::strong_count(&prover.fixed_vec), 1);
 
         #[cfg(feature = "thread-safe-region")]
-        prover.permutation.build_ordered_mapping();
+        prover.permutation.as_mut().unwrap().build_ordered_mapping();
 
         Ok(prover)
     }
