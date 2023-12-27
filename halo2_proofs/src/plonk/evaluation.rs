@@ -6,6 +6,10 @@ use crate::{
     poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation},
 };
 use group::ff::{Field, PrimeField, WithSmallOrderMulGroup};
+#[cfg(not(feature = "logup_skip_inv"))]
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+#[cfg(not(feature = "logup_skip_inv"))]
+use ff::BatchInvert;
 
 use super::{shuffle, ConstraintSystem, Expression};
 
@@ -561,7 +565,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                                 &gamma,
                                                 &theta,
                                                 &y,
-                                                &C::ScalarExt::zero(),
+                                                &C::Scalar::ZERO,
                                                 idx,
                                                 rot_scale,
                                                 isize,
@@ -588,7 +592,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                     inputs_values_for_extended_domain
                                         [i * inputs_len..(i + 1) * inputs_len]
                                         .iter()
-                                        .fold(C::Scalar::zero(), |acc, x| acc + x)
+                                        .fold(C::Scalar::ZERO, |acc, x| acc + x)
                                 })
                                 .collect::<Vec<_>>()
                         })

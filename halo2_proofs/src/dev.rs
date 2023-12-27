@@ -1241,7 +1241,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
 
         #[cfg(not(feature = "phase-check"))]
         {
-            let syn_time = Instant::now();
+            let syn_time = std::time::Instant::now();
 
             #[cfg(feature = "multiphase-mock-prover")]
             for current_phase in prover.cs.phases() {
