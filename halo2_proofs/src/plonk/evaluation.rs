@@ -5,11 +5,11 @@ use crate::{
     arithmetic::{parallelize, CurveAffine},
     poly::{Coeff, ExtendedLagrangeCoeff, LagrangeCoeff, Polynomial, Rotation},
 };
+#[cfg(not(feature = "logup_skip_inv"))]
+use ff::BatchInvert;
 use group::ff::{Field, PrimeField, WithSmallOrderMulGroup};
 #[cfg(not(feature = "logup_skip_inv"))]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-#[cfg(not(feature = "logup_skip_inv"))]
-use ff::BatchInvert;
 
 use super::{shuffle, ConstraintSystem, Expression};
 
