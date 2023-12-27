@@ -1,11 +1,11 @@
 use crate::circuit::layouter::SyncDeps;
 use crate::dev::metadata;
+use crate::plonk::shuffle;
 use crate::{
     circuit::{Layouter, Region, Value},
     poly::Rotation,
 };
 use core::cmp::max;
-use crate::plonk::shuffle;
 use core::ops::{Add, Mul};
 use ff::Field;
 use sealed::SealedPhase;
