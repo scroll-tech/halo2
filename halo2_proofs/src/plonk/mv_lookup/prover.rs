@@ -303,7 +303,7 @@ impl<C: CurveAffine> Prepared<C> {
             // parallelized version of log_derivatives_diff.scan()
             let active_size = params.n() as usize - blinding_factors;
             let mut grand_sum = iter::once(C::Scalar::ZERO)
-                .chain(log_derivatives_diff.clone())
+                .chain(log_derivatives_diff)
                 .take(active_size)
                 .collect::<Vec<_>>();
             // TODO: remove the implicit assumption that parallelize() split the grand_sum
