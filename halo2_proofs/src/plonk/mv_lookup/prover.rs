@@ -61,10 +61,8 @@ impl<F: PrimeField + WithSmallOrderMulGroup<3> + Ord> Argument<F> {
         fixed_values: &'a [Polynomial<C::Scalar, LagrangeCoeff>],
         instance_values: &'a [Polynomial<C::Scalar, LagrangeCoeff>],
         challenges: &'a [C::Scalar],
-        #[cfg(feature = "sanity-checks")]
-        mut rng: R, // in case we want to blind (do we actually need zk?)
-        #[cfg(not(feature = "sanity-checks"))]
-        rng: R,
+        #[cfg(feature = "sanity-checks")] mut rng: R, // in case we want to blind (do we actually need zk?)
+        #[cfg(not(feature = "sanity-checks"))] rng: R,
         transcript: &mut T,
     ) -> Result<Prepared<C>, Error>
     where
