@@ -580,11 +580,12 @@ pub(crate) fn parallelize_internal<T: Send, F: Fn(&mut [T], usize) + Send + Sync
 
     multicore::scope(|scope| {
         // Skip special-case: number of iterations is cleanly divided by number of threads.
-        let chunk_starts = vec![];
+        let mut chunk_starts = vec![];
         if cutoff_chunk_id != 0 {
             for (chunk_id, chunk) in v_hi.chunks_exact_mut(base_chunk_size + 1).enumerate() {
                 let offset = chunk_id * (base_chunk_size + 1);
                 scope.spawn(move |_| f(chunk, offset));
+                chunk_starts.push(offset);
             }
         }
         // Skip special-case: less iterations than number of threads.
@@ -592,6 +593,7 @@ pub(crate) fn parallelize_internal<T: Send, F: Fn(&mut [T], usize) + Send + Sync
             for (chunk_id, chunk) in v_lo.chunks_exact_mut(base_chunk_size).enumerate() {
                 let offset = split_pos + (chunk_id * base_chunk_size);
                 scope.spawn(move |_| f(chunk, offset));
+                chunk_starts.push(offset);
             }
         }
 

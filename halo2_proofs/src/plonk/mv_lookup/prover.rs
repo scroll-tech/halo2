@@ -20,7 +20,7 @@ use std::{
     ops::{Mul, MulAssign},
 };
 
-use crate::arithmetic::par_invert;
+use crate::arithmetic::{par_invert, parallelize_internal};
 use rayon::prelude::{
     IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator, ParallelSliceMut,
 };
@@ -302,32 +302,24 @@ impl<C: CurveAffine> Prepared<C> {
         let phi = {
             // parallelized version of log_derivatives_diff.scan()
             let active_size = params.n() as usize - blinding_factors;
-            let chunk = {
-                let num_threads = crate::multicore::current_num_threads();
-                let mut chunk = (active_size) / num_threads;
-                if chunk < num_threads {
-                    chunk = 1;
-                }
-                chunk
-            };
-            let num_chunks = (active_size + chunk - 1) / chunk;
-            let mut segment_sum = vec![C::Scalar::ZERO; num_chunks];
             let mut grand_sum = iter::once(C::Scalar::ZERO)
-                .chain(log_derivatives_diff)
+                .chain(log_derivatives_diff.clone())
                 .take(active_size)
                 .collect::<Vec<_>>();
             // TODO: remove the implicit assumption that parallelize() split the grand_sum
             //      into segments that each has `chunk` elements except the last.
-            parallelize(&mut grand_sum, |segment_grand_sum, _| {
+            let segment_starts = parallelize_internal(&mut grand_sum, |segment_grand_sum, _| {
                 for i in 1..segment_grand_sum.len() {
                     segment_grand_sum[i] += segment_grand_sum[i - 1];
                 }
             });
-            for i in 1..segment_sum.len() {
-                segment_sum[i] = segment_sum[i - 1] + grand_sum[i * chunk - 1];
+            let mut segment_sum = vec![C::Scalar::ZERO; grand_sum.len()];
+            for i in 1..segment_starts.len() {
+                segment_sum[segment_starts[i]] =
+                    segment_sum[segment_starts[i - 1]] + grand_sum[segment_starts[i] - 1];
             }
             parallelize(&mut grand_sum, |grand_sum, start| {
-                let prefix_sum = segment_sum[start / chunk];
+                let prefix_sum = segment_sum[start];
                 for v in grand_sum.iter_mut() {
                     *v += prefix_sum;
                 }
