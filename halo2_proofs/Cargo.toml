@@ -40,21 +40,26 @@ name = "dev_lookup"
 harness = false
 
 [[bench]]
+name = "lookups"
+harness = false
+
+[[bench]]
 name = "fft"
 harness = false
 
 [dependencies]
+rayon = "1.5.1"
 backtrace = { version = "0.3", optional = true }
 ff = "0.13"
 group = "0.13"
-halo2curves = { version = "0.1.0" }
+halo2curves = { version = "0.1.0", features = [ "derive_serde" ] }
 rand_core = { version = "0.6", default-features = false }
 tracing = "0.1"
 blake2b_simd = "1" # MSRV 1.66.0
 sha3 = "0.9.1"
 subtle = "2.3"
 cfg-if = "0.1"
-poseidon = { git = "https://github.com/scroll-tech/poseidon.git", branch = "sync-halo2-lib-0.4.0" }
+poseidon = { git = "https://github.com/scroll-tech/poseidon.git", branch = "main" }
 num-integer = "0.1"
 num-bigint = { version = "0.4", features = ["rand"] }
 rand_chacha = "0.3"
@@ -64,11 +69,12 @@ crossbeam = "0.8.0"
 # Developer tooling dependencies
 plotters = { version = "0.3.0", default-features = false, optional = true }
 tabbycat = { version = "0.1", features = ["attributes"], optional = true }
+lazy_static = { version = "1", optional = true }
 log = "0.4.17"
 
 # timer
 ark-std = { version = "0.3.0" }
-env_logger = "0.8.0"
+
 
 # Legacy circuit compatibility
 halo2_legacy_pdqsort = { version = "0.1.0", optional = true }
@@ -76,6 +82,7 @@ halo2_legacy_pdqsort = { version = "0.1.0", optional = true }
 [dev-dependencies]
 assert_matches = "1.5"
 criterion = "0.3"
+env_logger = "0.8.0"
 gumdrop = "0.8"
 proptest = "1"
 rand_core = { version = "0.6", default-features = false, features = ["getrandom"] }
@@ -84,7 +91,7 @@ rand_core = { version = "0.6", default-features = false, features = ["getrandom"
 getrandom = { version = "0.2", features = ["js"] }
 
 [features]
-default = ["batch", "gwc", "multicore", "parallel_syn" ]
+default = ["batch", "gwc", "multicore", "parallel_syn", "logup_skip_inv"]
 multicore = ["maybe-rayon/threads"]
 dev-graph = ["plotters", "tabbycat"]
 test-dev-graph = [
@@ -101,8 +108,10 @@ shplonk = []
 gwc = []
 parallel_syn = []
 profile = ["ark-std/print-trace"]
+counter = ["lazy_static"]
 mock-batch-inv = []
 circuit-params = []
+logup_skip_inv = []
 
 # todo: we have both mutliphase prover and phase check. consider merge them
 phase-check = []

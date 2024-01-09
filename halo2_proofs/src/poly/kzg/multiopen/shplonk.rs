@@ -2,14 +2,13 @@ mod prover;
 mod verifier;
 
 use crate::multicore::IntoParallelIterator;
+#[cfg(feature = "multicore")]
+use crate::multicore::ParallelIterator;
 use crate::{poly::query::Query, transcript::ChallengeScalar};
 use ff::Field;
 pub use prover::ProverSHPLONK;
 use std::collections::BTreeSet;
 pub use verifier::VerifierSHPLONK;
-
-#[cfg(feature = "multicore")]
-use crate::multicore::ParallelIterator;
 
 #[derive(Clone, Copy, Debug)]
 struct U {}
@@ -200,7 +199,7 @@ mod proptests {
             col_indices in vec(select((0..num_cols).collect::<Vec<_>>()), num_queries),
             point_indices in vec(select((0..num_points).collect::<Vec<_>>()), num_queries)
         ) -> Vec<(usize, usize)> {
-            col_indices.into_iter().zip(point_indices.into_iter()).collect()
+            col_indices.into_iter().zip(point_indices).collect()
         }
     }
 

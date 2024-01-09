@@ -2,9 +2,9 @@ use std::cmp;
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
-use std::ops::Range;
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use ff::Field;
 
@@ -16,7 +16,6 @@ use crate::{
         table_layouter::{compute_table_lengths, SimpleTableLayouter},
         Cell, Layouter, Region, RegionIndex, RegionStart, Table, Value,
     },
-    multicore,
     plonk::{
         Advice, Any, Assigned, Assignment, Challenge, Circuit, Column, Error, Fixed, FloorPlanner,
         Instance, Selector, TableColumn,
@@ -82,6 +81,7 @@ impl<'a, F: Field, CS: Assignment<F> + 'a> SingleChipLayouter<'a, F, CS> {
         Ok(ret)
     }
 
+    #[allow(dead_code)]
     fn fork(&self, sub_cs: Vec<&'a mut CS>) -> Result<Vec<Self>, Error> {
         Ok(sub_cs
             .into_iter()
@@ -261,39 +261,28 @@ impl<'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> Layouter<F>
         let ref_sub_cs = sub_cs.iter_mut().collect();
         let sub_layouters = self.fork(ref_sub_cs)?;
         let regions_2nd_pass = Instant::now();
-        let ret = crossbeam::scope(|scope| {
-            let mut handles = vec![];
-            for (i, (mut assignment, mut sub_layouter)) in assignments
-                .into_iter()
-                .zip(sub_layouters.into_iter())
-                .enumerate()
-            {
+        let ret = assignments
+            .into_par_iter()
+            .zip(sub_layouters.into_par_iter())
+            .enumerate()
+            .map(|(i, (mut assignment, mut sub_layouter))| {
                 let region_name = format!("{}_{}", region_name, i);
-                handles.push(scope.spawn(move |_| {
-                    let sub_region_2nd_pass = Instant::now();
-                    sub_layouter.cs.enter_region(|| region_name.clone());
-                    let mut region =
-                        SingleChipLayouterRegion::new(&mut sub_layouter, (region_index + i).into());
-                    let region_ref: &mut dyn RegionLayouter<F> = &mut region;
-                    let result = assignment(region_ref.into());
-                    let constant = region.constants.clone();
-                    sub_layouter.cs.exit_region();
-                    log::debug!(
-                        "region {} 2nd pass synthesis took {:?}",
-                        region_name,
-                        sub_region_2nd_pass.elapsed()
-                    );
-
-                    (result, constant)
-                }));
-            }
-
-            handles
-                .into_iter()
-                .map(|handle| handle.join().expect("handle.join should never fail"))
-                .collect::<Vec<_>>()
-        })
-        .expect("scope should not fail");
+                let sub_region_2nd_pass = Instant::now();
+                sub_layouter.cs.enter_region(|| region_name.clone());
+                let mut region =
+                    SingleChipLayouterRegion::new(&mut sub_layouter, (region_index + i).into());
+                let region_ref: &mut dyn RegionLayouter<F> = &mut region;
+                let result = assignment(region_ref.into());
+                let constant = region.constants.clone();
+                sub_layouter.cs.exit_region();
+                log::debug!(
+                    "region {} 2nd pass synthesis took {:?}",
+                    region_name,
+                    sub_region_2nd_pass.elapsed()
+                );
+                (result, constant)
+            })
+            .collect::<Vec<_>>();
         let cs_merge_time = Instant::now();
         let num_sub_cs = sub_cs.len();
         self.cs.merge(sub_cs)?;
@@ -475,6 +464,18 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> RegionLayouter<F>
         self.layouter.cs.annotate_column(annotation, column);
     }
 
+    fn query_advice(&self, column: Column<Advice>, offset: usize) -> Result<F, Error> {
+        self.layouter
+            .cs
+            .query_advice(column, *self.layouter.regions[*self.region_index] + offset)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, offset: usize) -> Result<F, Error> {
+        self.layouter
+            .cs
+            .query_fixed(column, *self.layouter.regions[*self.region_index] + offset)
+    }
+
     fn assign_advice<'v>(
         &'v mut self,
         annotation: &'v (dyn Fn() -> String + 'v),
@@ -575,6 +576,10 @@ impl<'r, 'a, F: Field, CS: Assignment<F> + 'a + SyncDeps> RegionLayouter<F>
         )?;
 
         Ok(())
+    }
+
+    fn global_offset(&self, row_offset: usize) -> usize {
+        *self.layouter.regions[*self.region_index] + row_offset
     }
 }
 

@@ -1,12 +1,9 @@
-use std::convert::TryInto;
-use std::marker::PhantomData;
-
-use super::Sha256Instructions;
+use ff::PrimeField as Field;
 use halo2_proofs::{
     circuit::{AssignedCell, Chip, Layouter, Region, Value},
     plonk::{Advice, Any, Assigned, Column, ConstraintSystem, Error},
 };
-use halo2curves::pasta::pallas;
+use std::convert::TryInto;
 
 mod compression;
 mod gates;
@@ -81,10 +78,10 @@ impl<const LEN: usize> From<&Bits<LEN>> for [bool; LEN] {
     }
 }
 
-impl<const LEN: usize> From<&Bits<LEN>> for Assigned<pallas::Base> {
-    fn from(bits: &Bits<LEN>) -> Assigned<pallas::Base> {
+impl<F: Field, const LEN: usize> From<&Bits<LEN>> for Assigned<F> {
+    fn from(bits: &Bits<LEN>) -> Assigned<F> {
         assert!(LEN <= 64);
-        pallas::Base::from(lebs2ip(&bits.0)).into()
+        F::from(lebs2ip(&bits.0)).into()
     }
 }
 
@@ -112,20 +109,21 @@ impl From<u32> for Bits<32> {
     }
 }
 
+/// Assigned bits
 #[derive(Clone, Debug)]
-pub struct AssignedBits<const LEN: usize>(AssignedCell<Bits<LEN>, pallas::Base>);
+pub struct AssignedBits<F: Field, const LEN: usize>(pub AssignedCell<Bits<LEN>, F>);
 
-impl<const LEN: usize> std::ops::Deref for AssignedBits<LEN> {
-    type Target = AssignedCell<Bits<LEN>, pallas::Base>;
+impl<F: Field, const LEN: usize> std::ops::Deref for AssignedBits<F, LEN> {
+    type Target = AssignedCell<Bits<LEN>, F>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<const LEN: usize> AssignedBits<LEN> {
+impl<F: Field, const LEN: usize> AssignedBits<F, LEN> {
     fn assign_bits<A, AR, T: TryInto<[bool; LEN]> + std::fmt::Debug + Clone>(
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         annotation: A,
         column: impl Into<Column<Any>>,
         offset: usize,
@@ -157,13 +155,13 @@ impl<const LEN: usize> AssignedBits<LEN> {
     }
 }
 
-impl AssignedBits<16> {
+impl<F: Field> AssignedBits<F, 16> {
     fn value_u16(&self) -> Value<u16> {
         self.value().map(|v| v.into())
     }
 
     fn assign<A, AR>(
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         annotation: A,
         column: impl Into<Column<Any>>,
         offset: usize,
@@ -192,13 +190,13 @@ impl AssignedBits<16> {
     }
 }
 
-impl AssignedBits<32> {
+impl<F: Field> AssignedBits<F, 32> {
     fn value_u32(&self) -> Value<u32> {
         self.value().map(|v| v.into())
     }
 
     fn assign<A, AR>(
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         annotation: A,
         column: impl Into<Column<Any>>,
         offset: usize,
@@ -235,14 +233,57 @@ pub struct Table16Config {
     compression: CompressionConfig,
 }
 
+impl Table16Config {
+    /// export initialize of compression module
+    pub fn initialize<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        init_state_assigned: [RoundWordDense<F>; STATE],
+    ) -> Result<State<F>, Error> {
+        self.compression.initialize(layouter, init_state_assigned)
+    }
+
+    /// export compress of compression module
+    pub fn compress<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        initialized_state: State<F>,
+        w_halves: [(AssignedBits<F, 16>, AssignedBits<F, 16>); ROUNDS],
+    ) -> Result<State<F>, Error> {
+        self.compression
+            .compress(layouter, initialized_state, w_halves)
+    }
+
+    /// export digest of compression module
+    pub fn digest<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        final_state: State<F>,
+        initialized_state: State<F>,
+    ) -> Result<[RoundWordDense<F>; STATE], Error> {
+        self.compression
+            .digest(layouter, final_state, initialized_state)
+    }
+
+    /// export message_process module
+    #[allow(clippy::type_complexity)]
+    pub fn message_process<F: Field>(
+        &self,
+        layouter: &mut impl Layouter<F>,
+        input: [BlockWord; super::BLOCK_SIZE],
+    ) -> Result<[(AssignedBits<F, 16>, AssignedBits<F, 16>); ROUNDS], Error> {
+        let (_, w_halves) = self.message_schedule.process(layouter, input)?;
+        Ok(w_halves)
+    }
+}
+
 /// A chip that implements SHA-256 with a maximum lookup table size of $2^16$.
 #[derive(Clone, Debug)]
 pub struct Table16Chip {
     config: Table16Config,
-    _marker: PhantomData<pallas::Base>,
 }
 
-impl Chip<pallas::Base> for Table16Chip {
+impl<F: Field> Chip<F> for Table16Chip {
     type Config = Table16Config;
     type Loaded = ();
 
@@ -257,17 +298,12 @@ impl Chip<pallas::Base> for Table16Chip {
 
 impl Table16Chip {
     /// Reconstructs this chip from the given config.
-    pub fn construct(config: <Self as Chip<pallas::Base>>::Config) -> Self {
-        Self {
-            config,
-            _marker: PhantomData,
-        }
+    pub fn construct<F: Field>(config: <Self as Chip<F>>::Config) -> Self {
+        Self { config }
     }
 
     /// Configures a circuit to include this chip.
-    pub fn configure(
-        meta: &mut ConstraintSystem<pallas::Base>,
-    ) -> <Self as Chip<pallas::Base>>::Config {
+    pub fn configure<F: Field>(meta: &mut ConstraintSystem<F>) -> <Self as Chip<F>>::Config {
         // Columns required by this chip:
         let message_schedule = meta.advice_column();
         let extras = [
@@ -318,69 +354,114 @@ impl Table16Chip {
     }
 
     /// Loads the lookup table required by this chip into the circuit.
-    pub fn load(
+    pub fn load<F: Field>(
         config: Table16Config,
-        layouter: &mut impl Layouter<pallas::Base>,
+        layouter: &mut impl Layouter<F>,
     ) -> Result<(), Error> {
         SpreadTableChip::load(config.lookup, layouter)
     }
 }
 
-impl Sha256Instructions<pallas::Base> for Table16Chip {
-    type State = State;
+/// composite of states in table16
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug)]
+pub enum Table16State<F: Field> {
+    /// working state (with spread assignment) for compression rounds
+    Compress(Box<State<F>>),
+    /// the dense state only carry hi-lo 16bit assigned cell used in digest and next block
+    Dense([RoundWordDense<F>; STATE]),
+}
+
+impl<F: Field> super::Sha256Instructions<F> for Table16Chip {
+    type State = Table16State<F>;
     type BlockWord = BlockWord;
 
-    fn initialization_vector(
-        &self,
-        layouter: &mut impl Layouter<pallas::Base>,
-    ) -> Result<State, Error> {
-        self.config().compression.initialize_with_iv(layouter, IV)
+    fn initialization_vector(&self, layouter: &mut impl Layouter<F>) -> Result<Self::State, Error> {
+        <Self as Chip<F>>::config(self)
+            .compression
+            .initialize_with_iv(layouter, IV)
+            .map(Box::new)
+            .map(Table16State::Compress)
     }
 
     fn initialization(
         &self,
-        layouter: &mut impl Layouter<pallas::Base>,
+        layouter: &mut impl Layouter<F>,
         init_state: &Self::State,
     ) -> Result<Self::State, Error> {
-        self.config()
+        let dense_state = match init_state.clone() {
+            Table16State::Compress(s) => {
+                let (a, b, c, d, e, f, g, h) = s.decompose();
+                [
+                    a.into_dense(),
+                    b.into_dense(),
+                    c.into_dense(),
+                    d,
+                    e.into_dense(),
+                    f.into_dense(),
+                    g.into_dense(),
+                    h,
+                ]
+            }
+            Table16State::Dense(s) => s,
+        };
+
+        <Self as Chip<F>>::config(self)
             .compression
-            .initialize_with_state(layouter, init_state.clone())
+            .initialize(layouter, dense_state)
+            .map(Box::new)
+            .map(Table16State::Compress)
     }
 
     // Given an initialized state and an input message block, compress the
     // message block and return the final state.
     fn compress(
         &self,
-        layouter: &mut impl Layouter<pallas::Base>,
+        layouter: &mut impl Layouter<F>,
         initialized_state: &Self::State,
         input: [Self::BlockWord; super::BLOCK_SIZE],
     ) -> Result<Self::State, Error> {
-        let config = self.config();
+        let config = <Self as Chip<F>>::config(self);
         let (_, w_halves) = config.message_schedule.process(layouter, input)?;
+
+        let init_working_state = match initialized_state {
+            Table16State::Compress(s) => s.as_ref().clone(),
+            _ => panic!("unexpected state type"),
+        };
+
+        let final_state =
+            config
+                .compression
+                .compress(layouter, init_working_state.clone(), w_halves)?;
+
         config
             .compression
-            .compress(layouter, initialized_state.clone(), w_halves)
+            .digest(layouter, final_state, init_working_state)
+            .map(Table16State::Dense)
     }
 
     fn digest(
         &self,
-        layouter: &mut impl Layouter<pallas::Base>,
+        _layouter: &mut impl Layouter<F>,
         state: &Self::State,
     ) -> Result<[Self::BlockWord; super::DIGEST_SIZE], Error> {
-        // Copy the dense forms of the state variable chunks down to this gate.
-        // Reconstruct the 32-bit dense words.
-        self.config().compression.digest(layouter, state.clone())
+        let digest_state = match state {
+            Table16State::Dense(s) => s.clone(),
+            _ => panic!("unexpected state type"),
+        };
+
+        Ok(digest_state.map(|s| s.value()).map(BlockWord))
     }
 }
 
 /// Common assignment patterns used by Table16 regions.
-trait Table16Assignment {
+trait Table16Assignment<F: Field> {
     /// Assign cells for general spread computation used in sigma, ch, ch_neg, maj gates
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::type_complexity)]
     fn assign_spread_outputs(
         &self,
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         lookup: &SpreadInputs,
         a_3: Column<Advice>,
         row: usize,
@@ -390,8 +471,8 @@ trait Table16Assignment {
         r_1_odd: Value<[bool; 16]>,
     ) -> Result<
         (
-            (AssignedBits<16>, AssignedBits<16>),
-            (AssignedBits<16>, AssignedBits<16>),
+            (AssignedBits<F, 16>, AssignedBits<F, 16>),
+            (AssignedBits<F, 16>, AssignedBits<F, 16>),
         ),
         Error,
     > {
@@ -432,7 +513,7 @@ trait Table16Assignment {
     #[allow(clippy::too_many_arguments)]
     fn assign_sigma_outputs(
         &self,
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         lookup: &SpreadInputs,
         a_3: Column<Advice>,
         row: usize,
@@ -440,7 +521,7 @@ trait Table16Assignment {
         r_0_odd: Value<[bool; 16]>,
         r_1_even: Value<[bool; 16]>,
         r_1_odd: Value<[bool; 16]>,
-    ) -> Result<(AssignedBits<16>, AssignedBits<16>), Error> {
+    ) -> Result<(AssignedBits<F, 16>, AssignedBits<F, 16>), Error> {
         let (even, _odd) = self.assign_spread_outputs(
             region, lookup, a_3, row, r_0_even, r_0_odd, r_1_even, r_1_odd,
         )?;
@@ -484,7 +565,7 @@ mod tests {
                 config: Self::Config,
                 mut layouter: impl Layouter<pallas::Base>,
             ) -> Result<(), Error> {
-                let table16_chip = Table16Chip::construct(config.clone());
+                let table16_chip = Table16Chip::construct::<pallas::Base>(config.clone());
                 Table16Chip::load(config, &mut layouter)?;
 
                 // Test vector: "abc"

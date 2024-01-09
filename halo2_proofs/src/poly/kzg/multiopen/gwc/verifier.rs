@@ -69,7 +69,7 @@ where
         let mut witness_with_aux = MSMKZG::<E>::new();
 
         for ((commitment_at_a_point, wi), power_of_u) in
-            commitment_data.iter().zip(w.into_iter()).zip(powers(*u))
+            commitment_data.iter().zip(w).zip(powers(*u))
         {
             assert!(!commitment_at_a_point.queries.is_empty());
             let z = commitment_at_a_point.point;

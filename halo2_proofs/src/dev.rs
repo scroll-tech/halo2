@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use std::iter;
 use std::ops::{Add, Mul, Neg, Range};
 use std::sync::Arc;
-use std::time::Instant;
 
 use blake2b_simd::blake2b;
 use ff::Field;
@@ -24,8 +23,6 @@ use crate::{
 use crate::{plonk::sealed::SealedPhase, plonk::FirstPhase, plonk::Phase};
 #[cfg(feature = "multiphase-mock-prover")]
 use ff::BatchInvert;
-#[cfg(feature = "multiphase-mock-prover")]
-use group::Group;
 
 #[cfg(feature = "multicore")]
 use crate::multicore::{
@@ -130,7 +127,7 @@ impl<F: Field> PartialEq for CellValue<F> {
 }
 
 #[cfg(feature = "mock-batch-inv")]
-impl<F: Group + Field> CellValue<F> {
+impl<F: Field> CellValue<F> {
     /// Returns the numerator.
     pub fn numerator(&self) -> Option<F> {
         match self {
@@ -149,7 +146,7 @@ impl<F: Group + Field> CellValue<F> {
 }
 
 #[cfg(feature = "mock-batch-inv")]
-impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
+impl<F: Field> From<Assigned<F>> for CellValue<F> {
     fn from(value: Assigned<F>) -> Self {
         match value {
             Assigned::Zero => CellValue::Unassigned,
@@ -162,10 +159,7 @@ impl<F: Group + Field> From<Assigned<F>> for CellValue<F> {
 }
 
 #[cfg(feature = "mock-batch-inv")]
-fn calculate_assigned_values<F: Group + Field>(
-    cell_values: &mut [CellValue<F>],
-    inv_denoms: &[Option<F>],
-) {
+fn calculate_assigned_values<F: Field>(cell_values: &mut [CellValue<F>], inv_denoms: &[Option<F>]) {
     assert_eq!(inv_denoms.len(), cell_values.len());
     for (value, inv_den) in cell_values.iter_mut().zip(inv_denoms.iter()) {
         // if numerator and denominator exist, calculate the assigned value
@@ -178,7 +172,7 @@ fn calculate_assigned_values<F: Group + Field>(
 }
 
 #[cfg(feature = "mock-batch-inv")]
-fn batch_invert_cellvalues<F: Field + Group>(cell_values: &mut [Vec<CellValue<F>>]) {
+fn batch_invert_cellvalues<F: Field>(cell_values: &mut [Vec<CellValue<F>>]) {
     let mut denominators: Vec<_> = cell_values
         .iter()
         .map(|f| {
@@ -709,6 +703,56 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         Ok(())
     }
 
+    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+        if !self.rw_rows.contains(&row) {
+            return Err(Error::InvalidRange(
+                row,
+                self.current_region
+                    .as_ref()
+                    .map(|region| region.name.clone())
+                    .unwrap(),
+            ));
+        }
+        self.advice
+            .get(column.index())
+            .and_then(|v| v.get(row - self.rw_rows.start))
+            .map(|v| match v {
+                CellValue::Assigned(f) => *f,
+                #[cfg(feature = "mock-batch-inv")]
+                CellValue::Rational(n, d) => *n * d.invert().unwrap_or(F::ZERO),
+                _ => F::ZERO,
+            })
+            .ok_or(Error::BoundsFailure)
+    }
+
+    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+        if !self.usable_rows.contains(&row) {
+            return Err(Error::not_enough_rows_available(self.k));
+        }
+        if !self.rw_rows.contains(&row) {
+            return Err(Error::InvalidRange(
+                row,
+                self.current_region
+                    .as_ref()
+                    .map(|region| region.name.clone())
+                    .unwrap(),
+            ));
+        }
+        self.fixed
+            .get(column.index())
+            .and_then(|v| v.get(row - self.rw_rows.start))
+            .map(|v| match v {
+                CellValue::Assigned(f) => *f,
+                #[cfg(feature = "mock-batch-inv")]
+                CellValue::Rational(n, d) => *n * d.invert().unwrap_or(F::ZERO),
+                _ => F::ZERO,
+            })
+            .ok_or(Error::BoundsFailure)
+    }
+
     fn query_instance(
         &self,
         column: Column<Instance>,
@@ -827,11 +871,13 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         }
 
         #[cfg(not(feature = "multiphase-mock-prover"))]
-        *self
-            .advice
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row - self.rw_rows.start))
-            .ok_or(Error::BoundsFailure)? = assigned;
+        {
+            *self
+                .advice
+                .get_mut(column.index())
+                .and_then(|v| v.get_mut(row - self.rw_rows.start))
+                .ok_or(Error::BoundsFailure)? = assigned;
+        }
 
         #[cfg(feature = "phase-check")]
         // if false && self.current_phase.0 > column.column_type().phase.0 {
@@ -1042,7 +1088,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         let config = ConcreteCircuit::configure_with_params(&mut cs, circuit.params());
         #[cfg(not(feature = "circuit-params"))]
         let config = ConcreteCircuit::configure(&mut cs);
-        let cs = cs;
+        let cs = cs.chunk_lookups();
 
         assert!(
             n >= cs.minimum_rows(),
@@ -1130,7 +1176,10 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             instance,
             selectors_vec,
             selectors,
+            #[cfg(feature = "phase-check")]
             challenges: challenges.clone(),
+            #[cfg(not(feature = "phase-check"))]
+            challenges,
             permutation: Some(permutation),
             rw_rows: 0..usable_rows,
             usable_rows: 0..usable_rows,
@@ -1192,7 +1241,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
 
         #[cfg(not(feature = "phase-check"))]
         {
-            let syn_time = Instant::now();
+            let syn_time = std::time::Instant::now();
 
             #[cfg(feature = "multiphase-mock-prover")]
             for current_phase in prover.cs.phases() {
@@ -1248,7 +1297,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         debug_assert_eq!(Arc::strong_count(&prover.fixed_vec), 1);
 
         #[cfg(feature = "thread-safe-region")]
-        prover.permutation.build_ordered_mapping();
+        prover.permutation.as_mut().unwrap().build_ordered_mapping();
 
         Ok(prover)
     }
@@ -1485,7 +1534,6 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                 .iter()
                 .enumerate()
                 .flat_map(|(lookup_index, lookup)| {
-                    assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
                     assert!(self.usable_rows.end > 0);
 
                     // We optimize on the basis that the table might have been filled so that the last
@@ -1531,48 +1579,53 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                     }
                     let table = &cached_table;
 
-                    let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
-                        .clone()
-                        .filter_map(|input_row| {
-                            let t = lookup
-                                .input_expressions
-                                .iter()
-                                .map(move |c| load(c, input_row))
-                                .collect();
-
-                            if t != fill_row {
-                                // Also keep track of the original input row, since we're going to sort.
-                                Some((t, input_row))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    inputs.sort_unstable();
-
-                    let mut i = 0;
-                    inputs
+                    lookup
+                        .inputs_expressions
                         .iter()
-                        .filter_map(move |(input, input_row)| {
-                            while i < table.len() && &table[i] < input {
-                                i += 1;
-                            }
-                            if i == table.len() || &table[i] > input {
-                                assert!(table.binary_search(input).is_err());
+                        .map(|input_expressions| {
+                            let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                                .clone()
+                                .filter_map(|input_row| {
+                                    let t = input_expressions
+                                        .iter()
+                                        .map(move |c| load(c, input_row))
+                                        .collect();
 
-                                Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
-                                    lookup_index,
-                                    location: FailureLocation::find_expressions(
-                                        &self.cs,
-                                        &self.regions,
-                                        *input_row,
-                                        lookup.input_expressions.iter(),
-                                    ),
+                                    if t != fill_row {
+                                        // Also keep track of the original input row, since we're going to sort.
+                                        Some((t, input_row))
+                                    } else {
+                                        None
+                                    }
                                 })
-                            } else {
-                                None
-                            }
+                                .collect();
+                            inputs.sort_unstable();
+
+                            let mut i = 0;
+                            inputs
+                                .iter()
+                                .filter_map(move |(input, input_row)| {
+                                    while i < table.len() && &table[i] < input {
+                                        i += 1;
+                                    }
+                                    if i == table.len() || &table[i] > input {
+                                        assert!(table.binary_search(input).is_err());
+
+                                        Some(VerifyFailure::Lookup {
+                                            name: lookup.name.to_string(),
+                                            lookup_index,
+                                            location: FailureLocation::find_expressions(
+                                                &self.cs,
+                                                &self.regions,
+                                                *input_row,
+                                                input_expressions.iter(),
+                                            ),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>()
                 });
@@ -1692,7 +1745,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         let mut errors: Vec<_> = iter::empty()
             .chain(selector_errors)
             .chain(gate_errors)
-            .chain(lookup_errors)
+            .chain(lookup_errors.flatten())
             .chain(perm_errors)
             .chain(shuffle_errors)
             .collect();
@@ -1953,7 +2006,6 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                 .iter()
                 .enumerate()
                 .flat_map(|(lookup_index, lookup)| {
-                    assert!(lookup.table_expressions.len() == lookup.input_expressions.len());
                     assert!(self.usable_rows.end > 0);
 
                     // We optimize on the basis that the table might have been filled so that the last
@@ -2000,43 +2052,48 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
                     }
                     let table = &cached_table;
 
-                    let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
-                        .clone()
-                        .into_par_iter()
-                        .filter_map(|input_row| {
-                            let t = lookup
-                                .input_expressions
-                                .iter()
-                                .map(move |c| load(c, input_row))
-                                .collect();
+                    lookup
+                        .inputs_expressions
+                        .iter()
+                        .map(|input_expressions| {
+                            let mut inputs: Vec<(Vec<_>, usize)> = lookup_input_row_ids
+                                .clone()
+                                .into_par_iter()
+                                .filter_map(|input_row| {
+                                    let t = input_expressions
+                                        .iter()
+                                        .map(move |c| load(c, input_row))
+                                        .collect();
 
-                            if t != fill_row {
-                                // Also keep track of the original input row, since we're going to sort.
-                                Some((t, input_row))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    inputs.par_sort_unstable();
-
-                    inputs
-                        .par_iter()
-                        .filter_map(move |(input, input_row)| {
-                            if table.binary_search(input).is_err() {
-                                Some(VerifyFailure::Lookup {
-                                    name: lookup.name.clone(),
-                                    lookup_index,
-                                    location: FailureLocation::find_expressions(
-                                        &self.cs,
-                                        &self.regions,
-                                        *input_row,
-                                        lookup.input_expressions.iter(),
-                                    ),
+                                    if t != fill_row {
+                                        // Also keep track of the original input row, since we're going to sort.
+                                        Some((t, input_row))
+                                    } else {
+                                        None
+                                    }
                                 })
-                            } else {
-                                None
-                            }
+                                .collect();
+                            inputs.par_sort_unstable();
+
+                            inputs
+                                .par_iter()
+                                .filter_map(move |(input, input_row)| {
+                                    if table.binary_search(input).is_err() {
+                                        Some(VerifyFailure::Lookup {
+                                            name: lookup.name.to_string(),
+                                            lookup_index,
+                                            location: FailureLocation::find_expressions(
+                                                &self.cs,
+                                                &self.regions,
+                                                *input_row,
+                                                input_expressions.iter(),
+                                            ),
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>()
                 });
@@ -2156,7 +2213,7 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         let mut errors: Vec<_> = iter::empty()
             .chain(selector_errors)
             .chain(gate_errors)
-            .chain(lookup_errors)
+            .chain(lookup_errors.flatten())
             .chain(perm_errors)
             .chain(shuffle_errors)
             .collect();

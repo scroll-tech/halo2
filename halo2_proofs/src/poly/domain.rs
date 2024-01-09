@@ -175,7 +175,7 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
         &self,
         values: Vec<Polynomial<F, LagrangeCoeff>>,
     ) -> Polynomial<F, ExtendedLagrangeCoeff> {
-        assert_eq!(values.len(), (self.extended_len() >> self.k) as usize);
+        assert_eq!(values.len(), (self.extended_len() >> self.k));
         assert_eq!(values[0].len(), self.n as usize);
 
         // transpose the values in parallel
@@ -456,10 +456,10 @@ impl<F: WithSmallOrderMulGroup<3>> EvaluationDomain<F> {
     ///
     fn distribute_powers(&self, a: &mut [F], c: F) {
         parallelize(a, |a, index| {
-            let mut c_power = c.pow_vartime(&[index as u64, 0, 0, 0]);
+            let mut c_power = c.pow_vartime([index as u64, 0, 0, 0]);
             for a in a {
-                *a = *a * (&c_power);
-                c_power = c_power * c;
+                *a *= &c_power;
+                c_power *= c;
             }
         });
     }

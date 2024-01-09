@@ -1,3 +1,4 @@
+use crate::plonk::shuffle;
 use ff::{Field, FromUniformBytes, WithSmallOrderMulGroup};
 use group::Curve;
 use rand_core::RngCore;
@@ -12,8 +13,8 @@ use super::{
         Advice, Any, Assignment, Challenge, Circuit, Column, ConstraintSystem, Fixed, FloorPlanner,
         Instance, Selector,
     },
-    lookup, permutation, shuffle, vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta,
-    ChallengeX, ChallengeY, Error, ProvingKey,
+    mv_lookup, permutation, vanishing, ChallengeBeta, ChallengeGamma, ChallengeTheta, ChallengeX,
+    ChallengeY, Error, ProvingKey,
 };
 
 use crate::{
@@ -30,6 +31,7 @@ use crate::{
     poly::batch_invert_assigned,
     transcript::{EncodedChallenge, TranscriptWrite},
 };
+use ark_std::{end_timer, start_timer};
 use group::prime::PrimeCurveAffine;
 
 /// This creates a proof for the provided `circuit` when given the public
@@ -53,7 +55,7 @@ pub fn create_proof<
     transcript: &mut T,
 ) -> Result<(), Error>
 where
-    Scheme::Scalar: WithSmallOrderMulGroup<3> + FromUniformBytes<64>,
+    Scheme::Scalar: WithSmallOrderMulGroup<3> + FromUniformBytes<64> + Ord,
 {
     if circuits.len() != instances.len() {
         return Err(Error::InvalidInstances);
@@ -152,6 +154,7 @@ where
         advice: Vec<&'a mut [Assigned<F>]>,
         challenges: &'a HashMap<usize, F>,
         instances: &'a [&'a [F]],
+        fixed_values: &'a [Polynomial<F, LagrangeCoeff>],
         rw_rows: Range<usize>,
         usable_rows: RangeTo<usize>,
         _marker: std::marker::PhantomData<F>,
@@ -235,6 +238,7 @@ where
                     advice,
                     challenges: self.challenges,
                     instances: self.instances,
+                    fixed_values: self.fixed_values,
                     rw_rows: sub_range.clone(),
                     usable_rows: self.usable_rows,
                     _marker: Default::default(),
@@ -254,6 +258,30 @@ where
             AR: Into<String>,
         {
             // Do nothing
+        }
+
+        /// Get the last assigned value of a cell.
+        fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+            if !self.usable_rows.contains(&row) {
+                return Err(Error::not_enough_rows_available(self.k));
+            }
+            if !self.rw_rows.contains(&row) {
+                log::error!("query_advice: {:?}, row: {}", column, row);
+                return Err(Error::Synthesis);
+            }
+            self.advice
+                .get(column.index())
+                .and_then(|v| v.get(row - self.rw_rows.start))
+                .map(|v| v.evaluate())
+                .ok_or(Error::BoundsFailure)
+        }
+
+        fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+            self.fixed_values
+                .get(column.index())
+                .and_then(|v| v.get(row))
+                .copied()
+                .ok_or(Error::BoundsFailure)
         }
 
         fn query_instance(&self, column: Column<Instance>, row: usize) -> Result<Value<F>, Error> {
@@ -394,7 +422,7 @@ where
                 })
                 .collect::<BTreeSet<_>>();
 
-            for (circuit_idx, ((circuit, advice), instances)) in circuits
+            for (_circuit_idx, ((circuit, advice), instances)) in circuits
                 .iter()
                 .zip(advice.iter_mut())
                 .zip(instances)
@@ -411,6 +439,7 @@ where
                     advice_vec,
                     advice: advice_slice,
                     instances,
+                    fixed_values: &pk.fixed_values,
                     challenges: &challenges,
                     // The prover will not be allowed to assign values to advice
                     // cells that exist within inactive rows, which include some
@@ -433,7 +462,7 @@ where
                 {
                     for (idx, advice_col) in witness.advice_vec.iter().enumerate() {
                         if pk.vk.cs.advice_column_phase[idx].0 < current_phase.0
-                            && advice_assignments[circuit_idx][idx].values != advice_col.values
+                            && advice_assignments[_circuit_idx][idx].values != advice_col.values
                         {
                             log::error!(
                                 "advice column {}(at {:?}) changed when {:?}",
@@ -454,7 +483,7 @@ where
                             if column_indices.contains(&column_index) {
                                 #[cfg(feature = "phase-check")]
                                 {
-                                    advice_assignments[circuit_idx][column_index] = advice.clone();
+                                    advice_assignments[_circuit_idx][column_index] = advice.clone();
                                 }
                                 Some(advice)
                             } else {
@@ -524,17 +553,20 @@ where
     // Sample theta challenge for keeping lookup columns linearly independent
     let theta: ChallengeTheta<_> = transcript.squeeze_challenge_scalar();
 
-    let lookups: Vec<Vec<lookup::prover::Permuted<Scheme::Curve>>> = instance
+    let lookups: Vec<Vec<mv_lookup::prover::Prepared<Scheme::Curve>>> = instance
         .iter()
         .zip(advice.iter())
         .map(|(instance, advice)| -> Result<Vec<_>, Error> {
+            let lookup_get_mx_time =
+                start_timer!(|| format!("get m(X) in {} lookups", pk.vk.cs.lookups.len()));
             // Construct and commit to permuted values for each lookup
-            pk.vk
+            let mx = pk
+                .vk
                 .cs
                 .lookups
                 .iter()
                 .map(|lookup| {
-                    lookup.commit_permuted(
+                    lookup.prepare(
                         pk,
                         params,
                         domain,
@@ -547,7 +579,10 @@ where
                         transcript,
                     )
                 })
-                .collect()
+                .collect();
+            end_timer!(lookup_get_mx_time);
+
+            mx
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -577,16 +612,18 @@ where
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let lookups: Vec<Vec<lookup::prover::Committed<Scheme::Curve>>> = lookups
+    let lookup_commit_time = start_timer!(|| "lookup commit grand sum");
+    let lookups: Vec<Vec<mv_lookup::prover::Committed<Scheme::Curve>>> = lookups
         .into_iter()
         .map(|lookups| -> Result<Vec<_>, _> {
             // Construct and commit to products for each lookup
             lookups
                 .into_iter()
-                .map(|lookup| lookup.commit_product(pk, params, beta, gamma, &mut rng, transcript))
+                .map(|lookup| lookup.commit_grand_sum(pk, params, beta, &mut rng, transcript))
                 .collect::<Result<Vec<_>, _>>()
         })
         .collect::<Result<Vec<_>, _>>()?;
+    end_timer!(lookup_commit_time);
 
     let shuffles: Vec<Vec<shuffle::prover::Committed<Scheme::Curve>>> = instance
         .iter()
@@ -735,8 +772,7 @@ where
         .map(|permutation| -> Result<_, _> { permutation.construct().evaluate(pk, x, transcript) })
         .collect::<Result<Vec<_>, _>>()?;
 
-    // Evaluate the lookups, if any, at omega^i x.
-    let lookups: Vec<Vec<lookup::prover::Evaluated<Scheme::Curve>>> = lookups
+    let lookups: Vec<Vec<mv_lookup::prover::Evaluated<Scheme::Curve>>> = lookups
         .into_iter()
         .map(|lookups| -> Result<Vec<_>, _> {
             lookups

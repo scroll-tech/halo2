@@ -22,7 +22,9 @@ mod circuit;
 mod error;
 mod evaluation;
 mod keygen;
+#[allow(dead_code)]
 mod lookup;
+mod mv_lookup;
 pub mod permutation;
 mod shuffle;
 mod vanishing;
@@ -158,7 +160,10 @@ where
     }
 }
 
-impl<C: CurveAffine> VerifyingKey<C> {
+impl<C: CurveAffine> VerifyingKey<C>
+where
+    C::ScalarExt: FromUniformBytes<64>,
+{
     fn bytes_length(&self) -> usize {
         8 + (self.fixed_commitments.len() * C::default().to_bytes().as_ref().len())
             + self.permutation.bytes_length()

@@ -374,7 +374,7 @@ pub(crate) fn build_pk<'params, C: CurveAffine, P: Params<'params, C>>(
                 for v in omega_powers {
                     *v *= &cur;
                 }
-                cur *= &C::Scalar::DELTA;
+                cur *= &<C::Scalar as PrimeField>::DELTA;
             }
         });
     }

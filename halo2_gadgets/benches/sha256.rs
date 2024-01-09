@@ -15,7 +15,10 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use halo2_gadgets::sha256::{BlockWord, Sha256, Table16Chip, Table16Config, BLOCK_SIZE};
+use halo2_gadgets::sha256::{
+    table16::{BlockWord, Table16Chip, Table16Config},
+    Sha256, BLOCK_SIZE,
+};
 
 use halo2_proofs::{
     poly::{
@@ -54,7 +57,7 @@ fn bench(name: &str, k: u32, c: &mut Criterion) {
             mut layouter: impl Layouter<pallas::Base>,
         ) -> Result<(), Error> {
             Table16Chip::load(config.clone(), &mut layouter)?;
-            let table16_chip = Table16Chip::construct(config);
+            let table16_chip = Table16Chip::construct::<pallas::Base>(config);
 
             // Test vector: "abc"
             let test_input = [

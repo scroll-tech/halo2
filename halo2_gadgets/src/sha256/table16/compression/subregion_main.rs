@@ -1,19 +1,19 @@
-use super::super::{AssignedBits, RoundWord, RoundWordA, RoundWordE, StateWord, ROUND_CONSTANTS};
-use super::{compression_util::*, CompressionConfig, State};
+use super::{
+    super::{AssignedBits, RoundWord, RoundWordA, RoundWordE, StateWord, ROUND_CONSTANTS},
+    compression_util::*,
+    CompressionConfig, Field, State,
+};
 use halo2_proofs::{circuit::Region, plonk::Error};
-use halo2curves::pasta::pallas;
 
 impl CompressionConfig {
     #[allow(clippy::many_single_char_names)]
-    pub fn assign_round(
+    pub fn assign_round<F: Field>(
         &self,
-        region: &mut Region<'_, pallas::Base>,
+        region: &mut Region<'_, F>,
         round_idx: MainRoundIdx,
-        state: State,
-        schedule_word: &(AssignedBits<16>, AssignedBits<16>),
-    ) -> Result<State, Error> {
-        let a_3 = self.extras[0];
-        let a_4 = self.extras[1];
+        state: State<F>,
+        schedule_word: &(AssignedBits<F, 16>, AssignedBits<F, 16>),
+    ) -> Result<State<F>, Error> {
         let a_7 = self.extras[3];
 
         let (a, b, c, d, e, f, g, h) = match_state(state);
@@ -103,21 +103,12 @@ impl CompressionConfig {
                 StateWord::H(g.dense_halves),
             ))
         } else {
-            let abcd_row = get_digest_abcd_row();
-            let efgh_row = get_digest_efgh_row();
-
-            let a_final =
-                self.assign_word_halves_dense(region, abcd_row, a_3, abcd_row, a_4, a_new_val)?;
-
-            let e_final =
-                self.assign_word_halves_dense(region, efgh_row, a_3, efgh_row, a_4, e_new_val)?;
-
             Ok(State::new(
-                StateWord::A(RoundWordA::new_dense(a_final)),
+                StateWord::A(RoundWordA::new_dense(a_new_dense)),
                 StateWord::B(RoundWord::new(a.dense_halves, a.spread_halves.unwrap())),
                 StateWord::C(b),
                 StateWord::D(c.dense_halves),
-                StateWord::E(RoundWordE::new_dense(e_final)),
+                StateWord::E(RoundWordE::new_dense(e_new_dense)),
                 StateWord::F(RoundWord::new(e.dense_halves, e.spread_halves.unwrap())),
                 StateWord::G(f),
                 StateWord::H(g.dense_halves),
