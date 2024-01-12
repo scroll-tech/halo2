@@ -535,13 +535,13 @@ where
     q
 }
 
-/// This utility function will parallelize an operation that is to be
 pub fn par_invert<F: Field>(values: &mut [F]) {
     parallelize(values, |values, _start| {
         values.batch_invert();
     });
 }
 
+/// This utility function will parallelize an operation that is to be
 /// performed over a mutable slice.
 pub(crate) fn parallelize_internal<T: Send, F: Fn(&mut [T], usize) + Send + Sync + Clone>(
     v: &mut [T],
