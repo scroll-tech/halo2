@@ -319,11 +319,20 @@ where
                 return Err(Error::Synthesis);
             }
 
+            let value_res = to().into_field().assign();
+            if value_res.is_err() {
+                log::error!(
+                    "in assign_advice() assign unknown to column {:?} at row {}",
+                    column,
+                    row
+                );
+            }
+
             *self
                 .advice
                 .get_mut(column.index())
                 .and_then(|v| v.get_mut(row - self.rw_rows.start))
-                .ok_or(Error::BoundsFailure)? = to().into_field().assign()?;
+                .ok_or(Error::BoundsFailure)? = value_res?;
 
             Ok(())
         }
