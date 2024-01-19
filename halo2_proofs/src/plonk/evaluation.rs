@@ -661,7 +661,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                 // Π(φ_i(X))
                                 let inputs_prod: C::Scalar = inputs_value
                                     .iter()
-                                    .fold(C::Scalar::ZERO, |acc, input| acc * input);
+                                    .fold(C::Scalar::ONE, |acc, input| acc * input);
 
                                 // t(X) + beta
                                 let table_value = table_lookup_evaluator.evaluate(
@@ -697,7 +697,7 @@ impl<C: CurveAffine> Evaluator<C> {
                                                 .iter()
                                                 .enumerate()
                                                 .filter(|(j, _)| *j != i)
-                                                .fold(C::Scalar::ZERO, |acc, (_, x)| acc * *x)
+                                                .fold(C::Scalar::ONE, |acc, (_, x)| acc * *x)
                                         })
                                         .fold(C::Scalar::ZERO, |acc, x| acc + x);
                                     inputs * table_value - inputs_prod * m_coset[idx]

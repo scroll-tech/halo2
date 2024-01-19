@@ -90,7 +90,7 @@ impl<C: CurveAffine> Evaluated<C> {
         instance_evals: &[C::Scalar],
         challenges: &[C::Scalar],
     ) -> impl Iterator<Item = C::Scalar> + 'a {
-        let active_rows = C::Scalar::ZERO - (l_last + l_blind);
+        let active_rows = C::Scalar::ONE - (l_last + l_blind);
 
         /*
             φ_i(X) = f_i(X) + beta
@@ -131,7 +131,7 @@ impl<C: CurveAffine> Evaluated<C> {
 
             let tau = t_eval + *beta;
             // Π(φ_i(X))
-            let prod_fi = f_evals.iter().fold(C::Scalar::ZERO, |acc, eval| acc * eval);
+            let prod_fi = f_evals.iter().fold(C::Scalar::ONE, |acc, eval| acc * eval);
             // ∑ 1/(φ_i(X))
             let sum_inv_fi = {
                 f_evals.batch_invert();
