@@ -50,16 +50,19 @@ harness = false
 [dependencies]
 rayon = "1.5.1"
 backtrace = { version = "0.3", optional = true }
-ff = "0.13"
-group = "0.13"
-halo2curves = { version = "0.1.0", features = [ "derive_serde" ] }
+#ff = "0.13"
+#group = "0.13"
+#halo2curves = { version = "0.1.0", features = [ "derive_serde" ] }
+ff = { git = "https://github.com/kunxian-xia/ff.git", branch = "feat/fri" }
+group = { git = "https://github.com/kunxian-xia/group.git", branch = "feat/fri" }
+halo2curves = { git = "https://github.com/kunxian-xia/halo2curves.git", branch = "feat/fri", features = ["derive_serde"] }
 rand_core = { version = "0.6", default-features = false }
 tracing = "0.1"
 blake2b_simd = "1" # MSRV 1.66.0
 sha3 = "0.9.1"
 subtle = "2.3"
 cfg-if = "0.1"
-poseidon = { git = "https://github.com/scroll-tech/poseidon.git", branch = "main" }
+poseidon = { git = "https://github.com/kunxian-xia/poseidon.git", branch = "feat/fri" }
 num-integer = "0.1"
 num-bigint = { version = "0.4", features = ["rand"] }
 rand_chacha = "0.3"
@@ -117,6 +120,7 @@ logup_skip_inv = []
 phase-check = []
 multiphase-mock-prover = []
 
+fri = []
 [lib]
 bench = false
 
