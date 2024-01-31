@@ -15,6 +15,7 @@ use rand_core::RngCore;
 use std::fmt::Debug;
 use std::io;
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 /// Concrete KZG prover with GWC variant
 #[derive(Debug)]
@@ -77,9 +78,9 @@ where
                 values: kate_division(&poly_batch.values, z),
                 _marker: PhantomData,
             };
-            let w = self
-                .params
-                .commit(&witness_poly, Blind::default())
+            let w = self.params.commit(&witness_poly, Blind::default())[0]
+                .deref()
+                .unwrap()
                 .to_affine();
 
             transcript.write_point(w)?;

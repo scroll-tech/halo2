@@ -1,7 +1,10 @@
+use std::io::Read;
 use std::iter;
+use std::marker::PhantomData;
 
 use ff::Field;
 
+use crate::poly::commitment::Commitment;
 use crate::{
     arithmetic::CurveAffine,
     plonk::{Error, VerifyingKey},
@@ -16,25 +19,29 @@ use super::super::{ChallengeX, ChallengeY};
 use super::Argument;
 
 pub struct Committed<C: CurveAffine> {
-    random_poly_commitment: C,
+    random_poly_commitment: Commitment<C>,
 }
 
 pub struct Constructed<C: CurveAffine> {
-    h_commitments: Vec<C>,
-    random_poly_commitment: C,
+    h_commitments: Commitment<C>,
+    random_poly_commitment: Commitment<C>,
 }
 
 pub struct PartiallyEvaluated<C: CurveAffine> {
-    h_commitments: Vec<C>,
-    random_poly_commitment: C,
+    h_commitments: Commitment<C>,
+    random_poly_commitment: Commitment<C>,
     random_eval: C::Scalar,
 }
 
 pub struct Evaluated<C: CurveAffine, M: MSM<C>> {
+    #[cfg(feature = "fri")]
+    h_commitment: Commitment<C>,
+    #[cfg(not(feature = "fri"))]
     h_commitment: M,
-    random_poly_commitment: C,
+    random_poly_commitment: Commitment<C>,
     expected_h_eval: C::Scalar,
     random_eval: C::Scalar,
+    _marker: PhantomData<M>,
 }
 
 impl<C: CurveAffine> Argument<C> {
@@ -97,6 +104,7 @@ impl<C: CurveAffine> PartiallyEvaluated<C> {
         let expected_h_eval = expressions.fold(C::Scalar::ZERO, |h_eval, v| h_eval * &*y + &v);
         let expected_h_eval = expected_h_eval * ((xn - C::Scalar::ONE).invert().unwrap());
 
+        #[cfg(not(feature = "fri"))]
         let h_commitment =
             self.h_commitments
                 .iter()
@@ -108,6 +116,8 @@ impl<C: CurveAffine> PartiallyEvaluated<C> {
 
                     acc
                 });
+        #[cfg(feature = "fri")]
+        let h_commitment = self.h_commitments;
 
         Evaluated {
             expected_h_eval,
@@ -123,16 +133,32 @@ impl<C: CurveAffine, M: MSM<C>> Evaluated<C, M> {
         &self,
         x: ChallengeX<C>,
     ) -> impl Iterator<Item = VerifierQuery<C, M>> + Clone {
-        iter::empty()
+        #[cfg(feature = "fri")]
+        let ret = iter::empty()
+            .chain(Some(VerifierQuery::new_general_commitment(
+                &self.h_commitment,
+                *x,
+                self.expected_h_eval,
+            )))
+            .chain(Some(VerifierQuery::new_general_commitment(
+                &self.random_poly_commitment,
+                *x,
+                self.random_eval,
+            )));
+
+        #[cfg(not(feature = "fri"))]
+        let ret = iter::empty()
             .chain(Some(VerifierQuery::new_msm(
                 &self.h_commitment,
                 *x,
                 self.expected_h_eval,
             )))
-            .chain(Some(VerifierQuery::new_commitment(
+            .chain(Some(VerifierQuery::new_general_commitment(
                 &self.random_poly_commitment,
                 *x,
                 self.random_eval,
-            )))
+            )));
+
+        ret
     }
 }

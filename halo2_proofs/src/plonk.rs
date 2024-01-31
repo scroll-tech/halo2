@@ -7,6 +7,7 @@
 
 use blake2b_simd::Params as Blake2bParams;
 use group::ff::{Field, FromUniformBytes, PrimeField};
+use std::fs::read;
 
 use crate::arithmetic::CurveAffine;
 use crate::helpers::{
@@ -22,8 +23,8 @@ mod circuit;
 mod error;
 mod evaluation;
 mod keygen;
-#[allow(dead_code)]
-mod lookup;
+// #[allow(dead_code)]
+// mod lookup;
 mod mv_lookup;
 pub mod permutation;
 mod shuffle;
@@ -39,6 +40,7 @@ pub use keygen::*;
 pub use prover::*;
 pub use verifier::*;
 
+use crate::poly::commitment::{Commitment, CommitmentItem};
 use evaluation::Evaluator;
 use std::io;
 
@@ -47,7 +49,7 @@ use std::io;
 #[derive(Clone, Debug)]
 pub struct VerifyingKey<C: CurveAffine> {
     domain: EvaluationDomain<C::Scalar>,
-    fixed_commitments: Vec<C>,
+    fixed_commitments: Commitment<C>,
     permutation: permutation::VerifyingKey<C>,
     cs: ConstraintSystem<C::Scalar>,
     /// Cached maximum degree of `cs` (which doesn't change after construction).
@@ -117,9 +119,13 @@ where
         reader.read_exact(&mut num_fixed_columns)?;
         let num_fixed_columns = u32::from_be_bytes(num_fixed_columns);
 
-        let fixed_commitments: Vec<_> = (0..num_fixed_columns)
-            .map(|_| C::read(reader, format))
-            .collect::<Result<_, _>>()?;
+        let fixed_commitments: Vec<_> = if cfg!(fri) {
+            vec![CommitmentItem::<C::Scalar, C>::read(reader, format)?]
+        } else {
+            (0..num_fixed_columns)
+                .map(|_| CommitmentItem::<C::Scalar, C>::read(reader, format))
+                .collect::<Result<Vec<_>, _>>()?
+        };
 
         let permutation = permutation::VerifyingKey::read(reader, &cs.permutation, format)?;
 
@@ -178,7 +184,7 @@ where
 
     fn from_parts(
         domain: EvaluationDomain<C::Scalar>,
-        fixed_commitments: Vec<C>,
+        fixed_commitments: Vec<CommitmentItem<C::Scalar, C>>,
         permutation: permutation::VerifyingKey<C>,
         cs: ConstraintSystem<C::Scalar>,
         // selectors: Vec<Vec<bool>>,
@@ -240,7 +246,7 @@ where
     }
 
     /// Returns commitments of fixed polynomials
-    pub fn fixed_commitments(&self) -> &Vec<C> {
+    pub fn fixed_commitments(&self) -> &Vec<CommitmentItem<C::Scalar, C>> {
         &self.fixed_commitments
     }
 
@@ -269,7 +275,7 @@ pub struct PinnedVerificationKey<'a, C: CurveAffine> {
     scalar_modulus: &'static str,
     domain: PinnedEvaluationDomain<'a, C::Scalar>,
     cs: PinnedConstraintSystem<'a, C::Scalar>,
-    fixed_commitments: &'a Vec<C>,
+    fixed_commitments: &'a Commitment<C>,
     permutation: &'a permutation::VerifyingKey<C>,
 }
 /// This is a proving key which allows for the creation of proofs for a

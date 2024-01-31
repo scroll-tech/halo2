@@ -3,6 +3,7 @@ use std::iter;
 
 use super::super::{circuit::Any, ChallengeBeta, ChallengeGamma, ChallengeX};
 use super::{Argument, VerifyingKey};
+use crate::poly::commitment::CommitmentItem;
 use crate::{
     arithmetic::CurveAffine,
     plonk::{self, Error},
@@ -12,12 +13,12 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Committed<C: CurveAffine> {
-    permutation_product_commitments: Vec<C>,
+    permutation_product_commitments: Vec<CommitmentItem<C::Scalar, C>>,
 }
 
 #[derive(Debug)]
 pub struct EvaluatedSet<C: CurveAffine> {
-    pub permutation_product_commitment: C,
+    pub permutation_product_commitment: Vec<CommitmentItem<C::Scalar, C>>,
     pub permutation_product_eval: C::Scalar,
     pub permutation_product_next_eval: C::Scalar,
     pub permutation_product_last_eval: Option<C::Scalar>,
@@ -221,12 +222,12 @@ impl<C: CurveAffine> Evaluated<C> {
                 iter::empty()
                     // Open permutation product commitments at x and \omega^{-1} x
                     // Open permutation product commitments at x and \omega x
-                    .chain(Some(VerifierQuery::new_commitment(
+                    .chain(Some(VerifierQuery::new_general_commitment(
                         &set.permutation_product_commitment,
                         *x,
                         set.permutation_product_eval,
                     )))
-                    .chain(Some(VerifierQuery::new_commitment(
+                    .chain(Some(VerifierQuery::new_general_commitment(
                         &set.permutation_product_commitment,
                         x_next,
                         set.permutation_product_next_eval,
@@ -234,7 +235,7 @@ impl<C: CurveAffine> Evaluated<C> {
             }))
             // Open it at \omega^{last} x for all but the last set
             .chain(self.sets.iter().rev().skip(1).flat_map(move |set| {
-                Some(VerifierQuery::new_commitment(
+                Some(VerifierQuery::new_general_commitment(
                     &set.permutation_product_commitment,
                     x_last,
                     set.permutation_product_last_eval.unwrap(),
@@ -250,9 +251,21 @@ impl<C: CurveAffine> CommonEvaluated<C> {
         x: ChallengeX<C>,
     ) -> impl Iterator<Item = VerifierQuery<'r, C, M>> + Clone {
         // Open permutation commitments for each permutation argument at x
-        vkey.commitments
-            .iter()
-            .zip(self.permutation_evals.iter())
-            .map(move |(commitment, &eval)| VerifierQuery::new_commitment(commitment, *x, eval))
+        let ret = if cfg!(fri) {
+            self.permutation_evals
+                .iter()
+                .map(|&eval| {
+                    VerifierQuery::new_general_commitment(vkey.commitments.as_slice(), *x, eval)
+                })
+                .collect::<Vec<_>>()
+        } else {
+            vkey.commitments
+                .iter()
+                .zip(self.permutation_evals.iter())
+                .map(move |(commitment, &eval)| VerifierQuery::new_commitment(commitment, *x, eval))
+                .collect::<Vec<_>>()
+        };
+
+        ret.into_iter()
     }
 }

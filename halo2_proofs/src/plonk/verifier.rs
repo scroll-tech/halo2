@@ -7,7 +7,7 @@ use super::{
     VerifyingKey,
 };
 use crate::arithmetic::compute_inner_product;
-use crate::poly::commitment::{CommitmentScheme, Verifier};
+use crate::poly::commitment::{CommitmentItem, CommitmentScheme, Verifier};
 use crate::poly::VerificationStrategy;
 use crate::poly::{
     commitment::{Blind, Params},
@@ -91,7 +91,23 @@ where
     }
 
     // Hash the prover's advice commitments into the transcript and squeeze challenges
-    let (advice_commitments, challenges) = {
+    let (advice_commitments, challenges) = if cfg!(fri) {
+        let advice_commitments = vec![vec![]; num_proofs];
+        let mut challenges = vec![];
+        // todo:
+        for phase in vk.cs.phases() {
+            let merkle_cap = (0..=1)
+                // .into_iter()
+                .map(|i| {
+                    transcript
+                        .read_scalar()
+                        .map(|s| CommitmentItem::<Scheme::Scalar, Scheme::Curve>::Scalar(s))
+                })
+                .collect::<std::io::Result<Vec<CommitmentItem<Scheme::Scalar, Scheme::Curve>>>>()?;
+        }
+
+        (advice_commitments, challenges)
+    } else {
         let mut advice_commitments =
             vec![vec![Scheme::Curve::default(); vk.cs.num_advice_columns]; num_proofs];
         let mut challenges = vec![Scheme::Scalar::ZERO; vk.cs.num_challenges];
@@ -115,6 +131,16 @@ where
                 }
             }
         }
+
+        let advice_commitments = advice_commitments
+            .into_iter()
+            .map(|advice_commitments| {
+                advice_commitments
+                    .into_iter()
+                    .map(|c| CommitmentItem::Point(c))
+                    .collect()
+            })
+            .collect::<Vec<Vec<CommitmentItem<Scheme::Scalar, Scheme::Curve>>>>();
 
         (advice_commitments, challenges)
     };

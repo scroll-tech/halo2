@@ -1,7 +1,9 @@
+use std::io::Read;
 use std::iter;
 
 use super::super::{circuit::Expression, ChallengeGamma, ChallengeTheta, ChallengeX};
 use super::Argument;
+use crate::poly::commitment::Commitment;
 use crate::{
     arithmetic::CurveAffine,
     plonk::{Error, VerifyingKey},
@@ -11,7 +13,7 @@ use crate::{
 use ff::Field;
 
 pub struct Committed<C: CurveAffine> {
-    product_commitment: C,
+    product_commitment: Commitment<C>,
 }
 
 pub struct Evaluated<C: CurveAffine> {
@@ -31,7 +33,9 @@ impl<F: Field> Argument<F> {
     ) -> Result<Committed<C>, Error> {
         let product_commitment = transcript.read_point()?;
 
-        Ok(Committed { product_commitment })
+        Ok(Committed {
+            product_commitment: vec![product_commitment.into()],
+        })
     }
 }
 
@@ -121,18 +125,32 @@ impl<C: CurveAffine> Evaluated<C> {
     ) -> impl Iterator<Item = VerifierQuery<'r, C, M>> + Clone {
         let x_next = vk.domain.rotate_omega(*x, Rotation::next());
 
-        iter::empty()
-            // Open shuffle product commitment at x
-            .chain(Some(VerifierQuery::new_commitment(
-                &self.committed.product_commitment,
-                *x,
-                self.product_eval,
-            )))
-            // Open shuffle product commitment at \omega x
-            .chain(Some(VerifierQuery::new_commitment(
-                &self.committed.product_commitment,
-                x_next,
-                self.product_next_eval,
-            )))
+        if cfg!(fri) {
+            iter::empty()
+                // Open shuffle product commitment at x
+                .chain(Some(VerifierQuery::new_general_commitment(
+                    &self.committed.product_commitment,
+                    *x,
+                    self.product_eval,
+                )))
+                // Open shuffle product commitment at \omega x
+                .chain(Some(VerifierQuery::new_general_commitment(
+                    &self.committed.product_commitment,
+                    x_next,
+                    self.product_next_eval,
+                )))
+        } else {
+            iter::empty()
+                .chain(Some(VerifierQuery::new_commitment(
+                    &self.committed.product_commitment[0],
+                    *x,
+                    self.product_eval,
+                )))
+                .chain(Some(VerifierQuery::new_commitment(
+                    &self.committed.product_commitment[0],
+                    x_next,
+                    self.product_next_eval,
+                )))
+        }
     }
 }

@@ -17,6 +17,7 @@ pub(crate) mod verifier;
 
 pub use keygen::Assembly;
 
+use crate::poly::commitment::{Commitment, CommitmentItem};
 use std::io;
 
 /// A permutation argument.
@@ -84,18 +85,21 @@ impl Argument {
 /// The verifying key for a single permutation argument.
 #[derive(Debug, Clone)]
 pub struct VerifyingKey<C: CurveAffine> {
-    pub commitments: Vec<C>,
+    // hash-based: merkle cap of tree built from permutation sigma polys
+    // pairing-based: ec points
+    pub commitments: Commitment<C>,
 }
 
 impl<C: CurveAffine> VerifyingKey<C> {
     /// Returns commitments of sigma polynomials
-    pub fn commitments(&self) -> &Vec<C> {
+    pub fn commitments(&self) -> &Vec<CommitmentItem<C::Scalar, C>> {
         &self.commitments
     }
 
     pub(crate) fn write<W: io::Write>(&self, writer: &mut W, format: SerdeFormat) -> io::Result<()>
     where
         C: SerdeCurveAffine,
+        C::Scalar: SerdePrimeField,
     {
         for commitment in &self.commitments {
             commitment.write(writer, format)?;

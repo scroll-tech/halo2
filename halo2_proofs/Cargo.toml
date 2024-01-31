@@ -120,7 +120,8 @@ logup_skip_inv = []
 phase-check = []
 multiphase-mock-prover = []
 
-fri = []
+fri = ["ff/fri"]
+
 [lib]
 bench = false
 

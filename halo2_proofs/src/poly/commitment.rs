@@ -3,16 +3,64 @@ use super::{
     strategy::Guard,
     Coeff, LagrangeCoeff, Polynomial,
 };
+use crate::arithmetic::CurveExt;
+use crate::helpers::{CurveRead, SerdeCurveAffine, SerdePrimeField};
 use crate::poly::Error;
 use crate::transcript::{EncodedChallenge, TranscriptRead, TranscriptWrite};
+use crate::SerdeFormat;
 use ff::Field;
+use group::Curve;
+use halo2curves::serde::SerdeObject;
 use halo2curves::CurveAffine;
 use rand_core::RngCore;
+use std::ops::Deref;
 use std::{
     fmt::Debug,
     io::{self},
     ops::{Add, AddAssign, Mul, MulAssign},
 };
+
+#[derive(Clone, Debug)]
+pub enum CommitmentItem<S: Clone, C: Clone> {
+    Scalar(S),
+    Point(C),
+}
+
+pub type Commitment<C: CurveAffine> = Vec<CommitmentItem<C::Scalar, C>>;
+
+impl<C: Curve> From<C> for CommitmentItem<C::Scalar, C> {
+    fn from(value: C) -> Self {
+        Self::Point(value)
+    }
+}
+
+impl<S: Clone, C: Clone> Deref for CommitmentItem<S, C> {
+    type Target = Option<C>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            CommitmentItem::Scalar(_) => &None,
+            CommitmentItem::Point(c) => &Some(*c),
+        }
+    }
+}
+
+impl<S: SerdePrimeField, C: SerdeCurveAffine> CommitmentItem<S, C> {
+    pub fn read<R: io::Read>(reader: &mut R, format: SerdeFormat) -> io::Result<Self> {
+        if cfg!(fri) {
+            S::read(reader, format).map(|s| CommitmentItem::Scalar(s))
+        } else {
+            C::read(reader, format).map(|c| CommitmentItem::Point(c))
+        }
+    }
+
+    pub fn write<W: io::Write>(&self, writer: &mut W, format: SerdeFormat) -> io::Result<()> {
+        match self {
+            CommitmentItem::Scalar(s) => s.write(writer, format),
+            CommitmentItem::Point(c) => c.write(writer, format),
+        }
+    }
+}
 
 /// Defines components of a commitment scheme.
 pub trait CommitmentScheme {
@@ -39,12 +87,12 @@ pub trait CommitmentScheme {
     fn read_params<R: io::Read>(reader: &mut R) -> io::Result<Self::ParamsProver>;
 }
 
-/// Parameters for circuit sysnthesis and prover parameters.
+/// Parameters for circuit synthesis and prover parameters.
 pub trait Params<'params, C: CurveAffine>: Sized + Clone {
     /// Multi scalar multiplication engine
     type MSM: MSM<C> + 'params;
 
-    /// Logaritmic size of the circuit
+    /// Logarithmic size of the circuit
     fn k(&self) -> u32;
 
     /// Size of the circuit
@@ -53,7 +101,7 @@ pub trait Params<'params, C: CurveAffine>: Sized + Clone {
     /// Downsize `Params` with smaller `k`.
     fn downsize(&mut self, k: u32);
 
-    /// Generates an empty multiscalar multiplication struct using the
+    /// Generates an empty multi-scalar multiplication struct using the
     /// appropriate params.
     fn empty_msm(&'params self) -> Self::MSM;
 
@@ -64,7 +112,13 @@ pub trait Params<'params, C: CurveAffine>: Sized + Clone {
         &self,
         poly: &Polynomial<C::ScalarExt, LagrangeCoeff>,
         r: Blind<C::ScalarExt>,
-    ) -> C::CurveExt;
+    ) -> Vec<CommitmentItem<C::Scalar, C::CurveExt>>;
+
+    fn commit_lagranges(
+        &self,
+        polys: &[Polynomial<C::ScalarExt, LagrangeCoeff>],
+        rs: &[Blind<C::ScalarExt>],
+    ) -> Vec<CommitmentItem<C::Scalar, C::CurveExt>>;
 
     /// Writes params to a buffer.
     fn write<W: io::Write>(&self, writer: &mut W) -> io::Result<()>;
@@ -84,8 +138,16 @@ pub trait ParamsProver<'params, C: CurveAffine>: Params<'params, C> {
     /// This computes a commitment to a polynomial described by the provided
     /// slice of coefficients. The commitment may be blinded by the blinding
     /// factor `r`.
-    fn commit(&self, poly: &Polynomial<C::ScalarExt, Coeff>, r: Blind<C::ScalarExt>)
-        -> C::CurveExt;
+    fn commit(
+        &self,
+        poly: &Polynomial<C::ScalarExt, Coeff>,
+        r: Blind<C::ScalarExt>,
+    ) -> Vec<CommitmentItem<C::Scalar, C::Curve>>;
+    fn commit_polys(
+        &self,
+        polys: &[Polynomial<C::ScalarExt, Coeff>],
+        rs: &[Blind<C::ScalarExt>],
+    ) -> Vec<CommitmentItem<C::Scalar, C::Curve>>;
 
     /// Getter for g generators
     fn get_g(&self) -> &[C];

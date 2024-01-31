@@ -12,6 +12,7 @@ use crate::transcript::{EncodedChallenge, TranscriptWrite};
 
 use group::Curve;
 use std::io::{self};
+use std::ops::Deref;
 
 /// Create a polynomial commitment opening proof for the polynomial defined
 /// by the coefficients `px`, the blinding factor `blind` used for the
@@ -56,7 +57,10 @@ pub fn create_proof<
     let s_poly_blind = Blind(C::Scalar::random(&mut rng));
 
     // Write a commitment to the random polynomial to the transcript
-    let s_poly_commitment = params.commit(&s_poly, s_poly_blind).to_affine();
+    let s_poly_commitment = params.commit(&s_poly, s_poly_blind)[0]
+        .deref()
+        .unwrap()
+        .to_affine();
     transcript.write_point(s_poly_commitment)?;
 
     // Challenge that will ensure that the prover cannot change P but can only

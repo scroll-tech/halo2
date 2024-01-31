@@ -15,6 +15,7 @@ use super::{
     permutation, Assigned, Challenge, Error, LagrangeCoeff, Polynomial, ProvingKey, VerifyingKey,
 };
 use crate::helpers::CopyCell;
+use crate::poly::commitment::CommitmentItem;
 use crate::{
     arithmetic::{parallelize, CurveAffine},
     circuit::Value,

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use super::commitment::{Blind, MSM};
+use crate::poly::commitment::CommitmentItem;
 use crate::{
     arithmetic::eval_polynomial,
     poly::{Coeff, Polynomial},
@@ -60,11 +61,27 @@ impl<'com, C: CurveAffine> Query<C::Scalar> for ProverQuery<'com, C> {
 
 impl<'com, C: CurveAffine, M: MSM<C>> VerifierQuery<'com, C, M> {
     /// Create a new verifier query based on a commitment
-    pub fn new_commitment(commitment: &'com C, point: C::Scalar, eval: C::Scalar) -> Self {
+    pub fn new_general_commitment(
+        commitment: &'com [CommitmentItem<C::Scalar, C>],
+        point: C::Scalar,
+        eval: C::Scalar,
+    ) -> Self {
         VerifierQuery {
             point,
             eval,
             commitment: CommitmentReference::Commitment(commitment),
+        }
+    }
+
+    pub fn new_commitment(
+        commitment: &'com CommitmentItem<C::Scalar, C>,
+        point: C::Scalar,
+        eval: C::Scalar,
+    ) -> Self {
+        VerifierQuery {
+            point,
+            eval,
+            commitment: CommitmentReference::Commitment(&[*commitment]),
         }
     }
 
@@ -102,7 +119,7 @@ impl<'com, C: CurveAffine, M: MSM<C>> Clone for VerifierQuery<'com, C, M> {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug)]
 pub enum CommitmentReference<'r, C: CurveAffine, M: MSM<C>> {
-    Commitment(&'r C),
+    Commitment(&'r [CommitmentItem<C::Scalar, C>]),
     MSM(&'r M),
 }
 

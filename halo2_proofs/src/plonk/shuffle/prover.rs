@@ -14,6 +14,7 @@ use crate::{
 use ff::WithSmallOrderMulGroup;
 use group::{ff::BatchInvert, Curve};
 use rand_core::RngCore;
+use std::ops::Deref;
 use std::{
     iter,
     ops::{Mul, MulAssign},
@@ -187,7 +188,10 @@ impl<F: WithSmallOrderMulGroup<3>> Argument<F> {
         }
 
         let product_blind = Blind(C::Scalar::random(rng));
-        let product_commitment = params.commit_lagrange(&z, product_blind).to_affine();
+        let product_commitment = params.commit_lagrange(&z, product_blind)[0]
+            .deref()
+            .unwrap()
+            .to_affine();
         let z = pk.vk.domain.lagrange_to_coeff(z);
 
         // Hash product commitment

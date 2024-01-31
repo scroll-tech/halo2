@@ -2,6 +2,7 @@ use std::iter;
 
 use super::super::{circuit::Expression, ChallengeBeta, ChallengeTheta, ChallengeX};
 use super::Argument;
+use crate::poly::commitment::CommitmentItem;
 use crate::{
     arithmetic::CurveAffine,
     plonk::{Error, VerifyingKey},
@@ -11,12 +12,12 @@ use crate::{
 use ff::{BatchInvert, Field, PrimeField, WithSmallOrderMulGroup};
 
 pub struct PreparedCommitments<C: CurveAffine> {
-    m_commitment: C,
+    m_commitment: Vec<CommitmentItem<C::Scalar, C>>,
 }
 
 pub struct Committed<C: CurveAffine> {
     prepared: PreparedCommitments<C>,
-    phi_commitment: C,
+    phi_commitment: Vec<CommitmentItem<C::Scalar, C>>,
 }
 
 pub struct Evaluated<C: CurveAffine> {
@@ -170,17 +171,17 @@ impl<C: CurveAffine> Evaluated<C> {
         let x_next = vk.domain.rotate_omega(*x, Rotation::next());
 
         iter::empty()
-            .chain(Some(VerifierQuery::new_commitment(
+            .chain(Some(VerifierQuery::new_general_commitment(
                 &self.committed.phi_commitment,
                 *x,
                 self.phi_eval,
             )))
-            .chain(Some(VerifierQuery::new_commitment(
+            .chain(Some(VerifierQuery::new_general_commitment(
                 &self.committed.phi_commitment,
                 x_next,
                 self.phi_next_eval,
             )))
-            .chain(Some(VerifierQuery::new_commitment(
+            .chain(Some(VerifierQuery::new_general_commitment(
                 &self.committed.prepared.m_commitment,
                 *x,
                 self.m_eval,

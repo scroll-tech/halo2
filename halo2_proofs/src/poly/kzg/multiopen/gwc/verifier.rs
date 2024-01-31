@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use super::{construct_intermediate_sets, ChallengeU, ChallengeV};
 use crate::arithmetic::powers;
@@ -84,8 +85,10 @@ where
 
                     let commitment = match query.get_commitment() {
                         CommitmentReference::Commitment(c) => {
+                            // for pairing-based pcs, each commitment has only one CommitmentItem.
+                            let c = &c[0];
                             let mut msm = MSMKZG::<E>::new();
-                            msm.append_term(power_of_v, (*c).into());
+                            msm.append_term(power_of_v, c.deref().unwrap().into());
                             msm
                         }
                         CommitmentReference::MSM(msm) => {

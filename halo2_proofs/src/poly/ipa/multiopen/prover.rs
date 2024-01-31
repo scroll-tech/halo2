@@ -12,6 +12,7 @@ use group::Curve;
 use rand_core::RngCore;
 use std::io;
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 /// IPA multi-open prover
 #[derive(Debug)]
@@ -93,7 +94,10 @@ impl<'params, C: CurveAffine> Prover<'params, IPACommitmentScheme<C>> for Prover
             .unwrap();
 
         let q_prime_blind = Blind(C::Scalar::random(&mut rng));
-        let q_prime_commitment = self.params.commit(&q_prime_poly, q_prime_blind).to_affine();
+        let q_prime_commitment = self.params.commit(&q_prime_poly, q_prime_blind)[0]
+            .deref()
+            .unwrap()
+            .to_affine();
 
         transcript.write_point(q_prime_commitment)?;
 

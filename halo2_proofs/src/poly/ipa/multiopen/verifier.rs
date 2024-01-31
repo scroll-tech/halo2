@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use ff::Field;
 
@@ -69,7 +70,8 @@ impl<'params, C: CurveAffine> Verifier<'params, IPACommitmentScheme<C>>
                 let (q_commitment, x_1_power) = &mut q_commitments[set_idx];
                 match new_commitment {
                     CommitmentReference::Commitment(c) => {
-                        q_commitment.append_term(*x_1_power, (*c).into());
+                        let c = &c[0];
+                        q_commitment.append_term(*x_1_power, c.deref().unwrap().into());
                     }
                     CommitmentReference::MSM(msm) => {
                         let mut msm = msm.clone();

@@ -18,7 +18,7 @@ use crate::transcript::{EncodedChallenge, TranscriptRead};
 use ff::Field;
 use halo2curves::pairing::{Engine, MultiMillerLoop};
 use halo2curves::CurveExt;
-use std::ops::MulAssign;
+use std::ops::{Deref, MulAssign};
 
 /// Concrete KZG multiopen verifier with SHPLONK variant
 #[derive(Debug)]
@@ -103,8 +103,9 @@ where
                     let r_eval = power_of_y * eval_polynomial(&r_x[..], *u);
                     let msm = match commitment_data.get() {
                         CommitmentReference::Commitment(c) => {
+                            let c = &c[0];
                             let mut msm = MSMKZG::<E>::new();
-                            msm.append_term(power_of_y, (*c).into());
+                            msm.append_term(power_of_y, c.deref().unwrap().into());
                             msm
                         }
                         CommitmentReference::MSM(msm) => {

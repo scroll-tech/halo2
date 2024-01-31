@@ -1,6 +1,8 @@
-use crate::arithmetic::{best_multiexp, g_to_lagrange, parallelize};
+use crate::arithmetic::{best_multiexp, g_to_lagrange, parallelize, CurveAffine};
 use crate::helpers::SerdeCurveAffine;
-use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, ParamsVerifier};
+use crate::poly::commitment::{
+    Blind, CommitmentItem, CommitmentScheme, Params, ParamsProver, ParamsVerifier,
+};
 use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 use crate::SerdeFormat;
 
@@ -314,13 +316,25 @@ where
         MSMKZG::new()
     }
 
-    fn commit_lagrange(&self, poly: &Polynomial<E::Fr, LagrangeCoeff>, _: Blind<E::Fr>) -> E::G1 {
+    fn commit_lagrange(
+        &self,
+        poly: &Polynomial<E::Fr, LagrangeCoeff>,
+        _: Blind<E::Fr>,
+    ) -> Vec<CommitmentItem<<E::G1 as CurveExt>::ScalarExt, E::G1>> {
         let mut scalars = Vec::with_capacity(poly.len());
         scalars.extend(poly.iter());
         let bases = &self.g_lagrange;
         let size = scalars.len();
         assert!(bases.len() >= size);
-        best_multiexp(&scalars, &bases[0..size])
+        vec![best_multiexp(&scalars, &bases[0..size]).into()]
+    }
+
+    fn commit_lagranges(
+        &self,
+        polys: &[Polynomial<E::Fr, LagrangeCoeff>],
+        rs: &[Blind<E::Fr>],
+    ) -> Vec<CommitmentItem<E::Fr, E::G1>> {
+        unimplemented!()
     }
 
     /// Writes params to a buffer.
@@ -358,17 +372,29 @@ where
         Self::setup(k, OsRng)
     }
 
-    fn commit(&self, poly: &Polynomial<E::Fr, Coeff>, _: Blind<E::Fr>) -> E::G1 {
+    fn commit(
+        &self,
+        poly: &Polynomial<E::Fr, Coeff>,
+        _: Blind<E::Fr>,
+    ) -> Vec<CommitmentItem<<E::G1 as CurveExt>::ScalarExt, E::G1>> {
         let mut scalars = Vec::with_capacity(poly.len());
         scalars.extend(poly.iter());
         let bases = &self.g;
         let size = scalars.len();
         assert!(bases.len() >= size);
-        best_multiexp(&scalars, &bases[0..size])
+        vec![best_multiexp(&scalars, &bases[0..size]).into()]
     }
 
     fn get_g(&self) -> &[E::G1Affine] {
         &self.g
+    }
+
+    fn commit_polys(
+        &self,
+        polys: &[Polynomial<E::Fr, Coeff>],
+        rs: &[Blind<E::Fr>],
+    ) -> Vec<CommitmentItem<E::Fr, E::G1>> {
+        unimplemented!()
     }
 }
 

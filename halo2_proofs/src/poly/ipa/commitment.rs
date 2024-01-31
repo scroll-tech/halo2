@@ -5,7 +5,9 @@
 
 use crate::arithmetic::{best_multiexp, g_to_lagrange, parallelize, CurveAffine, CurveExt};
 use crate::helpers::CurveRead;
-use crate::poly::commitment::{Blind, CommitmentScheme, Params, ParamsProver, ParamsVerifier};
+use crate::poly::commitment::{
+    Blind, CommitmentItem, CommitmentScheme, Params, ParamsProver, ParamsVerifier,
+};
 use crate::poly::ipa::msm::MSMIPA;
 use crate::poly::{Coeff, LagrangeCoeff, Polynomial};
 
@@ -89,7 +91,7 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         &self,
         poly: &Polynomial<C::Scalar, LagrangeCoeff>,
         r: Blind<C::Scalar>,
-    ) -> C::Curve {
+    ) -> Vec<CommitmentItem<C::Scalar, C::Curve>> {
         let mut tmp_scalars = Vec::with_capacity(poly.len() + 1);
         let mut tmp_bases = Vec::with_capacity(poly.len() + 1);
 
@@ -99,7 +101,15 @@ impl<'params, C: CurveAffine> Params<'params, C> for ParamsIPA<C> {
         tmp_bases.extend(self.g_lagrange.iter());
         tmp_bases.push(self.w);
 
-        best_multiexp::<C>(&tmp_scalars, &tmp_bases)
+        vec![best_multiexp::<C>(&tmp_scalars, &tmp_bases).into()]
+    }
+
+    fn commit_lagranges(
+        &self,
+        polys: &[Polynomial<C::ScalarExt, LagrangeCoeff>],
+        rs: &[Blind<C::ScalarExt>],
+    ) -> Vec<CommitmentItem<C::Scalar, C::CurveExt>> {
+        unimplemented!()
     }
 
     /// Writes params to a buffer.
@@ -209,7 +219,11 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
     /// This computes a commitment to a polynomial described by the provided
     /// slice of coefficients. The commitment will be blinded by the blinding
     /// factor `r`.
-    fn commit(&self, poly: &Polynomial<C::Scalar, Coeff>, r: Blind<C::Scalar>) -> C::Curve {
+    fn commit(
+        &self,
+        poly: &Polynomial<C::Scalar, Coeff>,
+        r: Blind<C::Scalar>,
+    ) -> Vec<CommitmentItem<C::Scalar, C::CurveExt>> {
         let mut tmp_scalars = Vec::with_capacity(poly.len() + 1);
         let mut tmp_bases = Vec::with_capacity(poly.len() + 1);
 
@@ -219,11 +233,19 @@ impl<'params, C: CurveAffine> ParamsProver<'params, C> for ParamsIPA<C> {
         tmp_bases.extend(self.g.iter());
         tmp_bases.push(self.w);
 
-        best_multiexp::<C>(&tmp_scalars, &tmp_bases)
+        vec![best_multiexp::<C>(&tmp_scalars, &tmp_bases).into()]
     }
 
     fn get_g(&self) -> &[C] {
         &self.g
+    }
+
+    fn commit_polys(
+        &self,
+        polys: &[Polynomial<C::ScalarExt, Coeff>],
+        rs: &[Blind<C::ScalarExt>],
+    ) -> Vec<CommitmentItem<C::Scalar, C::Curve>> {
+        unimplemented!()
     }
 }
 
