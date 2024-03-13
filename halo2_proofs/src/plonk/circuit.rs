@@ -1846,7 +1846,11 @@ impl<F: Field> ConstraintSystem<F> {
 
         let mut lookups: Vec<_> = vec![];
         for v in self.lookups_map.values() {
-            let LookupTracker { table, inputs, name } = v;
+            let LookupTracker {
+                table,
+                inputs,
+                name,
+            } = v;
             let name = Box::leak(name.clone().into_boxed_str());
             let mut args = vec![super::mv_lookup::Argument::new(
                 name,
