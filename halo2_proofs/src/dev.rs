@@ -7,8 +7,9 @@ use std::ops::{Add, Mul, Neg, Range};
 use std::sync::Arc;
 
 use blake2b_simd::blake2b;
-#[cfg(feature = "mock-batch-inv")]
+#[cfg(any(feature = "mock-batch-inv", feature = "multiphase-mock-prover"))]
 use ff::BatchInvert;
+
 use ff::Field;
 use ff::FromUniformBytes;
 
@@ -23,8 +24,6 @@ use crate::{
 
 #[cfg(feature = "multiphase-mock-prover")]
 use crate::{plonk::sealed::SealedPhase, plonk::FirstPhase, plonk::Phase};
-#[cfg(feature = "multiphase-mock-prover")]
-use ff::BatchInvert;
 
 #[cfg(feature = "multicore")]
 use crate::multicore::{
