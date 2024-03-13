@@ -851,8 +851,6 @@ impl<'a, F: Field> Assignment<F> for MockProver<'a, F> {
         let advice_anno = anno().into();
         #[cfg(not(feature = "mock-batch-inv"))]
         let val_res = to().into_field().evaluate().assign();
-        #[cfg(feature = "mock-batch-inv")]
-        panic!("confiugred mock-batch-inv !!!");
 
         #[cfg(feature = "mock-batch-inv")]
         let val_res = to().into_field().assign();
@@ -1091,22 +1089,12 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
         instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
         let n = 1 << k;
-
-        #[cfg(feature = "mock-batch-inv")]
-        println!("confiugred mock-batch-inv !!!");
-        #[cfg(not(feature = "mock-batch-inv"))]
-        println!("not configured mock-batch-inv !!!");
-
-        let cell_value_size = mem::size_of::<CellValue<F>>();
-        println!("Size of CellValue type: {} bytes", cell_value_size);
-
         let mut cs = ConstraintSystem::default();
         #[cfg(feature = "circuit-params")]
         let config = ConcreteCircuit::configure_with_params(&mut cs, circuit.params());
         #[cfg(not(feature = "circuit-params"))]
         let config = ConcreteCircuit::configure(&mut cs);
         let cs = cs.chunk_lookups();
-        let cs = cs;
         let cs = Arc::new(cs);
 
         assert!(
@@ -1279,9 +1267,6 @@ impl<'a, F: FromUniformBytes<64> + Ord> MockProver<'a, F> {
             log::info!("MockProver synthesize took {:?}", syn_time.elapsed());
         }
         let prover_cs = Arc::try_unwrap(prover.cs).unwrap();
-        // let (cs, selector_polys) = prover
-        //     .cs
-        //     .compress_selectors(prover.selectors_vec.as_ref().clone());
         let (cs, selector_polys) =
             prover_cs.compress_selectors(prover.selectors_vec.as_ref().clone());
         prover.cs = Arc::new(cs);
@@ -2346,7 +2331,6 @@ mod tests {
     use super::{FailureLocation, MockProver, VerifyFailure};
     use crate::{
         circuit::{Layouter, SimpleFloorPlanner, Value},
-        dev::CellValue,
         plonk::{
             sealed::SealedPhase, Advice, Any, Circuit, Column, ConstraintSystem, Error, Expression,
             FirstPhase, Fixed, Instance, Selector, TableColumn,
