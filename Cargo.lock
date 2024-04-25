@@ -836,7 +836,7 @@ dependencies = [
  "ff",
  "group",
  "halo2_proofs",
- "halo2curves",
+ "halo2curves 0.3.3",
  "lazy_static",
  "plotters",
  "pprof",
@@ -869,7 +869,7 @@ dependencies = [
  "group",
  "gumdrop",
  "halo2_legacy_pdqsort",
- "halo2curves",
+ "halo2curves 0.3.3",
  "lazy_static",
  "log",
  "maybe-rayon",
@@ -903,8 +903,25 @@ dependencies = [
  "paste",
  "rand",
  "rand_core",
+ "static_assertions",
+ "subtle",
+]
+
+[[package]]
+name = "halo2curves"
+version = "0.3.3"
+source = "git+https://github.com/kunxian-xia/halo2curves?branch=feat/sp1#f3ca06c2c9b84d1661d76112d38d21418e208c28"
+dependencies = [
+ "ff",
+ "group",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "pasta_curves",
+ "paste",
+ "rand",
+ "rand_core",
  "serde",
- "serde_arrays",
  "static_assertions",
  "subtle",
 ]
@@ -1381,7 +1398,7 @@ name = "poseidon"
 version = "0.2.0"
 source = "git+https://github.com/scroll-tech/poseidon.git?branch=main#5787dd3d2ce7a9e9601a035c396ac0c03449b54d"
 dependencies = [
- "halo2curves",
+ "halo2curves 0.1.0",
  "subtle",
 ]
 
@@ -1663,15 +1680,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce31e24b01e1e524df96f1c2fdd054405f8d7376249a5110886fb4b658484789"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde_arrays"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38636132857f68ec3d5f3eb121166d2af33cb55174c4d5ff645db6165cbef0fd"
-dependencies = [
- "serde",
 ]
 
 [[package]]
