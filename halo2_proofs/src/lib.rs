@@ -10,6 +10,7 @@
 // #![deny(unsafe_code)]
 #![allow(clippy::uninit_vec)]
 #![allow(clippy::too_many_arguments)]
+#![feature(associated_type_defaults)]
 
 #[cfg(feature = "counter")]
 extern crate lazy_static;

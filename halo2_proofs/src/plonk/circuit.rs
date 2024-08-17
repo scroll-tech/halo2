@@ -794,7 +794,7 @@ pub trait Circuit<F: Field> {
     type FloorPlanner: FloorPlanner;
     /// Optional circuit configuration parameters. Requires the `circuit-params` feature.
     #[cfg(feature = "circuit-params")]
-    type Params: Default;
+    type Params: Default = ();
 
     /// Returns a copy of this circuit with no witness values (i.e. all witnesses set to
     /// `None`). For most circuits, this will be equal to `Self::default()`.
