@@ -9,8 +9,7 @@ use crate::plonk::{
 };
 
 mod value;
-pub(crate) use value::value_dev;
-pub use value::Value;
+pub use value::{Value, value_dev};
 
 pub mod floor_planner;
 pub use floor_planner::single_pass::SimpleFloorPlanner;
